@@ -1,0 +1,9 @@
+{
+  "name": "pull",
+  "kind": "sfx",
+  "moment": "REVEAL wrong: the hand drags a block out of the tower",
+  "prompt": "A wooden block dragged sideways out of a tight stack of wooden blocks, rough wood scraping against wood",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:11.869Z"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "take-even",
+  "kind": "sfx",
+  "moment": "reveal: a split criterion is set on the rail at the fulcrum",
+  "prompt": "A small brass weight set gently down on a brass rail, a light soft tap",
+  "duration": 0.7,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:59.407Z"
+}

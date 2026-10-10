@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pre-shift Walk</title>
+<style>
+  :root{ --ink:#E8E4DC; --dim:#9AA0A8; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0d1014;color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+
+  #hud{position:fixed;left:12px;right:12px;bottom:12px;z-index:10;pointer-events:none;
+    padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-end;
+    font-size:14px;letter-spacing:.06em;text-transform:uppercase;
+    background:rgba(10,13,17,.88);border:1px solid rgba(232,228,220,.2);border-radius:8px;opacity:.96}
+  #keys span{display:inline-block;margin-right:15px}
+  #keys b{font-weight:650;opacity:1}
+  #tele{text-align:right;font-variant-numeric:tabular-nums;line-height:1.8;opacity:.8;display:none}
+  body.dev #tele{display:block}
+
+  #panel{position:fixed;top:0;right:0;z-index:12;width:340px;padding:16px 18px 18px;
+    background:rgba(14,18,24,.82);backdrop-filter:blur(14px);
+    border-left:1px solid rgba(232,228,220,.1);border-bottom:1px solid rgba(232,228,220,.1);
+    border-bottom-left-radius:12px;font-size:11px;
+    transform:translateX(102%);transition:.42s cubic-bezier(.4,0,.2,1)}
+  #panel.on{transform:none}
+  body:not(.dev) .devOnly{display:none}
+  #panel h3{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;opacity:.45;
+    margin:0 0 10px;font-weight:500}
+  #panel h3+h3{margin-top:16px}
+  .row{display:flex;align-items:center;justify-content:space-between;margin:7px 0;gap:10px}
+  .row label{opacity:.82;font-size:10.5px}
+  .row input[type=range]{width:100px;accent-color:#7FB3A0;background:transparent}
+  .row .val{opacity:.5;font-variant-numeric:tabular-nums;min-width:32px;text-align:right}
+  .chk{width:13px;height:13px;accent-color:#7FB3A0}
+  .seg{display:flex;gap:3px;flex-wrap:wrap}
+  .seg button{font-family:inherit;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;
+    padding:5px 8px;border-radius:5px;cursor:pointer;color:var(--ink);
+    background:rgba(232,228,220,.07);border:1px solid rgba(232,228,220,.16);transition:.16s}
+  .seg button:hover{background:rgba(232,228,220,.17)}
+  .seg button.on{background:rgba(127,179,160,.3);border-color:rgba(127,179,160,.6)}
+  .note{opacity:.38;font-size:9.5px;line-height:1.65;margin-top:13px;font-style:italic}
+  .helpText{font-size:17px;line-height:1.5;margin:6px 0 0;opacity:.9}
+  .helpText b{font-weight:650}
+
+  #veil{position:fixed;inset:0;z-index:40;display:flex;align-items:safe center;justify-content:center;overflow-y:auto;padding:24px 0;
+    background:radial-gradient(120% 90% at 50% 30%,#1d242c 0%,#12171d 55%,#0a0d11 100%);
+    transition:opacity .9s ease}
+  #veil.gone{opacity:0;pointer-events:none}
+  .card{text-align:center;padding:0 28px;max-width:640px}
+  .intro{text-align:left;margin:22px auto 0;font-size:17px;line-height:1.5}
+  .intro h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:600;margin:16px 0 4px}
+  .intro ol{padding-left:22px}
+  .intro li{margin:3px 0}
+  .eyebrow{font-size:10px;letter-spacing:.42em;text-transform:uppercase;opacity:.45;margin-bottom:16px}
+  h1{font-size:clamp(26px,5vw,42px);font-weight:300;letter-spacing:.01em;line-height:1.15}
+  h1 em{font-style:normal;display:block;font-size:.4em;letter-spacing:.2em;margin-top:12px;
+    opacity:.5;text-transform:uppercase}
+  .controls{display:flex;flex-wrap:wrap;justify-content:center;gap:9px 16px;
+    max-width:430px;margin:22px auto 0;padding-top:20px;
+    border-top:1px solid rgba(232,228,220,.14)}
+  .controls span{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.55}
+  .controls b{font-weight:650;opacity:1}
+  #bar{width:200px;height:2px;background:rgba(232,228,220,.14);margin:26px auto 10px;border-radius:2px;overflow:hidden}
+  #barIn{height:100%;width:0%;background:#7FB3A0;transition:width .25s ease}
+  #stat{font-size:10px;letter-spacing:.2em;text-transform:uppercase;opacity:.45;min-height:14px}
+  #enter{margin-top:24px;display:none;cursor:pointer;border:1px solid rgba(232,228,220,.3);
+    background:rgba(232,228,220,.06);color:var(--ink);padding:12px 34px;border-radius:999px;
+    font-family:inherit;font-size:17px;letter-spacing:.04em;transition:.3s}
+  #enter:hover{background:rgba(232,228,220,.16)}
+  #enter.on{display:inline-block}
+  #introStartOver{margin:24px 0 0 10px;display:none;cursor:pointer;border:1px solid rgba(232,228,220,.22);
+    background:transparent;color:var(--ink);padding:12px 22px;border-radius:999px;
+    font-family:inherit;font-size:15px;letter-spacing:.04em;opacity:.8}
+  #introStartOver:hover{opacity:1;background:rgba(232,228,220,.08)}
+  #enter.on + #introStartOver.on{display:inline-block}
+  #topBar #finishWalk.ready{background:#2F7A5C;border-color:#6FE8B0;color:#fff;font-weight:600}
+  #toast{position:fixed;left:50%;top:30px;transform:translateX(-50%);z-index:26;
+    background:rgba(14,18,24,.86);padding:8px 20px;border-radius:999px;font-size:11px;
+    letter-spacing:.16em;text-transform:uppercase;opacity:0;transition:.35s;
+    backdrop-filter:blur(10px);border:1px solid rgba(232,228,220,.14);pointer-events:none}
+  #toast.on{opacity:.92}
+  /* reading something posted: the name sits low, clear of the text being read */
+  #prompt.low{top:auto;bottom:96px}
+  #crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;
+    border-radius:50%;background:rgba(232,228,220,.5);z-index:9;pointer-events:none;
+    transition:.18s;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+  body.review #crosshair{opacity:0}
+  #prompt{position:fixed;left:50%;top:calc(50% + 26px);transform:translateX(-50%);z-index:11;
+    font-size:16px;letter-spacing:.06em;opacity:0;transition:.16s;pointer-events:none;
+    background:rgba(10,13,17,.9);border:1px solid rgba(232,228,220,.2);padding:6px 10px;border-radius:6px;white-space:nowrap}
+  #prompt.on{opacity:.95}
+  #prompt .key{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:4px;
+    background:rgba(111,232,176,.22);border:1px solid rgba(111,232,176,.5);font-weight:650;font-size:11px}
+  #prompt .done{margin-left:8px;opacity:.6;font-style:italic}
+  #crosshair.hot{background:rgba(111,232,176,.95);width:9px;height:9px;margin:-4.5px 0 0 -4.5px}
+  #prog{position:fixed;left:18px;top:16px;z-index:11;font-size:15px;letter-spacing:.1em;
+    text-transform:uppercase;opacity:.96;background:rgba(10,13,17,.9);border:1px solid rgba(232,228,220,.2);padding:8px 10px;border-radius:6px}
+  #prog .k{opacity:.5}
+  /* the walk list: what is left to check, in words */
+  #walkList{position:fixed;left:18px;top:100px;z-index:11;max-width:290px;font-size:15px;
+    background:rgba(10,13,17,.9);border:1px solid rgba(232,228,220,.2);border-radius:6px;padding:9px 12px 10px}
+  #walkList h3{font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.6;font-weight:600;margin:0 0 6px}
+  #walkList ul{list-style:none;margin:0;padding:0}
+  #walkList li{display:flex;align-items:baseline;gap:8px;padding:3px 0;line-height:1.35}
+  #walkList .box{flex:none;width:11px;height:11px;border:1.5px solid rgba(232,228,220,.6);border-radius:2px;transform:translateY(1px)}
+  #walkList li.done{opacity:.62}
+  #walkList li.done .box{border-color:rgba(111,232,176,.7);background:rgba(111,232,176,.35)}
+  #walkList .st{display:block;font-size:13px;opacity:.85}
+  body.guided #walkList{display:none}
+  @media (max-width:900px){ #walkList{font-size:13px;max-width:220px} }
+
+  #debrief{position:fixed;inset:0;z-index:30;display:flex;align-items:center;
+    justify-content:center;padding:24px;background:rgba(8,11,15,.72);backdrop-filter:blur(7px);
+    opacity:0;pointer-events:none;transition:.28s}
+  /* The inspect sheet docks to the right so the object stays in view beside
+     it: a close look, not a modal. Outside the panel the scene stays visible
+     and clickable; it starts below the top bar so Help and Finish stay reachable. */
+  #inspect{position:fixed;top:64px;right:16px;bottom:16px;left:auto;width:min(440px,40vw);z-index:30;
+    display:flex;flex-direction:column;justify-content:flex-start;opacity:0;pointer-events:none;
+    transform:translateX(12px);transition:.28s}
+  #inspect .sheet{width:100%;max-height:100%;padding:22px 22px 18px}
+  @media (max-width:900px){
+    #inspect{inset:auto 0 0 0;width:auto;height:55vh;transform:translateY(12px)}
+    #inspect .sheet{border-radius:14px 14px 0 0;height:100%}
+  }
+  #inspect.on,#debrief.on{opacity:1;pointer-events:auto;transform:none}
+  body.sheetOpen #guide,body.guided.sheetOpen #guide,body.sheetOpen #prompt,body.sheetOpen #crosshair,body.sheetOpen #walkList{display:none}
+  body.sheetOpen:not(.dev) #hud{display:none}
+  .sheetHead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px}
+  .sheetHead h2{margin-bottom:0}
+  #inspRules{flex:none;font:inherit;font-size:14px;color:var(--ink);background:rgba(232,228,220,.07);
+    border:1px solid rgba(232,228,220,.28);border-radius:6px;padding:5px 10px;cursor:pointer}
+  #inspRules:hover{background:rgba(232,228,220,.16)}
+  .rulesBox{margin-bottom:12px;border-left-color:#E8B41E}
+  .rulesBox h3{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+  .sheet{width:min(640px,100%);max-height:calc(100vh - 48px);overflow:auto;background:#141A21;border:1px solid rgba(232,228,220,.14);
+    border-radius:14px;padding:26px 28px 22px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .sheet h2{font-size:19px;font-weight:500;letter-spacing:.01em;margin-bottom:14px}
+  .obs{font-size:17px;line-height:1.6;opacity:.85;padding:13px 15px;border-radius:8px;
+    background:rgba(232,228,220,.05);border-left:2px solid rgba(232,228,220,.22)}
+  .obs ul.rules{list-style:none;padding:0;margin:0}
+  .obs ul.rules li{padding:4px 0 4px 18px;position:relative}
+  .obs ul.rules li::before{content:'';position:absolute;left:2px;top:.72em;width:7px;height:7px;background:#E8B41E}
+  .ask{font-size:13px;letter-spacing:.14em;text-transform:uppercase;opacity:.4;margin:20px 0 10px}
+  #inspActions{display:flex;flex-direction:column;gap:7px}
+  #inspActions button .means{display:block;font-size:14px;line-height:1.4;opacity:.8;margin-top:3px;font-weight:400}
+  #inspActions button .lbl{font-weight:650}
+  #inspActions button{font-family:inherit;font-size:17px;text-align:left;padding:11px 14px;
+    border-radius:8px;cursor:pointer;color:var(--ink);background:rgba(232,228,220,.05);
+    border:1px solid rgba(232,228,220,.14);transition:.15s}
+  #inspActions button:hover{background:rgba(111,232,176,.14);border-color:rgba(111,232,176,.45);
+    transform:translateX(3px)}
+  .verdict{margin-top:4px;font-size:17px;line-height:1.6;padding:14px 16px;border-radius:8px}
+  .verdict.good{background:rgba(111,232,176,.1);border:1px solid rgba(111,232,176,.32)}
+  .verdict.bad{background:rgba(232,140,120,.1);border:1px solid rgba(232,140,120,.32)}
+  .verdict b{display:block;margin-bottom:7px;font-size:12px;letter-spacing:.16em;text-transform:uppercase}
+  .verdict p{opacity:.82}
+  .verdict .alt{margin-top:11px;padding-top:11px;border-top:1px solid rgba(232,228,220,.13);opacity:.72}
+  .sheetClose{margin-top:18px;width:100%;font-family:inherit;font-size:17px;padding:11px;border-radius:999px;cursor:pointer;color:var(--ink);
+    background:rgba(232,228,220,.07);border:1px solid rgba(232,228,220,.2);transition:.2s}
+  .sheetClose:hover{background:rgba(232,228,220,.16)}
+  #debriefBody .score{font-size:17px;margin-bottom:16px;opacity:.9}
+  .resultTable{width:100%;border-collapse:collapse;font-size:17px}
+  .resultTable th{text-align:left;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;padding:0 8px 6px}
+  .resultTable td{padding:9px 8px;border-top:1px solid rgba(232,228,220,.12);vertical-align:top}
+  .resultTable tr.ok td:first-child{border-left:3px solid rgba(111,232,176,.7)}
+  .resultTable tr.no td:first-child{border-left:3px solid rgba(232,140,120,.8)}
+  .resultTable tr.no td:nth-child(2){color:#F0A898}
+  #routeChoice{display:flex;justify-content:center;gap:8px;margin:18px auto 0}
+  #routeChoice button,#guide button,#topBar button{font:inherit;font-size:16px;color:var(--ink);background:rgba(14,18,24,.92);border:1px solid rgba(232,228,220,.28);border-radius:6px;padding:9px 12px;cursor:pointer;white-space:nowrap}
+  #routeChoice button.on{border-color:#7FB3A0;background:rgba(127,179,160,.2)}
+  #guide{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:15;display:none;align-items:center;gap:8px;background:rgba(10,13,17,.94);border:1px solid rgba(232,228,220,.24);border-radius:8px;padding:8px}
+  body.guided #guide{display:flex}
+  #guideName{min-width:260px;text-align:center;font-size:16px}
+  #topBar{position:fixed;z-index:16;top:16px;right:18px;display:flex;gap:10px}
+  #soundToggle{position:fixed;z-index:16;left:18px;top:56px;font:inherit;font-size:12px;color:var(--ink);background:rgba(14,18,24,.92);border:1px solid rgba(232,228,220,.28);border-radius:6px;padding:7px 11px;cursor:pointer}
+  #soundToggle[aria-pressed=false]{opacity:.7}
+  .reportSection{margin-top:14px;font-size:17px}.reportSection h3{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}}
+  #err{position:fixed;inset:0;z-index:60;display:none;padding:36px;background:#161b22;
+    font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.7;
+    color:#E89A9A;white-space:pre-wrap;overflow:auto}
+</style>
+</head>
+<body>
+<!-- Built-in default content pack. Identical to content-packs/exploration-v2/default.json —
+     see content-packs/README.md for the pack contract. window.__ENGINE_CONTENT__, when
+     present, replaces this wholesale (see the Object.hasOwn check below). -->
+<script type="application/json" id="default-content">
+{
+  "id": "default",
+  "title": "Pre-shift Walk",
+  "subtitle": "Receiving bay safety check",
+  "noun": "item",
+  "situation": "Trucks arrive in 20 minutes. You are checking the receiving bay before the shift. Six things in the bay need a call.",
+  "goal": "Pick the right response for each of the six.",
+  "version": "1",
+  "actions": {
+    "none": { "label": "Leave it", "short": "left it",
+              "means": "Nothing here breaks the standard. Walk on." },
+    "fix": { "label": "Fix it myself", "short": "fixed it",
+             "means": "You can make it safe now, with what is in the bay, and you are trained to." },
+    "report": { "label": "Tag and report it", "short": "tagged and reported",
+                "means": "It needs someone with a license or a tool you do not have. Hang a tag and tell the lead." },
+    "stop": { "label": "Stop work and call a lead", "short": "stopped work",
+              "means": "Someone could be hurt at any moment. Keep people away and call the lead now." }
+  },
+  "board": {
+    "title": "Receiving bay rules",
+    "lines": [
+      "Small spills: anyone trained on the spill kit cleans up and puts a cone down.",
+      "You may move hand-carried items: crates, cartons, empty pallets.",
+      "Forklift moves: licensed drivers only.",
+      "Rack repairs and rack checks: maintenance only.",
+      "Damage under a load: clear the area before anyone works near it.",
+      "Tags and report cards are in the tag box by the dock door."
+    ]
+  },
+  "equipment": [
+    { "kind": "spillKit", "note": "Spill kit: absorbent pads, granules, gloves, waste bags. You are trained to use it." },
+    { "kind": "cones", "note": "Four cones and caution tape." },
+    { "kind": "tagBox", "note": "Yellow hang tags and report cards." }
+  ],
+  "sites": [
+    {
+      "id": "spill", "name": "Spill in the walkway", "at": [6.4, 0, 0.4],
+      "observe": "Hydraulic fluid, about half a meter across, on the yellow walkway line. Still wet. No cone or absorbent down.",
+      "correct": "fix",
+      "why": "A wet spill in a walkway can cause a fall right now. You are trained to clean it up. Use the spill kit and a cone.",
+      "wrong": {
+        "none": "Wet spills in walkways are a top cause of injuries in a receiving bay.",
+        "report": "You can clean this yourself. A report leaves it on the floor until the lead arrives.",
+        "stop": "You could clean this in two minutes. Stopping the area halts the shift for nothing."
+      }
+    },
+    {
+      "id": "upright", "name": "Damaged rack post", "at": [-3.2, 0, -5.62],
+      "observe": "The front post of a loaded rack is bent outward near the floor. The paint is split along the bend. Fresh forklift scuffs mark the floor beside it.",
+      "correct": "stop",
+      "why": "A bent post under load can collapse. Nobody works near it until a qualified person checks it.",
+      "wrong": {
+        "none": "A bent post has already lost much of its strength. Loaded racks fail fast.",
+        "fix": "Rack repair needs a qualified person. Bracing it yourself hides the damage.",
+        "report": "A tag helps, but people keep working under a loaded rack while you wait."
+      }
+    },
+    {
+      "id": "blocked", "name": "Blocked fire extinguisher", "at": [-8.1, 0, 1.6],
+      "observe": "Two stacked crates sit right in front of the fire extinguisher. You can only reach it by climbing over them. The sign above is clear.",
+      "correct": "fix",
+      "why": "Extinguishers must be reachable at all times. You can move two crates. Do it now and mention it at handover.",
+      "wrong": {
+        "none": "In a fire, nobody has time to move crates.",
+        "report": "You can clear this in 30 seconds. A report leaves it blocked meanwhile.",
+        "stop": "You can clear this yourself. Stopping the area is too much."
+      }
+    },
+    {
+      "id": "overhang", "name": "Load hanging over the aisle", "at": [-6.6, 0, -1.4],
+      "observe": "A wrapped load on the second shelf sticks out about 30 cm over the aisle. The wrap is intact. The load looks stable.",
+      "correct": "report",
+      "why": "A load over an aisle can fall on someone. Moving it needs a forklift and a licensed driver. Tag it, keep people out from under it, and report it.",
+      "wrong": {
+        "none": "A load sticking into an aisle is how a pallet lands on someone.",
+        "fix": "Pulling a load at shelf height from the floor can bring it down on you.",
+        "stop": "The load is stable and the fix is routine. Closing the bay is too much."
+      }
+    },
+    {
+      "id": "pallets", "name": "Stack of empty pallets", "at": [6.6, 0, 3.8], "fine": true,
+      "observe": "Eight empty pallets, stacked square and about waist high. They sit inside a marked staging area, clear of the walkway. No damage on the top boards.",
+      "correct": "none",
+      "why": "This is correct storage. Flagging safe things teaches people to ignore your flags.",
+      "wrong": {
+        "fix": "There is nothing to fix. Restacking wastes shift time.",
+        "report": "Reporting correct storage fills the reports with noise.",
+        "stop": "Stopping work over neat pallets is a big overreaction."
+      }
+    },
+    {
+      "id": "drums", "name": "Drums against the wall", "at": [7.6, 0, -5.4], "fine": true,
+      "observe": "Three sealed drums stand upright against the wall. Caps closed, labels readable. Not stacked, and clear of the traffic lane.",
+      "correct": "none",
+      "why": "Upright, sealed, labeled, not stacked and out of the way. That is correct storage.",
+      "wrong": {
+        "fix": "Moving correctly stored drums does nothing and risks a lifting injury.",
+        "report": "Nothing here breaks the standard.",
+        "stop": "Sealed, labeled, upright drums are no reason to stop work."
+      }
+    }
+  ]
+}
+</script>
+<div id="app"></div>
+
+<div id="hud">
+  <div id="keys"></div>
+  <div id="tele"></div>
+</div>
+
+<div id="panel">
+  <h3>Help</h3>
+  <p class="helpText"><b>Free walk.</b> Click the room to look around. W A S D walks. Shift runs. Click an item, or press E, to inspect it. Esc frees the mouse.</p>
+  <p class="helpText"><b>Guided tour.</b> Previous and Next move between items. Inspect opens one. Arrow keys work too.</p>
+  <p class="helpText"><b>Room view.</b> Press R to see the whole room. Press R again to go back.</p>
+  <div class="devOnly">
+  <h3>Theme pack</h3>
+  <div class="row"><div class="seg" id="themeSeg">
+    <button type="button" data-t="warehouse" class="on">Warehouse</button>
+    <button type="button" data-t="hospital">Hospital</button>
+    <button type="button" data-t="retail">Retail</button>
+  </div></div>
+  <h3>View</h3>
+  <div class="row"><label>Show colliders</label><input id="dCol" type="checkbox" class="chk"></div>
+  <div class="row"><label>Show light sources</label><input id="dLit" type="checkbox" class="chk"></div>
+  <div class="row"><label>Ceiling</label><input id="dCeil" type="checkbox" class="chk" checked></div>
+  <h3>Look</h3>
+  <div class="row"><label>Exposure</label><input id="pExp" type="range" min="40" max="200" value="100"><span class="val" id="pExpV">1.00</span></div>
+  <div class="row"><label>Fixture warmth</label><input id="pWarm" type="range" min="0" max="200" value="100"><span class="val" id="pWarmV">1.00</span></div>
+  <p class="note">Every surface here is generated in code. No GLB, no textures, no image files.
+    Colliders are authored as each prop is built, so they cannot drift from the geometry.</p>
+  </div>
+</div>
+
+<div id="prog"></div>
+<div id="walkList" role="region" aria-labelledby="walkListHead"><h3 id="walkListHead">Items to check</h3><ul></ul></div>
+<div id="prompt"></div>
+<div id="toast"></div>
+<div id="topBar">
+  <button id="helpToggle" type="button" aria-controls="panel" aria-expanded="false">Help</button>
+  <button id="finishWalk" type="button">Finish inspection</button>
+</div>
+<button id="soundToggle" type="button">Sound on</button>
+<div id="guide" aria-label="Guided site navigation">
+  <button id="guidePrev" type="button">Previous</button><span id="guideName"></span>
+  <button id="guideInspect" type="button">Inspect</button><button id="guideNext" type="button">Next</button>
+</div>
+
+<div id="inspect" role="dialog" aria-labelledby="inspTitle"><div class="sheet">
+  <div class="sheetHead"><h2 id="inspTitle"></h2>
+    <button id="inspRules" type="button" aria-expanded="false" aria-controls="inspRulesBox">Bay rules</button></div>
+  <div class="obs rulesBox" id="inspRulesBox" hidden></div>
+  <div class="obs" id="inspObs"></div>
+  <div class="ask">What do you do?</div>
+  <div id="inspActions"></div>
+  <div class="verdict" id="inspVerdict"></div>
+  <button class="sheetClose" id="inspClose">Close</button>
+</div></div>
+
+<div id="debrief"><div class="sheet">
+  <h2 id="debriefTitle">Results</h2>
+  <div id="debriefBody"></div>
+  <button class="sheetClose" id="startOver" type="button">Start over</button>
+  <button class="sheetClose" id="debriefClose">Close</button>
+</div></div>
+<div id="crosshair"></div>
+<div id="err"></div>
+
+<div id="veil">
+  <div class="card">
+    <h1 id="introTitle">Pre-shift Walk<em id="introSub">Receiving bay safety check</em></h1>
+    <div class="intro" id="introBody"></div>
+    <div id="routeChoice" aria-label="How to move">
+      <button type="button" data-route="walk" class="on" aria-pressed="true">Free walk</button>
+      <button type="button" data-route="guided" aria-pressed="false">Guided tour</button>
+    </div>
+    <div id="bar"><div id="barIn"></div></div>
+    <div id="stat">Loading</div>
+    <button id="enter">Start</button><button id="introStartOver" type="button">Start over</button>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "scorm": "./scorm.js",
+  "eventlog": "./eventlog.js",
+  "learning": "./learning.js"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { connectScorm, SUSPEND_LIMIT } from 'scorm';
+// The log format is shared, not copied: layers/eventlog/ is the one definition
+// a ghost replay lines two runs up against.
+import { entry as logEntry, parse as logParse, serialize as logSerialize } from 'eventlog';
+import { buildInspectionLearning } from 'learning';
+import { createAudio } from './assets/audio/audio.js';
+import { THEMES, getTheme, applyColorOverrides } from './theme.js';
+
+/* SOUND — assets/audio/audio.json lists each sound and the moment it fires on */
+const audio = createAudio({ storageKey:'exploration-v2.muted',
+  sfx:{ spot:'./assets/audio/spot.mp3', open:'./assets/audio/open.mp3', tick:'./assets/audio/tick.mp3',
+        right:'./assets/audio/right.mp3', wrong:'./assets/audio/wrong.mp3', signoff:'./assets/audio/signoff.mp3' } });
+audio.mountToggle(document.getElementById('soundToggle'));
+
+window.addEventListener('error', e=>{
+  const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.error && e.error.stack ? e.error.stack : e.message);
+});
+
+/*═══════════════════════════════════════════════════════════════════════════
+  PROCEDURAL ROOM — a receiving bay with no assets
+  ─────────────────────────────────────────────────────────────────────────
+  §0 theme packs        §4 props (racking, pallets, jack, door, …)
+  §1 math + materials   §5 room assembly
+  §2 colliders          §6 lighting
+  §3 mesh toolkit       §7 camera + boot
+═══════════════════════════════════════════════════════════════════════════*/
+
+/*───────────────────────────── §0  THEME PACKS ────────────────────────────*/
+/*  THEMES (imported from ./theme.js, built from src/theme.ts) is the visual
+    look only — room dimensions, colours, prop set. It never names or knows
+    about a site. Which sites exist and what they say is CONTENT, below —
+    the content pack read from window.__ENGINE_CONTENT__. T is set once
+    CONTENT (and its optional CONTENT.theme selection) is known, at §6b.    */
+let T = THEMES.default;
+
+/*──────────────────────── §1  MATH + MATERIAL CACHE ───────────────────────*/
+
+const TAU = Math.PI * 2;
+const clamp = (x,a,b)=> x<a?a:(x>b?b:x);
+const lerp  = (a,b,t)=> a+(b-a)*t;
+
+/** deterministic PRNG — the room is identical on every reload */
+function rng(seed){ let a=seed>>>0; return ()=>{ a|=0; a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296; }; }
+
+/*  Materials are cached by their full parameter signature. A room like this
+    creates a few hundred meshes; without the cache that is a few hundred
+    shader programs to compile, which is most of the load time.             */
+const _matCache = new Map();
+function mat(color, opts){
+  const o = Object.assign({ rough:0.82, metal:0.0, emissive:null, emissiveI:1,
+                            flat:false, side:null, transparent:false, opacity:1 }, opts||{});
+  const key = `${color}|${o.rough}|${o.metal}|${o.emissive}|${o.emissiveI}|${o.flat}|${o.side}|${o.opacity}`;
+  let m = _matCache.get(key);
+  if(m) return m;
+  m = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(color),
+    roughness: o.rough, metalness: o.metal,
+    flatShading: o.flat,
+    side: o.side ?? THREE.FrontSide,
+    transparent: o.transparent || o.opacity < 1,
+    opacity: o.opacity,
+  });
+  if(o.emissive){ m.emissive = new THREE.Color(o.emissive); m.emissiveIntensity = o.emissiveI; }
+  _matCache.set(key, m);
+  return m;
+}
+/** nudge a hex colour's value — per-instance variation without new materials */
+function shade(hex, f){
+  const c = new THREE.Color(hex);
+  c.multiplyScalar(f);
+  return '#' + c.getHexString();
+}
+
+/*──────────────────────────── §2  COLLIDERS ───────────────────────────────*/
+/*  The rule this probe exists to demonstrate: a collider is REGISTERED AT
+    THE MOMENT the geometry is authored, from the numbers that built it —
+    never measured back off the finished mesh. A world-space AABB taken from
+    a rotated mesh is inflated by up to 41% per axis; deriving it from
+    authored half-extents plus a yaw cannot drift at all.                   */
+
+const SOLIDS = [];
+function pushSolid(cx, cy, cz, hx, hy, hz, yaw){
+  SOLIDS.push({ cx, cy, cz, hx, hy, hz, yaw: yaw||0,
+                cos: Math.cos(yaw||0), sin: Math.sin(yaw||0) });
+}
+function clearSolids(){ SOLIDS.length = 0; }
+
+/** circle-vs-oriented-box in XZ, gated on the vertical span */
+function hitsSolid(s, x, z, r, minY, maxY){
+  if(maxY <= s.cy - s.hy || minY >= s.cy + s.hy) return false;
+  const dx = x - s.cx, dz = z - s.cz;
+  const lx =  s.cos*dx - s.sin*dz;
+  const lz =  s.sin*dx + s.cos*dz;
+  const qx = clamp(lx, -s.hx, s.hx);
+  const qz = clamp(lz, -s.hz, s.hz);
+  const ex = lx - qx, ez = lz - qz;
+  return ex*ex + ez*ez < r*r;
+}
+
+/** wireframe overlay so placement is verifiable by eye, not by faith */
+function buildColliderOverlay(){
+  const g = new THREE.Group();
+  const m = new THREE.LineBasicMaterial({ color: 0x4ADE80, transparent:true, opacity:0.85 });
+  const unit = new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1));
+  for(const s of SOLIDS){
+    const l = new THREE.LineSegments(unit, m);
+    l.position.set(s.cx, s.cy, s.cz);
+    l.scale.set(s.hx*2, s.hy*2, s.hz*2);
+    l.rotation.y = s.yaw;
+    g.add(l);
+  }
+  return g;
+}
+
+/*─────────────────────────── §3  MESH TOOLKIT ─────────────────────────────*/
+/*  Small vocabulary, used by every prop. `box` optionally registers its own
+    collider in the same call that creates it, which is the whole point.    */
+
+const _boxGeo = new THREE.BoxGeometry(1,1,1);
+const _cylGeo = new THREE.CylinderGeometry(1,1,1,16);
+const _cylGeoLo = new THREE.CylinderGeometry(1,1,1,8);
+
+function box(parent, x,y,z, w,h,d, material, opts){
+  const o = opts||{};
+  const m = new THREE.Mesh(_boxGeo, material);
+  m.position.set(x,y,z);
+  m.scale.set(w,h,d);
+  if(o.yaw) m.rotation.y = o.yaw;
+  m.castShadow = o.cast !== false;
+  m.receiveShadow = o.receive !== false;
+  parent.add(m);
+  // Register collision from the SAME numbers that made the geometry.
+  if(o.solid) pushSolid(x, y, z, w/2, h/2, d/2, o.yaw||0);
+  return m;
+}
+function cyl(parent, x,y,z, r, h, material, opts){
+  const o = opts||{};
+  const m = new THREE.Mesh(o.lo ? _cylGeoLo : _cylGeo, material);
+  m.position.set(x,y,z);
+  m.scale.set(r,h,r);
+  if(o.rotX) m.rotation.x = o.rotX;
+  if(o.rotZ) m.rotation.z = o.rotZ;
+  if(o.yaw)  m.rotation.y = o.yaw;
+  m.castShadow = o.cast !== false;
+  m.receiveShadow = o.receive !== false;
+  parent.add(m);
+  if(o.solid) pushSolid(x, y, z, r, h/2, r, 0);
+  return m;
+}
+/** a flat quad lying on the floor — painted markings, decals, shadows of intent */
+function decal(parent, x,z, w,d, material, yaw){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w,d), material);
+  m.rotation.x = -Math.PI/2;
+  if(yaw) m.rotation.z = yaw;
+  m.position.set(x, 0.006, z);
+  m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+
+/*  In-world text is painted onto a CanvasTexture with a system font stack, so
+    a sign reads in the room without a web font or an image file. The canvas
+    is the whole face; `draw(ctx, w, h)` paints it.                         */
+const SYS_FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+function canvasTexture(w, h, draw){
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+/** word-wrap `text` to `maxW` pixels in the context's current font */
+function wrapText(ctx, text, maxW){
+  const words = String(text).split(/\s+/), lines = [];
+  let line = '';
+  for(const w of words){
+    const next = line ? line + ' ' + w : w;
+    if(ctx.measureText(next).width > maxW && line){ lines.push(line); line = w; }
+    else line = next;
+  }
+  if(line) lines.push(line);
+  return lines;
+}
+/** a flat sign: a plane carrying a canvas face, facing +z in `parent`'s frame */
+function signPlane(parent, w, h, tex, tint){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({ map: tex, color: tint || 0xffffff, roughness: 0.85, metalness: 0 }));
+  m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+
+/*  Traffic cone: the one shape the equipment station, the "fixed it" marker
+    and the stop-work ring all share. A tapered body, two reflective bands and
+    a square foot, at full size (0.5 m), so a cone in the room reads as the
+    same cone the learner saw on the shelf.                                 */
+const _coneGeo = new THREE.CylinderGeometry(0.035, 0.15, 0.46, 16);
+function cone(parent, x, y, z, yaw){
+  const grp = new THREE.Group();
+  grp.position.set(x, y, z);
+  grp.rotation.y = yaw || 0;
+  parent.add(grp);
+  const orange = mat('#E8641E', { rough:0.6 });
+  const white  = mat('#F2F2EC', { rough:0.45 });
+  box(grp, 0, 0.015, 0, 0.36, 0.03, 0.36, mat('#1E1E20', { rough:0.9 }));
+  const body = new THREE.Mesh(_coneGeo, orange);
+  body.position.y = 0.03 + 0.23;
+  body.castShadow = true; body.receiveShadow = true;
+  grp.add(body);
+  // bands follow the taper: radius at height y on the 0.46 m body
+  const rAt = y => 0.15 + (0.035 - 0.15) * (y / 0.46);
+  for(const by of [0.22, 0.33]){
+    const r0 = rAt(by - 0.03) + 0.003, r1 = rAt(by + 0.03) + 0.003;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, 0.06, 16, 1, true), white);
+    band.position.y = 0.03 + by;
+    grp.add(band);
+  }
+  return grp;
+}
+
+/*──────────────────────────────── §4  PROPS ───────────────────────────────*/
+/*  Each factory takes (group, spec) and returns nothing: it adds geometry
+    and registers its own colliders. Adding a prop to a theme's `props` list
+    is the only wiring needed.                                              */
+
+const PROPS = {};
+
+/* ── pallet racking: uprights with punched holes, step beams, wire deck ── */
+/*  Content used to place a "damaged upright" and an "overhanging load" at
+    hand-typed coordinates, which put both of them in mid-air near no rack at
+    all. The rack now publishes its own anchors — every post position, every
+    bay centre, every beam height — and content attaches to those. A prop that
+    must sit ON a structure has to be told where that structure actually is.  */
+const RACK = { posts: [], bays: [], levels: [], depth: 0, bayW: 0, upH: 0 };
+
+/*  One bay is held back for content. Without this the racking stocked every
+    bay at every level, so the overhanging pallet landed in a bay that already
+    had a flush load at the same height and the fault became unreadable — you
+    cannot see a 30 cm overhang when there is a correctly-seated pallet in the
+    same square metre. The reserved bay stays completely empty, so the only
+    thing in it is the pallet that is wrong.                                  */
+const RACK_RESERVED = { run: 0, bay: 0 };
+
+PROPS.racking = (g)=>{
+  const r = rng(4021);
+  RACK.posts.length = 0; RACK.bays.length = 0;
+  const { w:RW, d:RD } = T.room;
+  const bayW = 2.7, depth = 1.1, upH = Math.min(T.room.h - 0.9, 5.0);
+  const levels = [0.15, 1.75, 3.35];
+  const rackMat  = mat(T.steel.rack, { rough:0.62, metal:0.35 });
+  const beamMat  = mat(T.steel.beam, { rough:0.55, metal:0.4 });
+  const deckMat  = mat(T.steel.deck, { rough:0.7, metal:0.5 });
+
+  /*  Bay counts are DERIVED from the room, never hardcoded. With fixed counts
+      the 8.1 m runs sized for an 18 m warehouse punched straight through the
+      walls of the smaller hospital and retail packs.                         */
+  const baysA = clamp(Math.floor((RD - 3.4) / bayW), 1, 3);   // left wall
+  const baysB = clamp(Math.floor((RW - 7.5) / bayW), 1, 3);   // back wall
+  const runs = [
+    { x:-RW/2 + depth/2 + 0.35, z:-RD/2 + 1.9 + baysA*bayW/2, yaw: Math.PI/2, bays: baysA },
+    // left-shifted: the dock door owns the right half of the back wall
+    { x:-RW/2 + 1.0 + baysB*bayW/2, z:-RD/2 + depth/2 + 0.3, yaw: 0, bays: baysB },
+  ];
+  RACK.depth = depth; RACK.bayW = bayW; RACK.upH = upH; RACK.levels = levels.slice();
+
+  for(const run of runs){
+    const totalW = run.bays * bayW;
+    for(let b=0; b<=run.bays; b++){
+      // upright frames: two posts + diagonal bracing
+      const off = -totalW/2 + b*bayW;
+      const c = Math.cos(run.yaw), s = Math.sin(run.yaw);
+      const px = run.x + c*off, pz = run.z - s*off;
+      for(const dSide of [-depth/2 + 0.05, depth/2 - 0.05]){
+        const ox = px + s*dSide, oz = pz + c*dSide;
+        // `front` marks the post facing the aisle — the one a truck hits
+        RACK.posts.push({ x:ox, z:oz, yaw:run.yaw, front: dSide > 0, run: runs.indexOf(run) });
+        box(g, ox, upH/2, oz, 0.09, upH, 0.09, rackMat, { solid:true });
+      }
+      // bracing zig-zag between the two posts
+      for(let k=0; k<5; k++){
+        const y0 = 0.35 + k*0.92;
+        if(y0 + 0.9 > upH) break;
+        const m = new THREE.Mesh(_boxGeo, rackMat);
+        m.position.set(px, y0 + 0.46, pz);
+        m.scale.set(0.045, 1.02, 0.045);
+        // Tilt in the frame's own depth plane. Rotating about Z leaned the
+        // brace ALONG the run instead of between its two posts, which is what
+        // made the diagonals shoot out past the uprights.
+        m.rotation.set(0, run.yaw, 0);
+        m.rotateX((k % 2 ? 1 : -1) * 0.52);
+        m.castShadow = true;
+        g.add(m);
+      }
+    }
+    // horizontal step beams + wire decking per level per bay
+    for(let b=0; b<run.bays; b++){
+      const off = -totalW/2 + (b + 0.5)*bayW;
+      const c = Math.cos(run.yaw), s = Math.sin(run.yaw);
+      const bx = run.x + c*off, bz = run.z - s*off;
+      const runIdx = runs.indexOf(run);
+      const reserved = runIdx === RACK_RESERVED.run && b === RACK_RESERVED.bay;
+      RACK.bays.push({ x:bx, z:bz, yaw:run.yaw, run: runIdx, bay: b, reserved });
+      for(const ly of levels){
+        if(ly < 0.2) continue;                     // ground level has no beam
+        for(const dSide of [-depth/2 + 0.06, depth/2 - 0.06]){
+          const ox = bx + s*dSide, oz = bz + c*dSide;
+          box(g, ox, ly, oz, bayW - 0.1, 0.11, 0.05, beamMat,
+              { yaw: run.yaw, cast:true });
+        }
+        // wire deck: a few slats, enough to read as mesh
+        for(let k=0;k<7;k++){
+          const t = (k/6 - 0.5) * (depth - 0.16);
+          box(g, bx + s*t, ly + 0.06, bz + c*t, bayW - 0.14, 0.012, 0.022,
+              deckMat, { yaw: run.yaw, cast:false });
+        }
+      }
+      // one solid volume per bay so you cannot walk through the rack
+      pushSolid(bx, upH/2, bz, (bayW-0.1)/2, upH/2, depth/2, run.yaw);
+      // stock: pallets + loads on random levels
+      for(const ly of levels){
+        if(reserved) continue;               // content owns this bay
+        if(r() < 0.28) continue;
+        addPalletLoad(g, bx, ly < 0.2 ? 0 : ly + 0.07, bz, run.yaw, r);
+      }
+    }
+  }
+};
+
+/* ── stringer pallet + a shrink-wrapped or boxed load ── */
+function addPalletLoad(g, x, y, z, yaw, r){
+  const woodA = mat(shade('#B08A55', 0.9 + r()*0.22), { rough:0.9 });
+  const pw = 1.2, pd = 1.0, ph = 0.14;
+  // deck boards (top), stringers (mid), bottom boards
+  for(let i=0;i<5;i++){
+    const t = (i/4 - 0.5) * (pd - 0.1);
+    box(g, x + Math.sin(yaw)*t, y + ph - 0.02, z + Math.cos(yaw)*t,
+        pw, 0.028, 0.13, woodA, { yaw, cast:true });
+  }
+  for(let i=0;i<3;i++){
+    const t = (i/2 - 0.5) * (pw - 0.12);
+    box(g, x + Math.cos(yaw)*t, y + ph/2 - 0.01, z - Math.sin(yaw)*t,
+        0.1, ph - 0.05, pd, woodA, { yaw, cast:true });
+  }
+  for(let i=0;i<3;i++){
+    const t = (i/2 - 0.5) * (pd - 0.12);
+    box(g, x + Math.sin(yaw)*t, y + 0.014, z + Math.cos(yaw)*t,
+        pw, 0.028, 0.12, woodA, { yaw, cast:true });
+  }
+
+  // the load
+  const kind = r();
+  if(kind < 0.45){
+    // stack of cartons, slightly irregular
+    const rows = 2 + (r()*2|0);
+    for(let ry=0; ry<rows; ry++){
+      for(let cx=0; cx<2; cx++) for(let cz=0; cz<2; cz++){
+        if(ry === rows-1 && r() < 0.3) continue;   // an incomplete top row reads as used
+        const bw = pw/2 - 0.05, bd = pd/2 - 0.05, bh = 0.34;
+        const lx = (cx - 0.5)*(pw/2), lz = (cz - 0.5)*(pd/2);
+        const jitter = (r()-0.5)*0.04;
+        box(g, x + Math.cos(yaw)*lx + Math.sin(yaw)*lz + jitter,
+               y + ph + bh/2 + ry*bh,
+               z - Math.sin(yaw)*lx + Math.cos(yaw)*lz + jitter,
+               bw, bh, bd,
+               mat(shade('#C4A379', 0.86 + r()*0.3), { rough:0.95 }),
+               { yaw: yaw + (r()-0.5)*0.09 });
+      }
+    }
+  } else {
+    // shrink-wrapped unit load: one translucent block over a solid core
+    const lh = 0.7 + r()*0.5;
+    box(g, x, y + ph + lh/2, z, pw - 0.1, lh, pd - 0.1,
+        mat(shade('#9A8E78', 0.9 + r()*0.2), { rough:0.95 }), { yaw });
+    box(g, x, y + ph + lh/2, z, pw - 0.04, lh + 0.03, pd - 0.04,
+        mat('#BFD4D8', { rough:0.28, opacity:0.3, transparent:true }),
+        { yaw, cast:false });
+  }
+}
+
+/* ── loose pallets stacked on the floor ── */
+PROPS.pallets = (g)=>{
+  const r = rng(777);
+  const { w:RW, d:RD } = T.room;
+  const spots = [
+    { x: RW/2 - 2.4, z: RD/2 - 3.2, n: 5, yaw: 0.12 },
+    { x: RW/2 - 2.4, z: RD/2 - 4.8, n: 3, yaw: -0.06 },
+  ];
+  for(const s of spots){
+    const woodA = mat('#A8825070'.slice(0,7), { rough:0.9 });
+    for(let i=0;i<s.n;i++){
+      const y = i*0.145;
+      const yaw = s.yaw + (r()-0.5)*0.07;
+      const pw=1.2, pd=1.0;
+      for(let k=0;k<4;k++){
+        const t=(k/3-0.5)*(pd-0.1);
+        box(g, s.x + Math.sin(yaw)*t, y+0.12, s.z + Math.cos(yaw)*t,
+            pw, 0.026, 0.14, mat(shade('#B08A55', 0.86+r()*0.26), {rough:0.92}), { yaw });
+      }
+      for(let k=0;k<3;k++){
+        const t=(k/2-0.5)*(pw-0.12);
+        box(g, s.x + Math.cos(yaw)*t, y+0.06, s.z - Math.sin(yaw)*t,
+            0.1, 0.1, pd, mat(shade('#9A7848', 0.9+r()*0.2), {rough:0.92}), { yaw });
+      }
+    }
+    pushSolid(s.x, s.n*0.075, s.z, 0.64, s.n*0.075, 0.54, s.yaw);
+  }
+};
+
+/* ── roll-up dock door with leveller and bumpers ── */
+PROPS.dockDoor = (gRoot)=>{
+  const { w:RW, d:RD, h:RH } = T.room;
+  const dw = 3.4, dh = Math.min(4.0, RH - 1.4);
+
+  /*  The door sits IN the far wall and is culled with it, so it can never read
+      as a free-standing panel in the middle of the bay. Everything below is
+      authored in the door's own local frame (z = 0 at the wall face, -z into
+      the room); the group transform puts it on whichever wall the theme wants. */
+  const g = new THREE.Group();
+  g.position.set(RW/2 - 4.3, 0, -RD/2 + 0.06);
+  g.rotation.y = Math.PI;
+  gRoot.add(g);
+  WALL_PANELS.push({ group:g, axis:'z', sign:-1, coord:RD/2 });
+
+  const panelMat = mat('#B4B8B4', { rough:0.55, metal:0.3 });
+  const trimMat  = mat(T.accent.safety, { rough:0.7 });
+
+  // segmented curtain, rolled up about a third
+  const openH = dh * 0.46;   // legibly open, not a hairline gap
+  const panels = 7, ph = (dh - openH) / panels;
+  for(let i=0;i<panels;i++){
+    box(g, 0, openH + ph*(i + 0.5), 0, dw, ph - 0.03, 0.08,
+        mat(shade('#B4B8B4', i%2 ? 0.94 : 1.0), { rough:0.55, metal:0.3 }));
+  }
+  // coiled panels above the opening
+  for(let i=0;i<4;i++)
+    cyl(g, 0, dh + 0.2, -0.12 - i*0.09, 0.22 - i*0.03, dw, panelMat,
+        { rotZ: Math.PI/2, lo:true });
+
+  // jambs, header, rubber bumpers
+  for(const sx of [-1, 1]){
+    box(g, sx*(dw/2 + 0.1), dh/2, 0, 0.16, dh, 0.18, trimMat);
+    box(g, sx*(dw/2 + 0.02), 0.55, -0.16, 0.26, 0.5, 0.2,
+        mat('#22201E', { rough:0.98 }));
+  }
+  box(g, 0, dh + 0.1, 0, dw + 0.4, 0.2, 0.2, trimMat);
+
+  // daylight through the gap — the light has a source you can point at
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(dw, openH),
+    mat('#C4D6E2', { emissive:'#AFC6D6', emissiveI:0.55, rough:1 }));
+  glow.position.set(0, openH/2, 0.03);
+  g.add(glow);
+  // Was ~250 cd right at the threshold, which blew the slab out into a white
+  // hotspot. Daylight through a half-open dock reads as a soft wash, and the
+  // source belongs a little inside the room, not welded to the opening.
+  const dl = new THREE.PointLight(0xBFD8EA, plCandela()*0.42, 11, 2);
+  dl.position.set(0, openH*0.55, -2.0);
+  g.add(dl);
+
+  // leveller plate + hazard striping on the approach
+  box(g, 0, 0.03, -0.9, dw, 0.06, 1.6, mat('#5E625E', { rough:0.6, metal:0.4 }));
+  hazardStrip(g, 0, -1.85, dw, 0.34, 0);
+
+  // colliders in WORLD space: the group is yawed by PI, so mirror x and z
+  const wx = RW/2 - 4.3, wz = -RD/2 + 0.06;
+  for(const sx of [-1, 1])
+    pushSolid(wx - sx*(dw/2 + 0.1), dh/2, wz, 0.08, dh/2, 0.09, 0);
+  pushSolid(wx, openH/2, wz + 0.55, dw/2, openH/2, 0.55, 0);
+  LIGHT_GIZMOS.push({ x:wx, y:openH*0.55, z:wz + 2.0 });
+};
+
+/* ── painted hazard striping, built from angled slats ── */
+function hazardStrip(g, cx, cz, w, d, yaw){
+  const a = mat(T.accent.safety, { rough:0.88 });
+  const b = mat(T.accent.hazard, { rough:0.9 });
+  const n = Math.max(4, Math.round(w / 0.28));
+  const holder = new THREE.Group();
+  holder.position.set(cx, 0.008, cz);
+  holder.rotation.y = yaw;
+  for(let i=0;i<n;i++){
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.16, d*1.6), i%2 ? b : a);
+    m.rotation.x = -Math.PI/2;
+    m.rotation.z = Math.PI/4;
+    m.position.set(-w/2 + (i+0.5)*(w/n), 0, 0);
+    m.receiveShadow = true;
+    holder.add(m);
+  }
+  // clip the diagonal slats to the strip footprint
+  const clip = new THREE.Mesh(new THREE.PlaneGeometry(w, d), a);
+  clip.visible = false;
+  holder.add(clip);
+  g.add(holder);
+}
+
+/* ── hydraulic pallet jack ── */
+PROPS.palletJack = (g)=>{
+  const { w:RW, d:RD } = T.room;
+  const x = -RW/2 + 3.4, z = RD/2 - 3.0, yaw = -0.55;
+  const steel = mat('#C8452E', { rough:0.5, metal:0.4 });
+  const dark  = mat('#2E3238', { rough:0.6, metal:0.5 });
+  const grip  = mat('#1E1E20', { rough:0.95 });
+
+  const j = new THREE.Group();
+  j.position.set(x, 0, z);
+  j.rotation.y = yaw;
+  g.add(j);
+
+  // forks
+  for(const sx of [-0.28, 0.28]){
+    box(j, sx, 0.085, -0.35, 0.16, 0.07, 1.15, steel);
+    // fork tip taper
+    box(j, sx, 0.065, -1.0, 0.14, 0.04, 0.22, steel);
+    // load rollers
+    cyl(j, sx, 0.045, -0.88, 0.045, 0.1, dark, { rotZ:Math.PI/2, lo:true });
+  }
+  // cross member + pump body
+  box(j, 0, 0.13, 0.28, 0.74, 0.14, 0.22, steel);
+  box(j, 0, 0.3, 0.36, 0.3, 0.36, 0.26, steel);
+  cyl(j, 0, 0.52, 0.36, 0.06, 0.4, dark);
+  // steer wheels
+  for(const sx of [-0.24, 0.24])
+    cyl(j, sx, 0.09, 0.44, 0.09, 0.08, dark, { rotZ:Math.PI/2, lo:true });
+  // tiller handle, raked back
+  const handle = new THREE.Group();
+  handle.position.set(0, 0.5, 0.36);
+  handle.rotation.x = -0.42;
+  j.add(handle);
+  box(handle, 0, 0.42, 0, 0.09, 0.86, 0.09, steel);
+  box(handle, 0, 0.86, 0, 0.42, 0.1, 0.12, grip);
+  cyl(handle, 0, 0.72, 0.04, 0.035, 0.3, dark, { rotZ:Math.PI/2, lo:true });
+
+  pushSolid(x, 0.4, z, 0.42, 0.4, 0.85, yaw);
+};
+
+/* ── safety bollards guarding the rack ends ── */
+PROPS.bollards = (g)=>{
+  const { w:RW, d:RD } = T.room;
+  const y = mat(T.accent.safety, { rough:0.72 });
+  const spots = [[-RW/2 + 2.1, -RD/2 + 6.4], [-RW/2 + 2.1, -RD/2 + 1.1],
+                 [RW/2 - 1.2, -RD/2 + 1.1]];
+  for(const [x,z] of spots){
+    cyl(g, x, 0.45, z, 0.11, 0.9, y, { solid:true });
+    cyl(g, x, 0.92, z, 0.115, 0.05, mat('#2A2A2A', { rough:0.9 }));
+    // reflective band
+    cyl(g, x, 0.66, z, 0.118, 0.09, mat('#E8E8E0', { rough:0.4 }));
+  }
+};
+
+/* ── wall-mounted extinguisher with bracket and sign ── */
+const EXT = { x:0, z:0, face:0 };   // face = outward x of the cylinder's front
+
+PROPS.extinguisher = (g)=>{
+  const { w:RW, d:RD } = T.room;
+  const x = -RW/2 + 0.22, z = RD/2 - 5.4;
+  EXT.x = x + 0.14; EXT.z = z; EXT.face = x + 0.14 + 0.085;
+  const red = mat('#B02A22', { rough:0.42, metal:0.15 });
+  const blk = mat('#1C1C1E', { rough:0.85 });
+
+  cyl(g, x + 0.14, 1.15, z, 0.085, 0.42, red);
+  cyl(g, x + 0.14, 1.38, z, 0.06, 0.06, red);          // neck
+  cyl(g, x + 0.14, 1.45, z, 0.035, 0.09, blk);          // valve
+  box(g, x + 0.14, 1.48, z + 0.02, 0.13, 0.03, 0.05, blk);  // handle
+  // hose looping down the side
+  cyl(g, x + 0.2, 1.24, z + 0.06, 0.014, 0.34, blk, { rotZ:0.35, lo:true });
+  // bracket
+  box(g, x + 0.07, 1.2, z, 0.1, 0.06, 0.14, mat('#8A8A88', { rough:0.6, metal:0.5 }));
+  // ID sign above
+  box(g, x + 0.04, 1.85, z, 0.03, 0.3, 0.22, mat('#B02A22', { rough:0.6 }));
+  box(g, x + 0.06, 1.85, z, 0.01, 0.2, 0.14, mat('#F0F0EC', { rough:0.7 }));
+
+  pushSolid(x + 0.14, 1.2, z, 0.12, 0.4, 0.12, 0);
+};
+
+/* ── painted floor traffic lanes ── */
+PROPS.floorTape = (g)=>{
+  const { w:RW, d:RD } = T.room;
+  const tape = mat(T.accent.tape, { rough:0.86 });
+  // a walkway hugging the right wall then turning toward the dock
+  const lane = 0.09;
+  decal(g, RW/2 - 1.0, 0, lane, RD - 1.4, tape);
+  decal(g, RW/2 - 2.6, 0, lane, RD - 1.4, tape);
+  decal(g, 0.4, RD/2 - 1.2, RW - 3.0, lane, tape);
+  // staging square, floor-marked
+  const sq = [[-3.2, 2.6, 3.0, 2.4]];
+  for(const [x,z,w,d] of sq){
+    decal(g, x, z - d/2, w, lane, tape);
+    decal(g, x, z + d/2, w, lane, tape);
+    decal(g, x - w/2, z, lane, d, tape);
+    decal(g, x + w/2, z, lane, d, tape);
+  }
+};
+
+/* ── wall safety board: the posted bay rules ──
+    The board is evidence, not scenery. The pack's `board` (who may do what,
+    with which equipment) is painted on its face, so the policy a call rests
+    on is readable in the room before any call is made. It is clickable like
+    a site but kept out of SITES: it is never scored and never counts toward
+    progress. A pack with no board gets the old blank notices.             */
+PROPS.safetyBoard = (g)=>{
+  const { w:RW, d:RD } = T.room;
+  const x = RW/2 - 0.18, z = -RD/2 + 4.0;
+  const BW = 1.6, BH = 1.2, cy = 1.5;
+  const board = CONTENT.board;
+  const grp = new THREE.Group(); g.add(grp);
+  // backing panel + an aluminum trim so it reads as a mounted board
+  box(grp, x, cy, z, 0.06, BH, BW, mat(shade(T.walls.dado, 0.72), { rough:0.75 }));
+  const trim = mat('#A9AFB4', { rough:0.4, metal:0.6 });
+  for(const s of [-1, 1]){
+    box(grp, x - 0.02, cy + s*(BH/2 - 0.015), z, 0.03, 0.03, BW, trim);
+    box(grp, x - 0.02, cy, z + s*(BW/2 - 0.015), 0.03, BH, 0.03, trim);
+  }
+  if(!board || !Array.isArray(board.lines)){
+    // paper notices pinned to it, in a rough grid
+    for(let i=0;i<6;i++){
+      const ox = -0.5 + (i%3)*0.5, oy = 0.22 - ((i/3)|0)*0.44;
+      box(grp, x - 0.04, cy + oy, z + ox, 0.008, 0.3, 0.22,
+          mat(i===1 ? T.accent.safety : '#EFEDE4', { rough:0.9 }), { cast:false });
+    }
+    return;
+  }
+  BOARD.rec = markInteractive(grp, null, { ref:{ kind:'board', title: board.title, lines: board.lines, normal:[-1, 0] } });
+  BOARD.at = [x, 0, z];
+  // The face is added after markInteractive so it gets no outline shell of
+  // its own: a coplanar shell would z-fight with the text. The backing box
+  // carries the outline and the click target, 3 mm behind the face.
+  const tex = canvasTexture(1024, 768, (ctx, w, h)=>drawBoardFace(ctx, w, h, board));
+  // tinted down: the board sits in the brightest corner of the bay and washed out
+  const face = signPlane(grp, BW - 0.06, BH - 0.06, tex, 0xB4B4B4);
+  face.position.set(x - 0.032, cy, z);
+  face.rotation.y = -Math.PI/2;           // the board hangs on the +x wall, facing into the room
+};
+const BOARD = { rec:null, at:null };
+
+/** paints the rules board: title, a rule, then each line with a square bullet */
+function drawBoardFace(ctx, w, h, board){
+  // the dado color, taken darker: the face is lit, and cream text needs a dark ground
+  ctx.fillStyle = shade(T.walls.dado, 0.55);
+  ctx.fillRect(0, 0, w, h);
+  const pad = 52, ink = '#F1ECDD';
+  ctx.fillStyle = ink;
+  ctx.textBaseline = 'top';
+  ctx.font = `700 54px ${SYS_FONT}`;
+  ctx.fillText(board.title, pad, pad - 6);
+  ctx.fillStyle = T.accent.safety;
+  ctx.fillRect(pad, pad + 64, w - pad*2, 6);
+  // Largest size that fits, never under 34 px: the board must read from ~3 m.
+  let size = 42, laid;
+  const layout = (px)=>{
+    ctx.font = `500 ${px}px ${SYS_FONT}`;
+    return board.lines.map(l => wrapText(ctx, l, w - pad*2 - 34));
+  };
+  for(; size >= 34; size -= 2){
+    laid = layout(size);
+    const rows = laid.reduce((n, l) => n + l.length, 0);
+    if(pad + 92 + rows*size*1.2 + (laid.length-1)*size*0.38 <= h - pad*0.6) break;
+  }
+  if(size < 34){ size = 34; laid = layout(size); }
+  let y = pad + 92;
+  for(const lines of laid){
+    ctx.fillStyle = T.accent.safety;
+    ctx.fillRect(pad, y + size*0.32, size*0.36, size*0.36);
+    ctx.fillStyle = ink;
+    for(const l of lines){ ctx.fillText(l, pad + 34, y); y += size*1.2; }
+    y += size*0.38;
+  }
+}
+
+/* ── stacked crates in the staging square ── */
+PROPS.crates = (g)=>{
+  const r = rng(9182);
+  const spots = [[-3.9, 2.2], [-2.6, 2.9], [-3.4, 3.3]];
+  for(const [x,z] of spots){
+    const n = 1 + (r()*3|0);
+    const yaw = (r()-0.5)*0.7;
+    const s = 0.52 + r()*0.16;
+    for(let i=0;i<n;i++){
+      box(g, x + (r()-0.5)*0.06, s/2 + i*s, z + (r()-0.5)*0.06, s, s, s*0.92,
+          mat(shade('#8C6F4A', 0.85 + r()*0.32), { rough:0.94 }),
+          { yaw: yaw + (r()-0.5)*0.2 });
+      // lid banding
+      box(g, x, s*(i+1) - 0.02, z, s*1.01, 0.02, s*0.94,
+          mat('#6A5638', { rough:0.9 }), { yaw, cast:false });
+    }
+    pushSolid(x, n*s/2, z, s/2, n*s/2, s/2, yaw);
+  }
+};
+
+/* ── drums against the wall ── */
+PROPS.drums = (g)=>{
+  const { w:RW, d:RD } = T.room;
+  const r = rng(552);
+  for(let i=0;i<3;i++){
+    const x = RW/2 - 1.1, z = -RD/2 + 1.2 + i*0.72;
+    const c = i===1 ? '#2E6B8A' : '#3A6E4A';
+    cyl(g, x, 0.44, z, 0.29, 0.88, mat(shade(c, 0.9+r()*0.2), { rough:0.5, metal:0.3 }), { solid:true });
+    // rolling hoops
+    for(const hy of [0.26, 0.62])
+      cyl(g, x, hy, z, 0.302, 0.045, mat(shade(c, 0.7), { rough:0.55, metal:0.35 }));
+    cyl(g, x, 0.89, z, 0.29, 0.03, mat(shade(c, 1.12), { rough:0.45, metal:0.35 }));
+  }
+};
+
+/*───────────────────────────── §5  THE SHELL ──────────────────────────────*/
+
+const LIGHT_GIZMOS = [];
+
+function buildShell(g){
+  const { w:W, d:D, h:H } = T.room;
+
+  // ── floor: base slab, control joints, a scatter of aggregate speck ──
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D),
+    mat(T.floor.base, { rough: 1 - T.floor.gloss, metal:0.02 }));
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  g.add(floor);
+
+  const joint = mat(T.floor.joint, { rough:0.95 });
+  for(let i=1;i<4;i++){
+    decal(g, -W/2 + i*(W/4), 0, 0.035, D, joint);
+    decal(g, 0, -D/2 + i*(D/4), W, 0.035, joint);
+  }
+  const rs = rng(88);
+  const speck = mat(T.floor.speck, { rough:0.9 });
+  for(let i=0;i<90;i++){
+    const s = 0.02 + rs()*0.05;
+    decal(g, (rs()-0.5)*W*0.96, (rs()-0.5)*D*0.96, s, s*(0.6+rs()), speck, rs()*TAU);
+  }
+
+  // ── walls: ribbed panel + a painted dado band ──
+  const wallMat = mat(T.walls.base, { rough:0.88 });
+  const ribMat  = mat(T.walls.ribDark, { rough:0.86 });
+  const dadoMat = mat(T.walls.dado, { rough:0.8 });
+  const dadoH   = T.walls.dadoH;
+
+  const sides = [
+    { x:0, z:-D/2, w:W, yaw:0 },
+    { x:0, z: D/2, w:W, yaw:Math.PI },
+    { x:-W/2, z:0, w:D, yaw:Math.PI/2 },
+    { x: W/2, z:0, w:D, yaw:-Math.PI/2 },
+  ];
+  WALL_PANELS.length = 0;
+  for(const s of sides){
+    const panel = new THREE.Group();
+    panel.position.set(s.x, 0, s.z);
+    panel.rotation.y = s.yaw;
+    g.add(panel);
+    // Doll's-house culling: a wall the camera has walked behind is hidden, so
+    // the room stays readable from every orbit angle without a cutaway model.
+    WALL_PANELS.push({
+      group: panel,
+      axis: s.x !== 0 ? 'x' : 'z',
+      sign: Math.sign(s.x !== 0 ? s.x : s.z),
+      coord: Math.abs(s.x !== 0 ? s.x : s.z),
+    });
+    box(panel, 0, H/2, 0, s.w, H, 0.12, wallMat, { cast:false });
+    box(panel, 0, dadoH/2, 0.07, s.w, dadoH, 0.03, dadoMat, { cast:false });
+    // vertical ribs
+    const n = Math.round(s.w / 0.9);
+    for(let i=0;i<=n;i++)
+      box(panel, -s.w/2 + i*(s.w/n), H/2, 0.075, 0.05, H, 0.035, ribMat, { cast:false });
+    // structural column at each end
+    for(const sx of [-s.w/2 + 0.2, s.w/2 - 0.2])
+      box(panel, sx, H/2, 0.16, 0.24, H, 0.24, mat(T.ceiling.truss, { rough:0.7, metal:0.3 }),
+          { cast:false });
+    // wall collider, from the numbers that built it
+    pushSolid(s.x, H/2, s.z, s.w/2, H/2, 0.12, s.yaw);
+  }
+
+  // ── ceiling: deck + open web joists ──
+  CEILING.clear();
+  const deck = new THREE.Mesh(new THREE.PlaneGeometry(W, D),
+    mat(T.ceiling.deck, { rough:0.95, side:THREE.DoubleSide }));
+  deck.rotation.x = Math.PI/2;
+  deck.position.y = H;
+  CEILING.add(deck);
+  const trussMat = mat(T.ceiling.truss, { rough:0.72, metal:0.35 });
+  const bays = Math.round(W / 2.4);
+  for(let i=0;i<=bays;i++){
+    const x = -W/2 + i*(W/bays);
+    box(CEILING, x, H - 0.22, 0, 0.1, 0.34, D, trussMat, { receive:false });
+    for(let k=0;k<Math.round(D/1.1);k++){
+      const z = -D/2 + (k+0.5)*(D/Math.round(D/1.1));
+      const m = new THREE.Mesh(_boxGeo, trussMat);
+      m.position.set(x, H - 0.22, z);
+      m.scale.set(0.05, 0.5, 0.05);
+      m.rotation.x = (k%2 ? 1 : -1) * 0.62;
+      CEILING.add(m);
+    }
+  }
+  // service pipe run
+  cyl(CEILING, W*0.22, H - 0.55, 0, 0.09, D*0.9, mat(T.accent.pipe, { rough:0.6, metal:0.4 }),
+      { rotX: Math.PI/2, receive:false });
+  g.add(CEILING);
+}
+const CEILING = new THREE.Group();
+const WALL_PANELS = [];
+
+/** Hide whatever the camera has stepped behind — walls first, then the roof. */
+function cullShell(){
+  const p = camera.position;
+  for(const w of WALL_PANELS){
+    w.group.visible = w.sign * p[w.axis] <= w.coord;
+  }
+  CEILING.visible = CEILING_ON && p.y <= T.room.h;
+}
+let CEILING_ON = true;
+
+/*──────────────────────────── §6  LIGHTING ────────────────────────────────*/
+/*  Every local light is attached to a fixture you can see and point at.
+    No unexplained floating point lights.                                   */
+
+const LIGHT_RIG = new THREE.Group();
+/*  Illuminance falls as 1/d², so a fixture 3.1 m up in a small room delivers
+    3x the light of the same fixture 5.4 m up in a warehouse. Scaling candela
+    by height² is what keeps every theme pack correctly exposed instead of
+    needing a hand-tuned magic number per room.                              */
+const PL_K = 4.5;
+const plCandela = () => PL_K * T.lights.height * T.lights.height;
+function buildLighting(g){
+  LIGHT_RIG.clear();
+  LIGHT_GIZMOS.length = 0;
+  const { w:W, d:D } = T.room;
+  const L = T.lights;
+  const y = L.height;
+
+  // hemispheric fill: cool from the roof, warm bounce off the slab
+  const hemi = new THREE.HemisphereLight(0xBFD4E8, 0x6E6252, 1.05);
+  LIGHT_RIG.add(hemi);
+  // a soft key so shadows have direction even with the fixtures off
+  const key = new THREE.DirectionalLight(0xFFF0D8, 1.5);
+  key.position.set(W*0.5, y + 5, -D*0.4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  const s = Math.max(W, D) * 0.75;
+  key.shadow.camera.left = -s; key.shadow.camera.right = s;
+  key.shadow.camera.top = s;   key.shadow.camera.bottom = -s;
+  key.shadow.camera.near = 1;  key.shadow.camera.far = 40;
+  key.shadow.bias = -0.0012;
+  key.shadow.normalBias = 0.02;
+  LIGHT_RIG.add(key);
+
+  // high-bay fixtures on a grid, each a visible body + emissive lens + a light
+  const bodyMat = mat('#3A3F45', { rough:0.6, metal:0.5 });
+  const lensMat = mat(L.color, { emissive:L.color, emissiveI:3.2, rough:0.4 });
+  for(let cx=0; cx<L.cols; cx++) for(let cz=0; cz<L.rows; cz++){
+    const x = -W/2 + (cx + 0.5)*(W/L.cols);
+    const z = -D/2 + (cz + 0.5)*(D/L.rows);
+    const f = new THREE.Group();
+    f.position.set(x, y, z);
+    LIGHT_RIG.add(f);
+    // drop rod up to the joists
+    cyl(f, 0, 0.42, 0, 0.018, 0.84, bodyMat, { lo:true, receive:false });
+    // reflector housing
+    box(f, 0, 0.06, 0, 0.72, 0.12, 0.3, bodyMat, { receive:false });
+    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.66, 0.24), lensMat);
+    lens.rotation.x = Math.PI/2;
+    lens.position.y = -0.005;
+    f.add(lens);
+
+    // Since r155 point-light intensity is candela with physical falloff, so a
+    // value near 1 is a night-light. A high bay lighting an 18 m room is O(100).
+    const pl = new THREE.PointLight(new THREE.Color(L.color), L.intensity * plCandela(),
+                                    Math.max(W, D) * 1.3, 2);
+    pl.position.set(x, y - 0.1, z);
+    LIGHT_RIG.add(pl);
+    LIGHT_GIZMOS.push({ x, y: y - 0.1, z });
+  }
+  g.add(LIGHT_RIG);
+}
+
+/** small crosses marking where every local light actually sits */
+function buildLightOverlay(){
+  const g = new THREE.Group();
+  const m = new THREE.LineBasicMaterial({ color: 0xFFD066 });
+  for(const p of LIGHT_GIZMOS){
+    const pts = [];
+    for(const a of [[0.25,0,0],[0,0.25,0],[0,0,0.25]]){
+      pts.push(p.x-a[0], p.y-a[1], p.z-a[2], p.x+a[0], p.y+a[1], p.z+a[2]);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+    g.add(new THREE.LineSegments(geo, m));
+  }
+  return g;
+}
+
+
+/*────────────────────── §6b  CONTENT: THE SAFETY WALK ─────────────────────*/
+/*  INSTRUCTIONAL DESIGN NOTE.
+    The skill under test is PROPORTIONATE RESPONSE, not spotting. Every site
+    below is plainly visible once you are near it — finding things is search,
+    not judgment. What varies is who is authorised to act, how urgent it is,
+    and what it costs to get that wrong. So:
+      - no site asks "what is this?" — the object is named the moment you look
+        at it, because a question you can answer from the label teaches nothing;
+      - two sites are FINE. Correctly leaving them alone is scored. Without
+        decoys the optimal strategy is to flag everything, which is the exact
+        habit that makes real safety walks worthless;
+      - the wrong answers are all plausible actions a real worker would take,
+        and each is wrong for a stated reason.                                */
+
+/*  Content is the pack — everything a learner reads that names a site, an
+    industry or a setting. With no pack injected, the engine runs the
+    built-in default embedded in the #default-content JSON block below,
+    which is also exported byte-for-byte as content-packs/exploration-v2/
+    default.json. Object.hasOwn (not ??) so an injected pack REPLACES the
+    demo rather than silently blending with it — same subtlety rail-yard,
+    pit-lane, weigh-station and seismograph already use.                    */
+const DEFAULT_CONTENT = JSON.parse(document.getElementById('default-content').textContent);
+const CONTENT = Object.hasOwn(window, '__ENGINE_CONTENT__') ? window.__ENGINE_CONTENT__ : DEFAULT_CONTENT;
+const ACTIONS = CONTENT.actions;
+
+{
+  CONTENT.version = CONTENT.version || '1';
+  for(const site of CONTENT.sites){
+    site.source = site.fine ? 'Approved storage standard' : 'Receiving-bay inspection standard';
+    site.version = '2026.1';
+    site.configuration = 'Receiving bay · pre-shift state';
+    site.evidence = site.observe;
+  }
+  // Theme is visual only — colours, room dimensions, prop set — and never
+  // touches CONTENT.sites. An unregistered theme.pack warns and falls back
+  // to 'default' rather than crashing (see getTheme in theme.js).
+  const themeSel = getTheme(CONTENT.theme && CONTENT.theme.pack);
+  T = applyColorOverrides(themeSel.theme, CONTENT.theme && CONTENT.theme.colors);
+}
+document.title = CONTENT.title;
+document.querySelector('#introTitle').firstChild.textContent = CONTENT.title;
+document.querySelector('#introSub').textContent = CONTENT.subtitle;
+{
+  const noun = CONTENT.noun, n = CONTENT.sites.length, steps = [
+    'Pick Free walk or Guided tour, then click Start.',
+    'Read the bay rules board and the equipment station. They tell you what you are allowed and trained to do.',
+    `Go to each ${noun} on your list. Click it to look closely.`,
+    'Pick a response. Each button says what it means.',
+    `Click Finish inspection when all ${n} are checked.`,
+  ];
+  const el = document.querySelector('#introBody');
+  const part = (h, html) => `<h2>${h}</h2>${html}`;
+  el.innerHTML = part('The situation', `<p></p>`) + part('Your goal', `<p></p>`) + part('What to do', `<ol>${steps.map(()=>'<li></li>').join('')}</ol>`);
+  const ps = el.querySelectorAll('p'); ps[0].textContent = CONTENT.situation; ps[1].textContent = CONTENT.goal;
+  el.querySelectorAll('li').forEach((li, i) => { li.textContent = steps[i]; });
+}
+
+/*  Every site is a real object in the room with a real collider, registered the
+    same way scenery is. There are no floating markers: you interact with the
+    thing itself, and the only affordance is a hover highlight on the object.  */
+const SITES = [];
+/*  REFS are readable, never scored: the rules board and the equipment. They
+    take the same outline and click target as a site, but live outside SITES,
+    which alone drives scoring, progress and the debrief.                    */
+const REFS = [];
+
+function markInteractive(group, site, opts){
+  const meshes = [];
+  // Materials are shared and cached across the whole room, so an interactable
+  // gets its own copy — otherwise highlighting one crate lights every crate.
+  group.traverse(o=>{ if(o.isMesh){ o.material = o.material.clone(); meshes.push(o); } });
+
+  /*  Selection outline, by an inflated shell of the object's own geometry.
+      Emissive was tried first and is wrong twice over: a coloured lift
+      repaints the surface (a green crate stops reading as wood) and on a dark
+      flat decal it is the ONLY thing that shows, so it blooms into a glowing
+      patch. The outline draws a rim and touches no surface, so it is dropped
+      entirely below.
+
+      Two cases, because one shell technique does not cover both:
+        SOLID  — grow the hull and draw back faces only. The front faces are
+                 inside the object, so all you ever see is the rim.
+        FLAT   — a ShapeGeometry decal is a single-sided plane with no back
+                 face at all, so the solid trick culls to nothing (this is why
+                 the spill had no outline). Grow it in its own plane instead,
+                 sink it a hair, and draw both sides: the object itself wins
+                 the depth test in the middle and only the rim survives.      */
+  const RIM = 0.045;                    // rim thickness, in metres
+  const shells = [];
+  const solidMat = new THREE.MeshBasicMaterial({
+    color: 0x35E0FF, side: THREE.BackSide, depthWrite: false,
+    transparent: true, opacity: 0.95,
+  });
+  const flatMat = new THREE.MeshBasicMaterial({
+    color: 0x35E0FF, side: THREE.DoubleSide, depthWrite: false,
+    transparent: true, opacity: 0.95,
+  });
+  // an outline is UI, not lit geometry — ACES was crushing the rim toward black
+  solidMat.toneMapped = false;
+  flatMat.toneMapped  = false;
+
+  for(const m of meshes){
+    if(!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const bb = m.geometry.boundingBox;
+    const half = [ (bb.max.x-bb.min.x)/2, (bb.max.y-bb.min.y)/2, (bb.max.z-bb.min.z)/2 ];
+    const ms   = [ m.scale.x, m.scale.y, m.scale.z ];
+    // a degenerate axis means the geometry is a plane, not a volume
+    const flatAxis = half.findIndex(h => h < 1e-4);
+
+    const o = new THREE.Mesh(m.geometry, flatAxis >= 0 ? flatMat : solidMat);
+    o.position.copy(m.position);
+    o.quaternion.copy(m.quaternion);
+    // Grow by a CONSTANT world thickness, computed per axis from the real
+    // half-extent. A flat percentage gave a fat rim on a crate and none at
+    // all on a rack post.
+    const sc = [0,1,2].map(i=>{
+      if(i === flatAxis) return ms[i];
+      const worldHalf = Math.abs(half[i] * ms[i]);
+      return worldHalf > 1e-5 ? ms[i] * (worldHalf + RIM) / worldHalf : ms[i];
+    });
+    o.scale.set(sc[0], sc[1], sc[2]);
+    // sink a floor decal's shell just under the decal so the middle is covered
+    if(flatAxis >= 0) o.position.y -= 0.0022;
+    o.visible = false;
+    o.renderOrder = 2;
+    (m.parent || group).add(o);
+    shells.push(o);
+  }
+
+  const rec = { site, group, meshes, shells, hot:false, answered:null };
+  if(opts && opts.ref){ rec.ref = opts.ref; REFS.push(rec); }
+  else SITES.push(rec);
+  return rec;
+}
+/** the name a learner sees for anything clickable, site or reference */
+const itemName = rec => rec.ref ? rec.ref.title : rec.site.name;
+function setHot(rec, on){
+  if(rec.hot === on) return;
+  rec.hot = on;
+  // outline only — no emissive lift, so nothing on the object is repainted
+  for(const o of rec.shells) o.visible = on;
+}
+
+/*  What a site's own "fixed it" state needs from its build: the spill's pool
+    outline (the pad is a copy of it) and the blocking crates' colliders.  */
+const FIXED = {};
+
+function buildSites(g){
+  SITES.length = 0;
+  if(!RACK.posts.length) console.warn('buildSites: rack anchors missing');
+  const S = id => CONTENT.sites.find(x=>x.id===id);
+
+  // ── spill: one closed organic outline. Liquid has no right angles, and a
+  //    pile of axis-aligned decals reads as exactly what it is — rectangles. ──
+  {
+    const site = S('spill'), [x,,z] = site.at;
+    const grp = new THREE.Group(); g.add(grp);
+    const r = rng(41);
+
+    // A radial noise loop, closed with a Catmull-Rom spline so the boundary is
+    // smooth everywhere and never repeats a straight run.
+    const blob = (rad, wob, seed, phase)=>{
+      const rr = rng(seed);
+      const pts = [];
+      const N = 13;
+      for(let i=0;i<N;i++){
+        const a = i/N*TAU + phase;
+        const k = rad * (1 - wob*0.5 + wob*(0.35*Math.sin(a*3 + seed) +
+                                            0.35*Math.sin(a*5 - seed*1.7) + rr()*0.6));
+        pts.push(new THREE.Vector2(Math.cos(a)*k, Math.sin(a)*k*0.78));
+      }
+      const curve = new THREE.SplineCurve(pts);
+      const shape = new THREE.Shape(curve.getPoints(96));
+      return new THREE.ShapeGeometry(shape);
+    };
+    const lay = (geo, mtl, y, sx, sz)=>{
+      const m = new THREE.Mesh(geo, mtl);
+      m.rotation.x = -Math.PI/2;
+      m.position.set(x, y, z);
+      m.scale.set(sx||1, sz||1, 1);
+      m.receiveShadow = true;
+      grp.add(m);
+      return m;
+    };
+    // three nested pools: dark body, a lighter sheen, a thin spreading edge
+    const outer = blob(0.46, 0.55, 7, 0.0);
+    lay(outer, mat('#231E17', { rough:0.34, metal:0.04 }), 0.006);
+    FIXED.spill = { geo: outer, x, z };
+    lay(blob(0.34, 0.62, 19, 1.1), mat('#4A4029', { rough:0.28, metal:0.14 }), 0.0075);
+    lay(blob(0.17, 0.7, 31, 2.4),  mat('#6E5D38', { rough:0.24, metal:0.18 }),  0.009);
+    // a couple of detached spatter droplets, same organic outline, scaled down
+    for(let i=0;i<4;i++){
+      const a = r()*TAU, d = 0.42 + r()*0.34;
+      const m = lay(blob(0.05 + r()*0.05, 0.7, 53+i, r()*6),
+                    mat('#231E17', { rough:0.34, metal:0.04 }), 0.0065);
+      m.position.x += Math.cos(a)*d; m.position.z += Math.sin(a)*d*0.8;
+    }
+    markInteractive(grp, site);
+  }
+
+  // ── damaged upright: it IS one of the rack's own aisle-facing posts, taken
+  //    from RACK.posts, so it can never stand somewhere a post would not. ──
+  {
+    const site = S('upright');
+    const front = RACK.posts.filter(pt => pt.front && pt.run === 1);
+    const pt = front[Math.min(1, front.length-1)] || RACK.posts[0];
+    if(pt){
+      site.at = [pt.x, 0, pt.z];
+      const grp = new THREE.Group(); g.add(grp);
+      const dented = mat('#B8571F', { rough:0.7, metal:0.3 });
+      const upH = RACK.upH;
+      // Hide the pristine post that lives here and rebuild it bent. Leaving the
+      // straight one in place put a damaged post beside an undamaged twin.
+      for(const o of g.children){
+        if(o.isMesh && Math.abs(o.position.x-pt.x) < 0.02 &&
+           Math.abs(o.position.z-pt.z) < 0.02 && o.scale.y > upH-0.01){ o.visible = false; }
+      }
+      const kick = Math.cos(pt.yaw)*0.085, kickZ = -Math.sin(pt.yaw)*0.085;
+      box(grp, pt.x, 0.30, pt.z, 0.09, 0.6, 0.09, dented);
+      const bend = new THREE.Mesh(_boxGeo, dented);
+      bend.position.set(pt.x + kick*0.55, 0.86, pt.z + kickZ*0.55);
+      bend.scale.set(0.09, 0.58, 0.09);
+      bend.rotation.set(0, pt.yaw, 0); bend.rotateZ(0.2);
+      bend.castShadow = true; grp.add(bend);
+      box(grp, pt.x + kick, (upH+1.2)/2, pt.z + kickZ, 0.09, upH-1.2, 0.09, dented);
+      // split paint at the bend, on the outside of the curve
+      box(grp, pt.x + kick*1.9, 0.88, pt.z + kickZ*1.9, 0.02, 0.3, 0.095,
+          mat('#EFE9DC', { rough:0.9 }), { yaw: pt.yaw });
+      // fresh forklift scuffs on the slab beside it
+      for(let i=0;i<3;i++)
+        decal(grp, pt.x + kick*4 + i*0.15, pt.z + kickZ*4 - i*0.12, 0.46, 0.055,
+              mat('#3A3A38', { rough:0.9 }), 0.5 + i*0.22);
+      markInteractive(grp, site);
+      pushSolid(pt.x, upH/2, pt.z, 0.06, upH/2, 0.06, 0);
+    }
+  }
+
+  // ── blocked extinguisher: crates jammed against the wall bracket ──
+  {
+    const site = S('blocked');
+    const grp = new THREE.Group(); g.add(grp);
+    const cd = 0.5;                       // crate depth along x
+    const cx = EXT.face + cd/2 + 0.015;   // flush in front, not intersecting
+    const z = EXT.z;
+    site.at = [cx, 0, z];
+    const solids = [];
+    for(let i=0;i<2;i++){
+      box(grp, cx, 0.28 + i*0.54, z, cd, 0.52, 0.62,
+          mat(shade('#8C6F4A', i ? 1.06 : 0.9), { rough:0.94 }),
+          { yaw: i*0.07 - 0.035, solid:true });
+      solids.push(SOLIDS[SOLIDS.length - 1]);
+    }
+    // the fixed state slides the crates along the wall, colliders and all
+    FIXED.blocked = { solids, x0: solids.map(s => s.cx), z0: solids.map(s => s.cz) };
+    markInteractive(grp, site);
+  }
+
+  // ── overhanging load: seated on an actual beam level of an actual bay, and
+  //    pushed proud of the beam edge so the overhang is the visible fault. ──
+  {
+    const site = S('overhang');
+    const bay = RACK.bays.find(b => b.reserved) || RACK.bays[0];
+    if(bay){
+      const lvl = RACK.levels[1];                 // second beam level
+      const grp = new THREE.Group(); g.add(grp);
+      const c = Math.cos(bay.yaw), sn = Math.sin(bay.yaw);
+      /*  Half the pallet hanging into the aisle, not a subtle 30 cm. This has
+          to be legible at a glance from the floor — the learner is judging what
+          to DO about it, and a fault they have to squint to find is testing
+          eyesight rather than judgment.                                      */
+      const D = RACK.depth, over = D * 0.5;
+      const ox = bay.x + sn*over, oz = bay.z + c*over;
+      site.at = [ox, 0, oz];
+      const y = lvl + 0.07;
+      const wood = mat('#B08A55', { rough:0.9 });
+      for(let k=0;k<5;k++){
+        const t = (k/4 - 0.5)*(D - 0.1);
+        box(grp, ox + sn*t, y + 0.02, oz + c*t, 1.2, 0.028, 0.13, wood, { yaw: bay.yaw });
+      }
+      for(let k=0;k<3;k++){
+        const t = (k/2 - 0.5)*1.08;
+        box(grp, ox + c*t, y + 0.06, oz - sn*t, 0.1, 0.09, D, wood, { yaw: bay.yaw });
+      }
+      const lh = 0.92;
+      box(grp, ox, y + 0.14 + lh/2, oz, 1.1, lh, D - 0.16,
+          mat('#9A8E78', { rough:0.95 }), { yaw: bay.yaw });
+      box(grp, ox, y + 0.14 + lh/2, oz, 1.16, lh + 0.03, D - 0.1,
+          mat('#BFD4D8', { rough:0.28, opacity:0.3, transparent:true }),
+          { yaw: bay.yaw, cast:false });
+      markInteractive(grp, site);
+      pushSolid(ox, y + 0.6, oz, 0.6, 0.55, D/2, bay.yaw);
+    }
+  }
+
+  // ── DECOY: neatly stacked empty pallets in the staging square ──
+  {
+    const site = S('pallets'), [x,,z] = site.at;
+    const grp = new THREE.Group(); g.add(grp);
+    const wood = mat('#B08A55', { rough:0.9 });
+    for(let i=0;i<8;i++){
+      const y = i*0.145;
+      for(let k=0;k<4;k++)
+        box(grp, x, y+0.12, z + (k/3-0.5)*0.9, 1.2, 0.026, 0.14, wood);
+      for(let k=0;k<3;k++)
+        box(grp, x + (k/2-0.5)*1.08, y+0.06, z, 0.1, 0.1, 1.0,
+            mat('#9A7848', { rough:0.92 }));
+    }
+    markInteractive(grp, site);
+    pushSolid(x, 0.58, z, 0.64, 0.58, 0.54, 0);
+  }
+
+  // ── DECOY: correctly stored drums ──
+  {
+    const site = S('drums'), [x,,z] = site.at;
+    const grp = new THREE.Group(); g.add(grp);
+    for(let i=0;i<3;i++){
+      const dz = z + i*0.72, c = i===1 ? '#2E6B8A' : '#3A6E4A';
+      cyl(grp, x, 0.44, dz, 0.29, 0.88, mat(c, { rough:0.5, metal:0.3 }), { solid:true });
+      for(const hy of [0.26, 0.62])
+        cyl(grp, x, hy, dz, 0.302, 0.045, mat(shade(c,0.7), { rough:0.55, metal:0.35 }));
+      cyl(grp, x, 0.89, dz, 0.29, 0.03, mat(shade(c,1.12), { rough:0.45, metal:0.35 }));
+      // label panel, legible side out
+      box(grp, x - 0.29, 0.52, dz, 0.02, 0.26, 0.3, mat('#EFEDE4', { rough:0.85 }));
+    }
+    markInteractive(grp, site);
+  }
+
+  buildEquipment(g);
+}
+
+/*──────────────────── the equipment station ───────────────────────────────
+    What is on hand is part of the evidence: "fix it myself" is only right
+    when the bay has the gear and you are trained on it. The pack lists the
+    equipment; each kind is built here from a fixed procedural library. The
+    station stands on the back wall beside the dock door (the board says the
+    tag box is there), clear of the racking run, the door approach and the
+    walkway. A pack with no `equipment` gets no station.                    */
+const EQUIP_NAMES = { spillKit:'Spill kit', cones:'Cones and tape', tagBox:'Tag box', handTruck:'Hand truck' };
+const STATION = { x0:0, z:0, w:1.8 };
+
+function buildEquipment(g){
+  const list = Array.isArray(CONTENT.equipment) ? CONTENT.equipment : [];
+  if(!list.length) return;
+  const { w:RW, d:RD } = T.room;
+  const W = STATION.w, D = 0.5;
+  // between the end of the back-wall rack run and the dock door's left jamb
+  const rackEnd = RACK.posts.filter(p => p.run === 1).reduce((m, p) => Math.max(m, p.x), -RW/2);
+  const dockLeft = RW/2 - 4.3 - 1.7 - 0.3;
+  const x0 = Math.max(rackEnd + 0.5, dockLeft - 0.45 - W - 0.6);
+  const zc = -RD/2 + 0.15 + D/2 + 0.02;     // just proud of the wall ribs
+  STATION.x0 = x0; STATION.z = zc;
+
+  // low steel shelf: four legs, a lower and an upper deck
+  const steel = mat('#5E6670', { rough:0.55, metal:0.45 });
+  const deckY = 0.4;
+  for(const sx of [0.03, W - 0.03]) for(const sz of [-D/2 + 0.03, D/2 - 0.03])
+    box(g, x0 + sx, deckY/2, zc + sz, 0.04, deckY, 0.04, steel);
+  box(g, x0 + W/2, deckY, zc, W, 0.03, D, steel);
+  box(g, x0 + W/2, 0.08, zc, W, 0.025, D, steel);
+  pushSolid(x0 + W/2, 0.5, zc, W/2 + 0.04, 0.5, D/2 + 0.04, 0);
+
+  const kinds = new Map(list.map(e => [e.kind, e]));
+  const ref = e => ({ ref:{ kind:'equipment', title: EQUIP_NAMES[e.kind], body: e.note, normal:[0, 1] } });
+  const top = deckY + 0.015;
+
+  if(kinds.has('spillKit')){
+    // yellow lidded bin, black band, white label panel facing the room
+    const grp = new THREE.Group(); g.add(grp);
+    const bx = x0 + 0.45;
+    box(grp, bx, top + 0.2, zc, 0.6, 0.4, 0.5, mat('#E2B51C', { rough:0.55 }));
+    box(grp, bx, top + 0.425, zc, 0.62, 0.05, 0.52, mat('#D1A512', { rough:0.5 }));
+    box(grp, bx, top + 0.3, zc, 0.606, 0.06, 0.506, mat('#1C1C1E', { rough:0.8 }));
+    markInteractive(grp, null, ref(kinds.get('spillKit')));
+    const tex = canvasTexture(512, 192, (ctx, w, h)=>{
+      ctx.fillStyle = '#F4F2EA'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#16181A'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `800 104px ${SYS_FONT}`;
+      ctx.fillText('SPILL KIT', w/2, h/2 + 4);
+    });
+    const label = signPlane(grp, 0.4, 0.15, tex);
+    label.position.set(bx, top + 0.15, zc + 0.252);
+  }
+  if(kinds.has('cones')){
+    // two cones nested in a stack, a roll of caution tape beside them
+    const grp = new THREE.Group(); g.add(grp);
+    const cx = x0 + 1.25;
+    cone(grp, cx, top, zc);
+    cone(grp, cx, top + 0.09, zc);
+    cyl(grp, cx + 0.33, top + 0.05, zc + 0.05, 0.09, 0.1, mat('#E8C21E', { rough:0.6 }));
+    cyl(grp, cx + 0.33, top + 0.05, zc + 0.05, 0.035, 0.102, mat('#1C1C1E', { rough:0.8 }));
+    markInteractive(grp, null, ref(kinds.get('cones')));
+  }
+  if(kinds.has('tagBox')){
+    // small wall box above the shelf, yellow hang tags on hooks below it
+    const grp = new THREE.Group(); g.add(grp);
+    const tx = x0 + 0.9, ty = 1.4, tz = -RD/2 + 0.2;
+    box(grp, tx, ty, tz, 0.36, 0.26, 0.12, mat('#3E4A52', { rough:0.6, metal:0.3 }));
+    box(grp, tx, ty + 0.14, tz + 0.01, 0.38, 0.025, 0.14, mat('#2E373E', { rough:0.6 }));
+    const tagMat = mat('#F2C418', { rough:0.7 });
+    const hook = mat('#9AA0A6', { rough:0.4, metal:0.7 });
+    for(let i=0;i<4;i++){
+      const hx = tx - 0.13 + i*0.087;
+      box(grp, hx, ty - 0.16, tz + 0.05, 0.012, 0.06, 0.012, hook);
+      box(grp, hx, ty - 0.26, tz + 0.06, 0.06, 0.1, 0.005, tagMat, { yaw: (i%2 ? 0.12 : -0.08) });
+    }
+    markInteractive(grp, null, ref(kinds.get('tagBox')));
+    const tex = canvasTexture(256, 96, (ctx, w, h)=>{
+      ctx.fillStyle = '#F2C418'; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#16181A'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = `800 60px ${SYS_FONT}`;
+      ctx.fillText('TAGS', w/2, h/2 + 3);
+    });
+    const label = signPlane(grp, 0.22, 0.08, tex);
+    label.position.set(tx, ty + 0.02, tz + 0.062);
+  }
+  if(kinds.has('handTruck')){
+    // gray frame, toe plate, two wheels, leaning on the wall past the shelf
+    const grp = new THREE.Group(); g.add(grp);
+    const hx = x0 + W + 0.4, hz = -RD/2 + 0.42;
+    grp.position.set(hx, 0, hz);
+    grp.rotation.x = -0.12;                 // top leans back toward the wall
+    const frame = mat('#7C848C', { rough:0.5, metal:0.5 });
+    for(const sx of [-0.17, 0.17]) box(grp, sx, 0.62, 0, 0.035, 1.18, 0.035, frame);
+    for(const by of [0.3, 0.62, 0.94]) box(grp, 0, by, 0, 0.34, 0.025, 0.025, frame);
+    box(grp, 0, 1.22, -0.04, 0.3, 0.03, 0.03, frame);
+    box(grp, 0, 0.02, 0.12, 0.36, 0.02, 0.22, frame);
+    for(const sx of [-0.22, 0.22])
+      cyl(grp, sx, 0.11, -0.08, 0.11, 0.06, mat('#1E1E20', { rough:0.9 }), { rotZ: Math.PI/2 });
+    markInteractive(grp, null, ref(kinds.get('handTruck')));
+    pushSolid(hx, 0.6, hz, 0.28, 0.6, 0.22, 0);
+  }
+}
+
+/*──────────────────── interaction: raycast the object itself ──────────────*/
+const RAY = new THREE.Raycaster();
+RAY.far = 4.2;
+let HOT = null, OPEN = null;
+
+function updateInteraction(){
+  if(MODE === 'review' && !OPEN) return;      // room view hovers with the mouse, see bindCamera
+  if(MODE !== 'walk' || OPEN){ if(HOT){ setHot(HOT,false); HOT=null; } return; }
+  RAY.setFromCamera({ x:0, y:0 }, camera);
+  let best = null, bestD = Infinity;
+  for(const rec of [...SITES, ...REFS]){
+    const hits = RAY.intersectObjects(rec.meshes, false);
+    if(hits.length && hits[0].distance < bestD){ bestD = hits[0].distance; best = rec; }
+  }
+  if(best !== HOT){
+    if(HOT) setHot(HOT, false);
+    HOT = best;
+    if(HOT){ setHot(HOT, true); if(!HOT.ref && !HOT.spotted && !HOT.answered){ HOT.spotted = true; audio.play('spot', { gain:.6 }); } }
+  }
+  if(HOT) showPrompt(HOT); else $('#prompt').classList.remove('on');
+  $('#crosshair').classList.toggle('hot', !!HOT);
+}
+
+/** the hover prompt, built from DOM nodes so pack text is never parsed as HTML */
+function showPrompt(rec){
+  const pr = $('#prompt');
+  const name = document.createElement('b');
+  name.textContent = itemName(rec);
+  const parts = [name, ' '];
+  if(rec.answered){
+    const done = document.createElement('span');
+    done.className = 'done'; done.textContent = ACTIONS[rec.answered].short;
+    parts.push(done);
+  } else if(rec.ref){
+    parts.push('Click to read');
+  } else {
+    const key = document.createElement('span');
+    key.className = 'key'; key.textContent = 'Click';
+    parts.push(key, ' to inspect');
+  }
+  pr.replaceChildren(...parts);
+  pr.classList.toggle('low', !!rec.ref && MODE === 'walk');
+  pr.classList.add('on');
+}
+
+/** open whatever was clicked: a site to decide, or a reference to read */
+function openItem(rec){
+  if(!rec) return;
+  if(rec.ref) openRef(rec); else openSite(rec);
+}
+/*  A reference opens the same sheet read-only: its text, no buttons. */
+function openRef(rec){
+  if(OPEN !== rec) audio.play('open');
+  beginLook(rec);
+  OPEN = rec;
+  if(document.exitPointerLock) document.exitPointerLock();
+  setRulesLink(false);
+  $('#inspRules').hidden = true;
+  $('#inspTitle').textContent = rec.ref.title;
+  const obs = $('#inspObs');
+  if(rec.ref.lines){
+    const ul = document.createElement('ul');
+    ul.className = 'rules';
+    for(const line of rec.ref.lines){ const li = document.createElement('li'); li.textContent = line; ul.appendChild(li); }
+    obs.replaceChildren(ul);
+  } else obs.textContent = rec.ref.body;
+  document.querySelector('#inspect .ask').style.display = 'none';
+  $('#inspActions').replaceChildren();
+  $('#inspVerdict').style.display = 'none';
+  showSheet();
+}
+
+/*  The close look. Opening an item frames it the way the Guided tour does,
+    then turns the camera a little so the object sits in the part of the
+    screen the docked sheet leaves clear (left of a right-docked sheet, above
+    a bottom sheet). The view the learner had is saved on the first open and
+    put back on close, so a close look never moves them around the room.   */
+let SAVED_VIEW = null;
+function frameItem(rec, dock){
+  if(rec.ref){
+    const box3 = new THREE.Box3().setFromObject(rec.group);
+    const c = box3.getCenter(new THREE.Vector3());
+    const n = rec.ref.normal || [0, 1];
+    const d = rec.ref.kind === 'board' ? 2.6 : 2.0;
+    camera.position.set(c.x + n[0]*d, Math.max(1.45, c.y + 0.5), c.z + n[1]*d);
+    camera.lookAt(c.x, c.y, c.z);
+  } else {
+    /*  Stand in the aisle in front of the site, a step to one side, and look
+        at the middle of what is wrong: never through a rack or a wall.    */
+    const b3 = siteBounds(rec), c = b3.getCenter(new THREE.Vector3());
+    const [ax, az] = aisleDir(c.x, c.z);
+    // a full-height site (a rack post) is looked at where people stand
+    const lookY = b3.max.y - b3.min.y > 3 ? 1.0 : THREE.MathUtils.clamp(c.y, 0.5, 1.9);
+    /*  A site up on a beam level (the overhang) is seen from further along
+        the aisle, so the load reads in profile sticking out past the beam
+        face, not only face-on from below.                                 */
+    const side = b3.min.y > 1.0 ? 2.0 : 0.9;
+    camera.position.set(c.x + ax*2.7 - az*side, Math.max(1.75, lookY + 0.3), c.z + az*2.7 + ax*side);
+    camera.lookAt(c.x, lookY, c.z);
+  }
+  if(dock === 'right'){
+    const hHalf = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) * camera.aspect);
+    camera.rotateOnWorldAxis(new THREE.Vector3(0,1,0), -Math.atan(0.36*Math.tan(hHalf)));
+  } else if(dock === 'bottom'){
+    camera.rotateX(-Math.atan(0.72*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))));
+  }
+  cullShell();
+}
+/** the Guided tour's framing of a site, shared with the close look */
+const frameSite = (rec, dock)=>frameItem(rec, dock);
+const sheetDock = ()=> innerWidth > 900 ? 'right' : 'bottom';
+function beginLook(rec){
+  if(!OPEN){
+    SAVED_VIEW = { pos: camera.position.clone(), quat: camera.quaternion.clone(),
+                   walker: { x:Walker.x, z:Walker.z, yaw:Walker.yaw, pitch:Walker.pitch } };
+  }
+  frameItem(rec, sheetDock());
+}
+function endLook(){
+  if(MODE === 'guided'){ applyGuided(); }
+  else if(SAVED_VIEW){
+    if(MODE === 'walk') Object.assign(Walker, SAVED_VIEW.walker, { vx:0, vz:0 });
+    camera.position.copy(SAVED_VIEW.pos);
+    camera.quaternion.copy(SAVED_VIEW.quat);
+    cullShell();
+  }
+  SAVED_VIEW = null;
+}
+function showSheet(){
+  $('#inspect').classList.add('on');
+  document.body.classList.add('sheetOpen');
+}
+
+/*  The rules link in the sheet's title row shows the posted board text in the
+    same panel, so policy can be checked without walking back to the wall.
+    It is the same text that hangs in the room: evidence before commit.     */
+function setRulesLink(open){
+  const btn = $('#inspRules'), boxEl = $('#inspRulesBox');
+  const board = CONTENT.board;
+  btn.hidden = !(board && Array.isArray(board.lines));
+  btn.setAttribute('aria-expanded', String(!!open));
+  btn.textContent = open ? 'Hide bay rules' : 'Bay rules';
+  boxEl.hidden = !open;
+  if(open){
+    const h = document.createElement('h3'); h.textContent = board.title;
+    const ul = document.createElement('ul'); ul.className = 'rules';
+    for(const line of board.lines){ const li = document.createElement('li'); li.textContent = line; ul.appendChild(li); }
+    boxEl.replaceChildren(h, ul);
+  }
+}
+
+/** a verdict block: a bold head and a paragraph, built as DOM nodes */
+function verdictPart(head, text, alt){
+  const b = document.createElement('b');
+  if(alt) b.className = 'alt';
+  b.textContent = head;
+  const p = document.createElement('p');
+  p.textContent = text;
+  return [b, p];
+}
+
+function openSite(rec){
+  if(!rec) return;
+  if(OPEN !== rec){ audio.play('open'); beginLook(rec); setRulesLink(false); }
+  OPEN = rec;
+  if(document.exitPointerLock) document.exitPointerLock();
+  const s = rec.site;
+  $('#inspTitle').textContent = s.name;
+  $('#inspObs').textContent = s.observe;
+  const acts = $('#inspActions');
+  acts.innerHTML = '';
+  document.querySelector('#inspect .ask').style.display = rec.answered ? 'none' : '';
+  if(rec.answered){
+    const right = rec.answered === s.correct;
+    $('#inspVerdict').className = 'verdict ' + (right ? 'good' : 'bad');
+    $('#inspVerdict').replaceChildren(
+      ...verdictPart(`${right ? 'Right call' : 'Wrong call'}: ${ACTIONS[rec.answered].label}`,
+                     right ? s.why : s.wrong[rec.answered]),
+      ...(right ? [] : verdictPart(`Right call: ${ACTIONS[s.correct].label}`, s.why, true)));
+    $('#inspVerdict').style.display = 'block';
+  } else {
+    $('#inspVerdict').style.display = 'none';
+    /*  Each button says what the response means, under its label: who acts,
+        with what. The meaning is a description, not part of the name, so a
+        screen reader announces the label and then the meaning.            */
+    for(const key of ['none','fix','report','stop']){
+      const b = document.createElement('button');
+      b.type = 'button';
+      const lbl = document.createElement('span');
+      lbl.className = 'lbl'; lbl.textContent = ACTIONS[key].label;
+      b.appendChild(lbl);
+      if(ACTIONS[key].means){
+        const m = document.createElement('span');
+        m.className = 'means'; m.id = `means-${key}`;
+        m.setAttribute('aria-hidden', 'true');
+        m.textContent = ACTIONS[key].means;
+        b.appendChild(m);
+        b.setAttribute('aria-describedby', m.id);
+      }
+      b.onclick = ()=>answerSite(rec, key);
+      acts.appendChild(b);
+    }
+  }
+  showSheet();
+}
+/*──────────────────── the world shows each call ───────────────────────────
+    After a call, a marker stays at the site showing what the learner DID,
+    right or wrong: a fixed state, a hang tag, or a ring of cones and tape.
+    "Leave it" leaves nothing. No marker says right or wrong; correctness
+    lives in the sheet and the debrief. Every marker is a group named
+    'call-marker' under the site's own group, built from the same helpers as
+    the room, and never part of the site's click target.                  */
+const MARKER = 'call-marker';
+
+/** the site's footprint in world space, from its own meshes */
+function siteBounds(rec){
+  const b = new THREE.Box3();
+  for(const m of rec.meshes) if(m.visible) b.expandByObject(m);
+  return b;
+}
+/** unit XZ vector from a point toward the room's open middle: the aisle side */
+function aisleDir(cx, cz){
+  const dx = -cx, dz = -cz;
+  if(Math.abs(dx) >= Math.abs(dz)) return [Math.sign(dx) || 1, 0];
+  return [0, Math.sign(dz) || 1];
+}
+
+function showCall(rec, opts){
+  const old = rec.group.getObjectByName(MARKER);
+  if(old) rec.group.remove(old);
+  const id = rec.site.id, key = rec.answered;
+  // a site whose fixed state moved things is put back before a new marker
+  if(id === 'blocked' && rec.fixShift){ slideCrates(rec, 0, true); }
+  if(!key || key === 'none') return;
+
+  const box3 = siteBounds(rec);
+  const c = box3.getCenter(new THREE.Vector3());
+  const marker = new THREE.Group();
+  marker.name = MARKER;
+  rec.group.add(marker);
+
+  if(key === 'fix'){
+    if(id === 'spill' && FIXED.spill){
+      // a light gray absorbent pad laid over the pool, and one cone at its edge
+      const pad = new THREE.Mesh(FIXED.spill.geo, mat('#A9A79E', { rough:1 }));
+      pad.rotation.x = -Math.PI/2;
+      pad.position.set(FIXED.spill.x, 0.012, FIXED.spill.z);
+      pad.scale.set(1.18, 1.18, 1);
+      pad.receiveShadow = true;
+      marker.add(pad);
+      cone(marker, FIXED.spill.x - 0.75, 0, FIXED.spill.z + 0.2, 0.3);
+    } else if(id === 'blocked' && FIXED.blocked){
+      slideCrates(rec, 1.2, opts && opts.instant);
+    } else {
+      const [ax, az] = aisleDir(c.x, c.z);
+      const half = box3.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+      cone(marker, c.x + ax*(half.x + 0.45), 0, c.z + az*(half.z + 0.45), 0.2);
+    }
+  } else if(key === 'report'){
+    hangTag(marker, box3);
+  } else if(key === 'stop'){
+    stopRing(marker, box3);
+  }
+}
+
+/*  Blocked extinguisher, fixed: the two crates slide 1.2 m along the wall,
+    away from the extinguisher, over 600 ms. Their colliders move with them.
+    The extinguisher hangs inside a rack bay whose posts stand 1.4 m either
+    side of it, so a straight 1.2 m slide would push the crates into a post.
+    They first come out of the bay into the aisle (1.05 m), then go 1.2 m
+    along the wall: clear of the extinguisher, the posts and the walkway.   */
+const CRATE_OUT = 1.05, CRATE_ALONG = 1.2;
+function slideCrates(rec, dist, instant){
+  const F = FIXED.blocked, g = rec.group;
+  const fx = g.position.x, fz = g.position.z, t0 = performance.now();
+  const tx = dist ? CRATE_OUT : 0, tz = dist;
+  const set = (x, z) => {
+    g.position.set(x, 0, z);
+    F.solids.forEach((s, i) => { s.cx = F.x0[i] + x; s.cz = F.z0[i] + z; });
+  };
+  rec.fixShift = dist;
+  if(instant || matchMedia('(prefers-reduced-motion: reduce)').matches){ set(tx, tz); return; }
+  const ease = k => 1 - Math.pow(1 - k, 3);
+  const step = now => {
+    const k = Math.min(1, (now - t0) / 600);
+    // first half out of the bay, second half along the wall
+    const kx = ease(Math.min(1, k*2)), kz = ease(Math.max(0, k*2 - 1));
+    set(fx + (tx - fx)*kx, fz + (tz - fz)*kz);
+    if(k < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/*  Tag and report: a yellow hang tag on its string, at the top edge of the
+    object on the side facing the aisle. A flat site (the spill) gets a
+    short yellow post on its aisle side with the tag hung at about 1 m. A
+    site up at rack height (the overhang) gets the tag hung from the
+    underside of the load on its aisle face, at about 1.5 m, where a person
+    walking the aisle sees it at eye level.                                 */
+function hangTag(marker, box3){
+  const c = box3.getCenter(new THREE.Vector3());
+  const size = box3.getSize(new THREE.Vector3());
+  const [ax, az] = aisleDir(c.x, c.z);
+  const tagMat = mat('#F2C418', { rough:0.7 });
+  const yaw = Math.atan2(ax, az);
+  let x = c.x + ax*(size.x/2 + 0.012), z = c.z + az*(size.z/2 + 0.012);
+  let top = Math.min(box3.max.y, 1.75), drop = 0.16;
+  if(size.y < 0.3){
+    // a stanchion on a weighted base, a step out from the edge of the spill
+    const px = c.x + ax*(size.x/2 + 0.3), pz = c.z + az*(size.z/2 + 0.3);
+    box(marker, px, 0.015, pz, 0.3, 0.03, 0.3, mat('#2A2A2A', { rough:0.8 }));
+    const post = mat('#3A3A3C', { rough:0.6 });
+    box(marker, px, 0.6, pz, 0.04, 1.15, 0.04, post);
+    // a short arm out toward the aisle, so the tag hangs free of the post
+    box(marker, px + ax*0.06, 1.15, pz + az*0.06, ax ? 0.12 : 0.03, 0.03, az ? 0.12 : 0.03, post);
+    x = px + ax*0.11; z = pz + az*0.11; top = 1.14;
+  } else if(box3.min.y > 1.0){
+    // from the bottom of the load, a longer string down toward eye level
+    top = box3.min.y; drop = Math.max(0.16, top - 1.75);
+  }
+  box(marker, x, top - drop/2, z, 0.006, drop, 0.006, mat('#2A2A2A', { rough:0.9 }), { cast:false });
+  const ty = top - drop - 0.09;
+  box(marker, x + ax*0.004, ty, z + az*0.004, 0.12, 0.18, 0.006, tagMat, { yaw });
+  // the report card's printed lines, so it reads as a tag, not a sticky note
+  const ink = mat('#3A3320', { rough:0.9 });
+  for(let i=0;i<3;i++)
+    box(marker, x + ax*0.008, ty + 0.05 - i*0.035, z + az*0.008, 0.08, 0.008, 0.002, ink, { yaw, cast:false });
+}
+
+/*  Stop work: four cones at the corners of the site's footprint, inflated
+    0.6 m, each with a short bar on top, and yellow and black tape strung
+    between them at 0.9 m. Measured at floor level under the footprint, so
+    the overhang is ringed on the floor beneath the load. The cones block
+    the walk like the real thing.                                          */
+function stopRing(marker, box3){
+  const pad = 0.6;
+  const x0 = box3.min.x - pad, x1 = box3.max.x + pad, z0 = box3.min.z - pad, z1 = box3.max.z + pad;
+  const corners = [[x0, z0], [x1, z0], [x1, z1], [x0, z1]];
+  const bar = mat('#E8641E', { rough:0.6 });
+  for(const [x, z] of corners){
+    cone(marker, x, 0, z, 0.3);
+    box(marker, x, 0.7, z, 0.035, 0.44, 0.035, bar);
+    pushSolid(x, 0.45, z, 0.18, 0.45, 0.18, 0);
+  }
+  const yellow = mat('#F2C418', { rough:0.6 }), black = mat('#1C1C1E', { rough:0.7 });
+  for(let i=0;i<4;i++){
+    const [ax, az] = corners[i], [bx, bz] = corners[(i+1)%4];
+    const len = Math.hypot(bx - ax, bz - az), yaw = Math.atan2(bx - ax, bz - az);
+    const n = Math.max(2, Math.round(len / 0.3));
+    for(let k=0;k<n;k++){
+      const t = (k + 0.5)/n;
+      box(marker, ax + (bx-ax)*t, 0.9, az + (bz-az)*t, 0.006, 0.07, len/n, k%2 ? black : yellow,
+          { yaw, cast:false });
+    }
+  }
+}
+
+function answerSite(rec, key){
+  rec.answered = key;
+  showCall(rec);
+  audio.play('tick');
+  setTimeout(()=>audio.play(key === rec.site.correct ? 'right' : 'wrong'), 320);
+  LOG.push(logEntry(performance.now() - RUN_T0, rec.site.id, key));
+  openSite(rec);            // re-render into the verdict state
+  updateProgress();
+  saveWalk();
+}
+
+/*────────────────────── the replay log ────────────────────
+  The format and its helpers live in layers/eventlog/ and are imported, not
+  copied — the build compiles that module next to scorm.js so both reach the
+  package. A ghost replay only works if two engines agree on the shape.
+
+  The walk itself is not logged and must not be: an entry is a CALL MADE, not
+  a control operated, and a learner who took the long way round the racking
+  made the same run as one who went straight there.                          */
+const LOG = [];
+let RUN_T0 = performance.now();   // set for real when the learner starts the walk
+
+/*──────────────────────── the LMS ─────────────────────────
+  Outside an LMS every call here is a no-op, so nothing below is conditional.
+
+  What gets stored is the calls the learner made, keyed by site id — not the
+  room, not the camera. The walk exists to put them in front of the sites; the
+  judgement is the only thing worth carrying between sessions, and a site id
+  that no longer exists is simply skipped on the way back in.
+
+  `log` is the same calls again, in order and on the clock, for a replay to
+  scrub. `calls` cannot stand in for it: a map has no order and no time, and
+  those are the two things a side-by-side run is made of.                    */
+const lms = connectScorm();
+// localStorage is the other half of the dual-write: the SCORM half only
+// exists when an LMS is present, so outside one a refresh used to lose the
+// whole walk. Keyed on content version, same as the SCORM payload, so a
+// stale save from an older pack is ignored rather than misapplied.
+const LOCAL_KEY = 'exploration-v2.save';
+
+function saveWalk(){
+  const calls = {};
+  for(const r of SITES) if(r.answered) calls[r.site.id] = r.answered;
+  // localStorage has no SPM to respect, so it always gets the full log.
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ v:1, contentVersion:CONTENT.version, calls, log:LOG })); }
+  catch(_){ /* private window or full quota — the SCORM half below still covers an LMS run */ }
+
+  if(!lms.connected) return;
+  // The log gets whatever the rest of the payload leaves of the 64000, so a
+  // long walk loses replay detail rather than losing the resume itself. It
+  // rides as rows rather than as a JSON string inside JSON: nesting one
+  // encoding in the other doubles every quote, and the trimming — which counts
+  // raw characters — would let the stored payload back out past the SPM it
+  // exists to respect.
+  const head = JSON.stringify({ v:1, contentVersion:CONTENT.version, calls, log:[] });
+  if(head.length > SUSPEND_LIMIT){
+    // Even with the replay log dropped entirely, the resume state alone
+    // doesn't fit — calling lms.save() here would just hand the wrapper a
+    // string to silently slice() at the limit, corrupting the JSON. Skip the
+    // SCORM half rather than write a truncated save; localStorage above
+    // already has the full run for this browser.
+    console.warn('exploration-v2: resume state exceeds the suspend_data limit; skipping the SCORM save, keeping localStorage only.');
+    return;
+  }
+  const rows = JSON.parse(logSerialize(LOG, SUSPEND_LIMIT - head.length));
+  lms.save(JSON.stringify({ v:1, contentVersion:CONTENT.version, calls, log: rows }));
+}
+
+function restoreWalk(){
+  let saved = null;
+  const raw = lms.resumeData();
+  if(raw){ try { saved = JSON.parse(raw); } catch(_){ /* corrupt = fall through to localStorage */ } }
+  if(!saved){
+    try {
+      const local = localStorage.getItem(LOCAL_KEY);
+      if(local) saved = JSON.parse(local);
+    } catch(_){ /* private window, corrupt JSON, or nothing saved = fresh start */ }
+  }
+  if(saved) applySaved(saved);
+}
+
+/** Clears both halves of the save and reloads to a fresh walk — every site
+ *  answerable again. */
+function startOver(){
+  try { localStorage.removeItem(LOCAL_KEY); } catch(_){}
+  if(lms.connected) lms.save('');
+  location.reload();
+}
+function applySaved(saved){
+  if(!saved || saved.v !== 1) return false;
+  if(saved.contentVersion && saved.contentVersion !== CONTENT.version) return false;
+  for(const r of SITES){
+    const key = saved.calls?.[r.site.id];
+    if(key && ACTIONS[key]){ r.answered = key; showCall(r, { instant:true }); }
+  }
+  // A resumed run keeps its clock: the log's own timestamps are the run's, and
+  // restarting them at zero would put the second half of a walk before the
+  // first. Re-stringified because logParse is the canonical module's, and it
+  // hardens against text — which is what an LMS actually hands back.
+  LOG.push(...logParse(JSON.stringify(saved.log ?? [])));
+  return true;
+}
+
+let LEARNING = null;
+function reportWalk(){
+  const right = SITES.filter(r=>r.answered === r.site.correct).length;
+  const score = SITES.length === 0 ? 0 : Math.round((right / SITES.length) * 100);
+  LEARNING ??= buildInspectionLearning({
+    sites: SITES.map(r=>({ ...r.site, answered:r.answered })),
+    contentVersion: CONTENT.version,
+    scenarioId: 'receiving-bay-inspection',
+    mode: 'assessment',
+    assistance: 'none',
+    retryVariants: [{ id:'receiving-bay-inspection-variant', scenarioId:'receiving-bay-inspection-b', scenarioVersion:CONTENT.version, productVersion:{ min:'2026.1', max:'2026.1' }, skillIds:['recognize-acceptable-condition','proportionate-inspection-response'], difficulty:'standard', approved:false }],
+  });
+  // Two of the six sites are fine as they stand, and correctly leaving those
+  // alone counts exactly as much as catching a real hazard. Flagging
+  // everything is not a good walk.
+  lms.finish({ score, max:100, passed: score >= 80 });
+}
+let FINISHED = false;
+/*  Finish reports once, then steps back to room view, so the debrief sits
+    over the whole room with every marker in it, and Close leaves the
+    learner looking at what they did.                                      */
+function finishWalk(){
+  if(OPEN) closeSite();
+  if(!FINISHED){ FINISHED = true; reportWalk(); }
+  if(MODE !== 'review') setMode('review');
+  showDebrief();
+}
+function closeSite(){
+  $('#inspect').classList.remove('on');
+  document.body.classList.remove('sheetOpen');
+  if(OPEN) endLook();
+  OPEN = null;
+  // With every item checked the mouse stays free, so Finish can be clicked
+  // straight away; until then the walk picks the mouse back up.
+  const allDone = SITES.length && SITES.every(r=>r.answered);
+  if(MODE === 'walk' && !allDone) try { renderer.domElement.requestPointerLock?.()?.catch?.(()=>{}); } catch(_){}
+  // the learner decides when the walk is over; a full list only says so
+  if(markFinishReady()) toast(`All ${SITES.length} checked. Click Finish inspection when you are ready.`, 4000);
+}
+/** turn Finish inspection into the next step once every item is checked;
+ *  true the first time it turns */
+function markFinishReady(){
+  const btn = $('#finishWalk');
+  if(!SITES.length || !SITES.every(r=>r.answered) || btn.classList.contains('ready')) return false;
+  btn.classList.add('ready');
+  btn.textContent = `All ${SITES.length} checked. Finish inspection`;
+  return true;
+}
+/** the walk list: every item on the pack's list, in pack order, in words */
+function renderWalkList(){
+  const ul = $('#walkList ul');
+  const items = CONTENT.sites.map(s => SITES.find(r => r.site.id === s.id)).filter(Boolean);
+  ul.replaceChildren(...items.map(rec => {
+    const li = document.createElement('li');
+    if(rec.answered) li.className = 'done';
+    const boxEl = document.createElement('span'); boxEl.className = 'box';
+    const name = document.createElement('span'); name.textContent = rec.site.name;
+    li.append(boxEl, name);
+    if(rec.answered){
+      const st = document.createElement('span'); st.className = 'st';
+      st.textContent = `Checked: ${ACTIONS[rec.answered].short}`;
+      name.append(st);
+    }
+    return li;
+  }));
+}
+
+function updateProgress(){
+  renderWalkList();
+  const done = SITES.filter(r=>r.answered).length;
+  const right = SITES.filter(r=>r.answered === r.site.correct).length;
+  $('#prog').innerHTML =
+    `<span class="k">Checked</span> ${done}/${SITES.length}` +
+    `&nbsp;&nbsp;<span class="k">Right</span> ${right}`;
+}
+/** the debrief, built from DOM nodes so pack text is never parsed as HTML */
+function showDebrief(){
+  audio.play('signoff');
+  const el = (tag, text, cls)=>{ const n = document.createElement(tag); if(text != null) n.textContent = text; if(cls) n.className = cls; return n; };
+  const noun = String(CONTENT.noun || 'item');
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1);
+
+  const table = el('table', null, 'resultTable');
+  const head = el('tr');
+  head.append(el('th', Noun), el('th', 'Your call'), el('th', 'Right call'));
+  table.append(el('thead'));
+  table.tHead.append(head);
+  const body = el('tbody');
+  for(const r of SITES){
+    const ok = r.answered === r.site.correct;
+    const tr = el('tr', null, ok ? 'ok' : 'no');
+    tr.append(el('td', r.site.name), el('td', r.answered ? ACTIONS[r.answered].label : 'Not checked'),
+              el('td', ACTIONS[r.site.correct].label));
+    body.append(tr);
+  }
+  table.append(body);
+
+  const right = SITES.filter(r=>r.answered === r.site.correct).length;
+  const missed = SITES.filter(r=>!r.site.fine && (!r.answered || r.answered === 'none')).map(r=>r.site.name);
+  const unnecessary = SITES.filter(r=>r.site.fine && r.answered && r.answered !== 'none').map(r=>r.site.name);
+  const section = (title, names)=>{
+    const s = el('div', null, 'reportSection');
+    s.append(el('h3', title), el('p', names.join(', ') || 'None'));
+    return s;
+  };
+  $('#debriefTitle').textContent = `${right} of ${SITES.length} calls right`;
+  $('#debriefBody').replaceChildren(table,
+    section('Problems you let through', missed),
+    section(`Safe ${noun}s you flagged`, unnecessary));
+  $('#debrief').classList.add('on');
+}
+
+/*──────────────────────── §7  CAMERA, BUILD, BOOT ─────────────────────────*/
+
+const $ = s=>document.querySelector(s);
+const setStat=(s,p)=>{ $('#stat').textContent=s; if(p!==undefined) $('#barIn').style.width=(p*100).toFixed(0)+'%'; };
+const idle = ()=> new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
+
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio||1, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+$('#app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(46, innerWidth/innerHeight, 0.1, 200);
+
+let ROOM = new THREE.Group();
+let colOverlay = null, litOverlay = null;
+
+/*  Two cameras over one scene. WALK is the mode the learner is in; REVIEW is
+    an orbit rig kept for authoring, so a room can be inspected from outside
+    without a second build of the level.                                     */
+let MODE = 'walk', ACTIVE_ROUTE = 'walk', GUIDE_INDEX = 0;
+const EYE = 1.68, WALK_R = 0.34;
+
+const Walker = {
+  x: 0, z: 5.5, yaw: Math.PI, pitch: 0,
+  vx: 0, vz: 0,
+  step: 0, bob: 0, sway: 0,
+  keys: Object.create(null),
+
+  spawn(){
+    // Stand just inside the room, looking at the long wall of racking.
+    this.x = T.room.w*0.27; this.z = T.room.d*0.26;
+    this.yaw = Math.PI/4; this.pitch = -0.04;
+    this.vx = this.vz = 0; this.step = 0;
+    this.apply();
+  },
+  look(dx, dy){
+    this.yaw   -= dx*0.0022;
+    this.pitch  = clamp(this.pitch - dy*0.0022, -1.2, 1.15);
+  },
+  /** true if a circle of WALK_R at (x,z) is clear of every authored collider */
+  free(x, z){
+    const minY = 0.12, maxY = EYE;          // step over floor tape, duck nothing
+    for(let i=0;i<SOLIDS.length;i++)
+      if(hitsSolid(SOLIDS[i], x, z, WALK_R, minY, maxY)) return false;
+    return true;
+  },
+  update(dt){
+    const k = this.keys;
+    let f = 0, s = 0;
+    if(k['KeyW'] || k['ArrowUp'])    f += 1;
+    if(k['KeyS'] || k['ArrowDown'])  f -= 1;
+    if(k['KeyA'] || k['ArrowLeft'])  s -= 1;
+    if(k['KeyD'] || k['ArrowRight']) s += 1;
+
+    const run = (k['ShiftLeft'] || k['ShiftRight']) ? 1.9 : 1.0;
+    const speed = 2.6 * run;
+    // forward is -Z rotated by yaw
+    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
+    const rx =  Math.cos(this.yaw), rz = -Math.sin(this.yaw);
+    let wx = fx*f + rx*s, wz = fz*f + rz*s;
+    const wl = Math.hypot(wx, wz);
+    if(wl > 0){ wx /= wl; wz /= wl; }
+
+    const accel = (f || s) ? 11 : 14;
+    this.vx += (wx*speed - this.vx) * clamp(accel*dt, 0, 1);
+    this.vz += (wz*speed - this.vz) * clamp(accel*dt, 0, 1);
+
+    // Slide collision: resolve each axis on its own so a glancing hit slides
+    // along the surface instead of stopping the walker dead.
+    const nx = this.x + this.vx*dt, nz = this.z + this.vz*dt;
+    if(this.free(nx, this.z)) this.x = nx; else this.vx = 0;
+    if(this.free(this.x, nz)) this.z = nz; else this.vz = 0;
+
+    // gait: vertical bob at twice the step rate, lateral sway at once
+    const sp = Math.hypot(this.vx, this.vz);
+    this.step += dt * (sp > 0.12 ? 0.62 + 0.34*sp : 0);
+    const amp = clamp(sp/2.6, 0, 1);
+    const gp = this.step * TAU;
+    this.bob  += (Math.sin(gp*2)*0.019*amp - this.bob ) * clamp(12*dt, 0, 1);
+    this.sway += (Math.sin(gp)  *0.013*amp - this.sway) * clamp(10*dt, 0, 1);
+    this.apply();
+  },
+  apply(){
+    camera.position.set(
+      this.x + Math.cos(this.yaw)*this.sway,
+      EYE + this.bob,
+      this.z - Math.sin(this.yaw)*this.sway);
+    camera.rotation.set(0, 0, 0);
+    camera.rotateY(this.yaw);
+    camera.rotateX(this.pitch);
+    camera.rotateZ(this.sway*0.35);
+    cullShell();
+  },
+};
+
+const Review = {
+  target: new THREE.Vector3(0, 1.4, 0),
+  dist: 19, yaw: -0.72, pitch: 0.42,
+  drag: null, lx:0, ly:0,
+  apply(){
+    this.pitch = clamp(this.pitch, 0.06, 1.45);
+    this.dist  = clamp(this.dist, 4, 48);
+    const cp = Math.cos(this.pitch);
+    camera.position.set(
+      this.target.x + Math.sin(this.yaw)*cp*this.dist,
+      this.target.y + Math.sin(this.pitch)*this.dist,
+      this.target.z + Math.cos(this.yaw)*cp*this.dist);
+    camera.rotation.set(0,0,0);
+    camera.lookAt(this.target);
+    cullShell();
+  },
+};
+
+/*  The key bar says what works in the mode the learner is in, and only that. */
+const KEYS = {
+  walk:   [['WASD','walk'], ['Shift','run'], ['Mouse','look'], ['Click','inspect'], ['R','room view'], ['H','help'], ['Esc','free mouse']],
+  review: [['Drag','turn'], ['Shift+drag','pan'], ['Wheel','zoom'], ['Click','an item to inspect'], ['R','back']],
+  guided: [['← →','move between items'], ['E','inspect'], ['R','room view'], ['H','help']],
+};
+function renderKeys(mode){
+  $('#keys').replaceChildren(...(KEYS[mode] || KEYS.walk).map(([k, t]) => {
+    const s = document.createElement('span');
+    const b = document.createElement('b'); b.textContent = k;
+    s.append(b, ' ' + t);
+    return s;
+  }));
+}
+
+function setMode(m){
+  MODE = m;
+  renderKeys(m);
+  if(HOT){ setHot(HOT, false); HOT = null; }
+  const pr = $('#prompt'); pr.classList.remove('on'); pr.style.left = pr.style.top = '';
+  document.body.classList.toggle('review', m === 'review');
+  document.body.classList.toggle('guided', m === 'guided');
+  if(m === 'walk'){ Walker.apply(); }
+  else if(m === 'guided'){ applyGuided(); }
+  else { if(document.pointerLockElement) document.exitPointerLock(); Review.apply(); }
+  toast(m === 'walk' ? 'Free walk' : m === 'guided' ? 'Guided tour' : 'Room view: drag to turn');
+}
+
+function applyGuided(){
+  if(!SITES.length) return;
+  GUIDE_INDEX = (GUIDE_INDEX + SITES.length) % SITES.length;
+  const rec = SITES[GUIDE_INDEX];
+  for(const site of SITES) setHot(site, site === rec);
+  frameSite(rec);
+  $('#guideName').textContent = `${GUIDE_INDEX + 1} of ${SITES.length} · ${rec.site.name}${rec.answered ? ` · ${ACTIONS[rec.answered].short}` : ''}`;
+  cullShell();
+}
+function guideStep(delta){ if(OPEN) return; GUIDE_INDEX += delta; applyGuided(); }
+
+function bindCamera(){
+  const cv = renderer.domElement;
+  cv.addEventListener('click', ()=>{
+    if(MODE === 'walk' && !OPEN && !document.pointerLockElement && cv.requestPointerLock)
+      try { cv.requestPointerLock()?.catch?.(()=>{}); } catch(_){}
+  });
+  /*  Room view: the mouse points at things. A click with almost no drag
+      opens what is under it; hovering highlights it and names it. The ray
+      has no length limit because the camera is far above the floor.     */
+  const PICK = new THREE.Raycaster();
+  const pickAt = (cx, cy)=>{
+    const ndc = { x: cx/innerWidth*2 - 1, y: -(cy/innerHeight)*2 + 1 };
+    PICK.setFromCamera(ndc, camera);
+    let best = null, bestD = Infinity;
+    for(const rec of [...SITES, ...REFS]){
+      const hits = PICK.intersectObjects(rec.meshes, false);
+      if(hits.length && hits[0].distance < bestD){ bestD = hits[0].distance; best = rec; }
+    }
+    return best;
+  };
+  const reviewHover = (cx, cy)=>{
+    const rec = OPEN ? null : pickAt(cx, cy);
+    if(rec !== HOT){ if(HOT) setHot(HOT, false); HOT = rec; if(HOT) setHot(HOT, true); }
+    const pr = $('#prompt');
+    if(HOT){ showPrompt(HOT); pr.style.left = cx + 'px'; pr.style.top = (cy + 22) + 'px'; }
+    else pr.classList.remove('on');
+    cv.style.cursor = HOT ? 'pointer' : '';
+  };
+  let downAt = null;
+  addEventListener('mousemove', e=>{
+    if(MODE === 'walk'){
+      if(document.pointerLockElement === cv && !OPEN) Walker.look(e.movementX, e.movementY);
+      return;
+    }
+    if(MODE === 'review' && !Review.drag && e.target === cv){ reviewHover(e.clientX, e.clientY); return; }
+    if(!Review.drag) return;
+    const dx = e.clientX - Review.lx, dy = e.clientY - Review.ly;
+    Review.lx = e.clientX; Review.ly = e.clientY;
+    if(Review.drag === 'turn'){ Review.yaw -= dx*0.006; Review.pitch += dy*0.005; }
+    else {
+      const r = Review.dist*0.0016;
+      const c = Math.cos(Review.yaw), s = Math.sin(Review.yaw);
+      Review.target.x -= ( c*dx)*r;
+      Review.target.z -= (-s*dx)*r;
+      Review.target.y = clamp(Review.target.y + dy*r, 0.2, 5);
+    }
+    Review.apply();
+  });
+  cv.addEventListener('pointerdown', e=>{
+    if(MODE !== 'review') return;
+    downAt = [e.clientX, e.clientY];
+    Review.drag = e.shiftKey ? 'pan' : 'turn';
+    Review.lx = e.clientX; Review.ly = e.clientY;
+    cv.setPointerCapture(e.pointerId);
+  });
+  const stop = ()=>{ Review.drag = null; };
+  cv.addEventListener('pointerup', e=>{
+    stop();
+    if(MODE !== 'review' || !downAt) return;
+    const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+    downAt = null;
+    if(moved < 5){
+      const rec = pickAt(e.clientX, e.clientY);
+      if(rec){ if(HOT){ setHot(HOT, false); HOT = null; } $('#prompt').classList.remove('on'); cv.style.cursor = ''; openItem(rec); }
+    }
+  });
+  cv.addEventListener('pointercancel', stop);
+  cv.addEventListener('wheel', e=>{
+    if(MODE !== 'review') return;
+    e.preventDefault();
+    Review.dist *= Math.exp(e.deltaY*0.0011);
+    Review.apply();
+  }, { passive:false });
+  addEventListener('blur', ()=>{ Walker.keys = Object.create(null); });
+}
+
+/* ── (re)build the whole room from the active theme ── */
+function buildRoom(){
+  scene.remove(ROOM);
+  ROOM.traverse(o=>{ if(o.isMesh && o.geometry && o.geometry.dispose &&
+                        o.geometry !== _boxGeo && o.geometry !== _cylGeo &&
+                        o.geometry !== _cylGeoLo) o.geometry.dispose(); });
+  ROOM = new THREE.Group();
+  clearSolids();
+  REFS.length = 0;
+  BOARD.rec = null;
+
+  buildShell(ROOM);
+  for(const key of T.props){
+    const f = PROPS[key];
+    if(f) f(ROOM);
+    else console.warn(`no prop factory: ${key}`);
+  }
+  buildLighting(ROOM);
+  // Sites come from CONTENT (the pack), not from the active visual theme —
+  // theme controls only look. buildSites is keyed to the six built-in site
+  // ids and relies on RACK/EXT, which every registered theme's prop set
+  // builds ('racking' and 'extinguisher' are in all three). Exploration
+  // scenarios are physical places: a new scenario adds site geometry here.
+  buildSites(ROOM);
+  scene.add(ROOM);
+  if(MODE === 'guided') applyGuided();
+
+  if(colOverlay){ scene.remove(colOverlay); colOverlay = null; }
+  if(litOverlay){ scene.remove(litOverlay); litOverlay = null; }
+  if($('#dCol').checked) toggleColliders(true);
+  if($('#dLit').checked) toggleLights(true);
+  CEILING_ON = $('#dCeil').checked;
+  cullShell();
+
+  scene.background = new THREE.Color(T.floor.joint).multiplyScalar(0.22);
+  scene.fog = new THREE.Fog(scene.background, 22, 70);
+
+  const tele = $('#tele');
+  let tris = 0, meshes = 0;
+  ROOM.traverse(o=>{ if(o.isMesh){ meshes++;
+    const idx = o.geometry.index;
+    tris += (idx ? idx.count : o.geometry.attributes.position.count)/3; } });
+  tele.innerHTML =
+    `<span style="opacity:.55">theme</span> ${T.label}<br>` +
+    `<span style="opacity:.55">meshes</span> ${meshes}  ` +
+    `<span style="opacity:.55">tris</span> ${Math.round(tris).toLocaleString()}<br>` +
+    `<span style="opacity:.55">colliders</span> ${SOLIDS.length}  ` +
+    `<span style="opacity:.55">assets</span> 0`;
+}
+
+function toggleColliders(on){
+  if(colOverlay){ scene.remove(colOverlay); colOverlay = null; }
+  if(on){ colOverlay = buildColliderOverlay(); scene.add(colOverlay); }
+}
+function toggleLights(on){
+  if(litOverlay){ scene.remove(litOverlay); litOverlay = null; }
+  if(on){ litOverlay = buildLightOverlay(); scene.add(litOverlay); }
+}
+
+function setTheme(name){
+  if(!THEMES[name]) return;
+  T = THEMES[name];
+  for(const b of document.querySelectorAll('#themeSeg button'))
+    b.classList.toggle('on', b.dataset.t === name);
+  buildRoom();
+  Walker.spawn();
+}
+
+/* ── input ── */
+function bindInput(){
+  bindCamera();
+  addEventListener('keydown', e=>{
+    Walker.keys[e.code] = true;
+    if(e.code === 'Space') e.preventDefault();
+    if(e.code === 'KeyC'){ const c = $('#dCol'); c.checked = !c.checked; toggleColliders(c.checked); }
+    if(e.code === 'KeyL'){ const c = $('#dLit'); c.checked = !c.checked; toggleLights(c.checked); }
+    if(e.code === 'KeyE' && !OPEN){ if(MODE === 'guided') openSite(SITES[GUIDE_INDEX]); else if(HOT) openItem(HOT); }
+    if(MODE === 'guided' && !OPEN && e.code === 'ArrowLeft'){ e.preventDefault(); guideStep(-1); }
+    if(MODE === 'guided' && !OPEN && e.code === 'ArrowRight'){ e.preventDefault(); guideStep(1); }
+    if(e.code === 'KeyR' && !OPEN) setMode(MODE === 'review' ? ACTIVE_ROUTE : 'review');
+    if(e.code === 'KeyH'){
+      const on = $('#panel').classList.toggle('on');
+      // With the pointer locked the browser sends no cursor to the DOM, so the
+      // settings panel could be opened and then never actually clicked.
+      if(on && document.pointerLockElement) document.exitPointerLock();
+    }
+    if(e.code === 'Escape'){ if(OPEN) closeSite(); else document.exitPointerLock?.(); }
+  });
+  addEventListener('keyup', e=>{ Walker.keys[e.code] = false; });
+  $('#dCol').addEventListener('change', e=>toggleColliders(e.target.checked));
+  $('#dLit').addEventListener('change', e=>toggleLights(e.target.checked));
+  $('#dCeil').addEventListener('change', e=>{ CEILING_ON = e.target.checked; cullShell(); });
+  $('#themeSeg').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(b) setTheme(b.dataset.t);
+  });
+  const bind=(id,f,fmt)=>{ const el=$('#'+id), out=$('#'+id+'V');
+    const go=()=>{ const v=+el.value; f(v); if(out) out.textContent = fmt?fmt(v):String(v); };
+    el.addEventListener('input', go); go(); };
+  bind('pExp', v=>{ renderer.toneMappingExposure = v/100; }, v=>(v/100).toFixed(2));
+  bind('pWarm', v=>{
+    const k = v/100;
+    LIGHT_RIG.traverse(o=>{ if(o.isPointLight) o.intensity = T.lights.intensity*plCandela()*k; });
+  }, v=>(v/100).toFixed(2));
+  $('#inspClose').addEventListener('click', closeSite);
+  $('#inspRules').addEventListener('click', ()=>setRulesLink($('#inspRules').getAttribute('aria-expanded') !== 'true'));
+  $('#debriefClose').addEventListener('click', ()=>$('#debrief').classList.remove('on'));
+  $('#startOver').addEventListener('click', startOver);
+  $('#helpToggle').addEventListener('click', ()=>{
+    const on = $('#panel').classList.toggle('on');
+    $('#helpToggle').setAttribute('aria-expanded', String(on));
+    if(on && document.pointerLockElement) document.exitPointerLock();
+  });
+  $('#finishWalk').addEventListener('click', finishWalk);
+  $('#guidePrev').addEventListener('click', ()=>guideStep(-1));
+  $('#guideNext').addEventListener('click', ()=>guideStep(1));
+  $('#guideInspect').addEventListener('click', ()=>{ if(!OPEN) openSite(SITES[GUIDE_INDEX]); });
+  $('#routeChoice').addEventListener('click', e=>{
+    const b = e.target.closest('button[data-route]'); if(!b) return;
+    ACTIVE_ROUTE = b.dataset.route;
+    for(const option of document.querySelectorAll('#routeChoice button')){
+      const on = option === b; option.classList.toggle('on', on); option.setAttribute('aria-pressed', String(on));
+    }
+  });
+  renderer.domElement.addEventListener('mousedown', e=>{
+    if(MODE === 'walk' && HOT && !OPEN && document.pointerLockElement) openItem(HOT);
+  });
+  addEventListener('resize', ()=>{
+    camera.aspect = innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+    if(MODE === 'guided') applyGuided();
+  });
+  $('#introStartOver').addEventListener('click', startOver);
+  $('#enter').addEventListener('click', ()=>{
+    RUN_T0 = performance.now() - (LOG.length ? LOG[LOG.length-1].t : 0);
+    $('#veil').classList.add('gone');
+    setTimeout(()=>{ $('#veil').style.display='none'; }, 1000);
+    // a resumed walk with every item checked opens on the whole room, with
+    // Finish waiting; the debrief only opens when the learner asks for it
+    if(SITES.length && SITES.every(r=>r.answered)){ setMode('review'); markFinishReady(); }
+    else setMode(ACTIVE_ROUTE);
+    WALK_STARTED = performance.now();
+    // Free walk acquires pointer lock only when the learner clicks the scene.
+    // Starting with it active makes persistent DOM controls unreachable until
+    // the learner discovers Escape, which is a hidden interaction requirement.
+  });
+}
+
+let toastT = null;
+function toast(msg, ms){
+  const el = $('#toast');
+  if(!msg){ el.classList.remove('on'); return; }
+  el.textContent = msg; el.classList.add('on');
+  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove('on'), ms || 1700);
+}
+
+/*  One nudge, once: a learner who has walked for 30 s in Free walk without
+    pointing at a single item on the list is told how the room works.     */
+let WALK_STARTED = 0, HINTED = false;
+function walkHint(now){
+  if(HINTED || !WALK_STARTED || MODE !== 'walk' || OPEN) return;
+  if(SITES.some(r => r.spotted || r.answered)){ HINTED = true; return; }
+  if(now - WALK_STARTED < 30000) return;
+  HINTED = true;
+  toast('Look for the items on your list. Walk close and point at one.', 6000);
+}
+
+/* ── main loop ── */
+let last = performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  if(MODE === 'walk' && !OPEN) Walker.update(dt);   // a close look holds the camera
+  updateInteraction();
+  walkHint(now);
+  renderer.render(scene, camera);
+}
+
+/* ── boot ── */
+async function boot(){
+  document.body.classList.toggle('dev', new URLSearchParams(location.search).get('dev') === '1');
+  setStat('Loading', 0.2); await idle();
+  bindInput();
+  setStat('Loading', 0.55); await idle();
+  buildRoom();
+  setStat('Loading', 0.85); await idle();
+  Walker.spawn();
+  restoreWalk();
+  updateProgress();
+  renderKeys(MODE);
+  // The intro always shows. A saved walk offers to continue, or to start over.
+  const checked = SITES.filter(r=>r.answered).length;
+  if(checked){
+    $('#enter').textContent = `Continue (${checked} of ${SITES.length} checked)`;
+    $('#introStartOver').classList.add('on');
+  }
+  renderer.render(scene, camera);          // warm the shader cache
+  setStat('Ready', 1.0);
+  $('#enter').classList.add('on');
+  requestAnimationFrame(loop);
+  window.__room = { audio, THEMES, setTheme, SOLIDS, SITES, REFS, BOARD, STATION, CONTENT, openItem, camera, THREE, RACK, EXT, Walker, setMode,
+                  openSite, answerSite, closeSite, finishWalk, guideStep, applySaved, buildInspectionLearning,
+                  get learning(){ return LEARNING; }, get mode(){ return MODE; }, get route(){ return ACTIVE_ROUTE; },
+                  get hot(){ return HOT && (HOT.site ? HOT.site.id : HOT.ref.kind); }, scene, renderer,
+                  LOG, eventLog: ()=>logSerialize(LOG) };
+}
+boot().catch(e=>{
+  const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.stack||e);
+});
+</script>
+</body>
+</html>

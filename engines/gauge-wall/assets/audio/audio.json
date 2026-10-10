@@ -1,0 +1,73 @@
+[
+  {
+    "name": "spec-open",
+    "kind": "sfx",
+    "duration": 0.8,
+    "moment": "a lever's spec plate opens (reading what it meters)",
+    "prompt": "A thin aluminium spec plate flipped open on a hinge, light metallic click and slide, close up"
+  },
+  {
+    "name": "clipboard",
+    "kind": "sfx",
+    "duration": 1.0,
+    "moment": "the customer's clipboard opens (reading the plans)",
+    "prompt": "Paper pages flipped over on a clipboard, a crisp page turn and the metal clip snapping back"
+  },
+  {
+    "name": "lever-pull",
+    "kind": "sfx",
+    "duration": 1.2,
+    "moment": "a contract lever is pulled (choosing what to meter)",
+    "prompt": "A heavy steel switchgear lever pulled down into its latch, metal grind then a solid clunk"
+  },
+  {
+    "name": "detent",
+    "kind": "sfx",
+    "duration": 0.5,
+    "influence": 0.8,
+    "moment": "commitment knob turned: one detent click per step (throttled)",
+    "prompt": "Single small precise click of a machined aluminium rotary knob turning one detent, close up, tiny and dry"
+  },
+  {
+    "name": "lock",
+    "kind": "sfx",
+    "duration": 1.5,
+    "moment": "Lock it confirmed: the commitment is locked (the commit)",
+    "prompt": "A heavy steel vault lock turning: a key switch grinding round and a big bolt sliding home, ending in a deep metallic clunk that rings briefly"
+  },
+  {
+    "name": "pen",
+    "kind": "sfx",
+    "duration": 1.5,
+    "moment": "reveal: each month the chart recorder pens draw the next stretch",
+    "prompt": "Chart recorder pens scratching across paper while the chart drive motor whirs softly, steady mechanical scribble"
+  },
+  {
+    "name": "counter",
+    "kind": "sfx",
+    "duration": 1.0,
+    "moment": "reveal: each month the bill drums roll to the new total",
+    "prompt": "Mechanical counter number drums rolling over quickly, a short run of metal wheel clicks"
+  },
+  {
+    "name": "printer",
+    "kind": "sfx",
+    "duration": 1.2,
+    "moment": "reveal: each month's line prints on the ticket printer (within commitment: this alone)",
+    "prompt": "A small dot matrix receipt printer printing one line, short buzzing print head and paper feed"
+  },
+  {
+    "name": "overage",
+    "kind": "sfx",
+    "duration": 1.2,
+    "moment": "reveal, wrong: a month runs over the commitment and bills overage (red lamp pulses)",
+    "prompt": "An industrial panel warning buzzer sounding one harsh electric buzz, control room"
+  },
+  {
+    "name": "invoice",
+    "kind": "sfx",
+    "duration": 1.0,
+    "moment": "end of term: the invoice is torn off and the debrief opens",
+    "prompt": "A long paper receipt torn off a printer's serrated edge, one quick sharp paper rip"
+  }
+]

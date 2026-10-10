@@ -1,0 +1,9 @@
+{
+  "name": "lock-wrong",
+  "kind": "sfx",
+  "moment": "reveal, source named wrong: the magic eye flutters shut",
+  "prompt": "Old tube radio losing its station: a harsh crackle of static and a wavering detuned whistle that drifts off and fades",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:49:50.996Z"
+}

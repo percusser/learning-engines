@@ -1,0 +1,9 @@
+{
+  "name": "tick",
+  "kind": "sfx",
+  "moment": "COMMIT: a response is picked",
+  "prompt": "A ballpoint pen ticking a box firmly on a paper form, one quick scratch",
+  "duration": 0.6,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:58.203Z"
+}

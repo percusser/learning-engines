@@ -1,0 +1,8 @@
+[
+  {"name": "spot", "kind": "sfx", "duration": 0.5, "influence": 0.8, "moment": "READ: a marked condition lights up under the crosshair for the first time (a discovery)", "prompt": "A small metal flashlight switch clicked on, one crisp click"},
+  {"name": "open", "kind": "sfx", "duration": 0.8, "moment": "READ: look closer, the inspection sheet opens", "prompt": "A clipboard picked up and its top paper page flipped over, paper and hardboard, close up"},
+  {"name": "tick", "kind": "sfx", "duration": 0.6, "influence": 0.8, "moment": "COMMIT: a response is picked", "prompt": "A ballpoint pen ticking a box firmly on a paper form, one quick scratch"},
+  {"name": "right", "kind": "sfx", "duration": 1.2, "moment": "REVEAL right: the call matches the site, the area is safe as handled", "prompt": "A heavy steel padlock shackle clicked shut, then a key turned and pulled out of the lock with a short jingle of a key ring", "influence": 0.6},
+  {"name": "wrong", "kind": "sfx", "duration": 1.5, "moment": "REVEAL wrong: the call does not match the site", "prompt": "Cardboard boxes toppling off a pallet and thudding onto a concrete floor"},
+  {"name": "signoff", "kind": "sfx", "duration": 1.5, "moment": "end: the walk is finished and the report appears", "prompt": "A pen signature scribbled quickly on paper, then the sheet torn off a notepad"}
+]

@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Every learning engine in the Interactive Learning Creator: what the learner does, how it works, and what kinds of training it fits.">
+<title>Learning Engines</title>
+<style>
+@font-face { font-family: "Libre Franklin"; src: url("fonts/libre-franklin-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Courier Prime"; src: url("fonts/Courier-Prime_400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+</style>
+<style>
+/* Same presentation system as the RPG engine page: one dark column, sticky nav, each section a slide. */
+:root {
+  color-scheme: dark;
+  --bg: #070d16; --panel: #0c1724; --panel-2: #12223a; --line: #22364f;
+  --ink: #f4f6fa; --muted: #9aa8bb;
+  --pink: #e20082; --orange: #f99d1c; --blue: #5aa0ff; --green: #3fbf7f; --red: #ff6b6b;
+  --grad: linear-gradient(90deg, var(--pink), var(--orange));
+  --display: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  --body: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Courier Prime", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 17px/1.6 var(--body); }
+img { max-width: 100%; display: block; }
+a { color: var(--orange); }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+
+nav.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+nav.top .in { max-width: 1200px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+nav.top .brand { font-weight: 900; margin-right: 12px; white-space: nowrap; padding: 14px 0; }
+nav.top .brand b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+nav.top a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; padding: 8px 10px; border-radius: 6px; white-space: nowrap; }
+nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--panel-2); }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 16px; }
+section { padding-block: 88px 24px; }
+.eyebrow { font: 700 13px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--orange); margin: 0 0 14px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(32px, 4.4vw, 52px); font-weight: 900; line-height: 1.05; letter-spacing: -.01em; }
+h3 { font-size: 21px; font-weight: 800; line-height: 1.2; }
+h4 { margin: 0; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--orange); }
+.lede { font-size: 20px; color: var(--muted); max-width: 68ch; margin: 18px 0 0; }
+p { max-width: 70ch; }
+.grad-bar { height: 4px; width: 72px; background: var(--grad); border-radius: 2px; margin-bottom: 22px; }
+.muted { color: var(--muted); }
+
+/* hero */
+.hero { position: relative; overflow: hidden; border-bottom: 1px solid var(--line); }
+.hero .mosaic { position: absolute; inset: -40px -40px auto auto; width: 68%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; transform: rotate(-4deg); opacity: .42; }
+.hero .mosaic img { border-radius: 8px; aspect-ratio: 16/10; object-fit: cover; }
+.hero .mosaic::after { content: ""; position: absolute; inset: 0; }
+.hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--bg) 30%, transparent 85%), linear-gradient(180deg, transparent 50%, var(--bg) 98%); pointer-events: none; }
+.hero .wrap { position: relative; z-index: 1; padding-block: 120px 56px; }
+.hero h1 { font-size: clamp(48px, 8vw, 104px); font-weight: 900; line-height: .95; letter-spacing: -.02em; }
+.hero h1 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lede { color: #d5dce6; font-size: clamp(18px, 2vw, 23px); }
+@media (max-width: 760px) { .hero .mosaic { width: 130%; opacity: .22; } }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 44px; }
+.stat { background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.stat b { display: block; font: 900 38px/1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 14px; }
+
+/* shared */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; min-width: 0; }
+.card p { margin: 8px 0 0; color: var(--muted); font-size: 16px; }
+.shot { border-radius: 10px; border: 1px solid var(--line); overflow: hidden; background: #000; cursor: zoom-in; }
+figure { margin: 0; min-width: 0; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+.tag { display: inline-block; font: 700 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border-radius: 4px; background: var(--panel-2); color: var(--muted); }
+code, pre { font-family: var(--mono); }
+code { background: var(--panel-2); padding: 1px 6px; border-radius: 4px; font-size: .92em; }
+pre { background: #050a12; border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 14.5px; line-height: 1.55; margin: 0; color: #d8e1ee; }
+pre .k { color: #ff7cc0; } pre .s { color: #ffc46b; } pre .c { color: #6f819a; } pre .g { color: var(--green); } pre .r { color: var(--red); }
+.beats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); margin-top: 32px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.beat { padding: 22px; background: var(--panel); border-right: 1px solid var(--line); }
+.beat:last-child { border-right: 0; }
+.beat .n { font: 900 15px/1 var(--display); color: var(--orange); letter-spacing: .1em; }
+.beat h3 { margin-top: 10px; font-size: 19px; }
+.beat p { color: var(--muted); font-size: 15.5px; margin: 8px 0 0; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 10px; margin-top: 28px; scroll-snap-type: x mandatory; }
+.strip figure { scroll-snap-align: start; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; margin-top: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 15.5px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--panel); }
+tr:last-child td { border-bottom: 0; }
+td b.good { color: var(--green); } td b.bad { color: var(--red); }
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; margin-top: 34px; }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); } }
+.split ul { padding-left: 20px; margin: 10px 0 0; color: var(--muted); }
+.split li { margin: 5px 0; }
+.split li b { color: var(--ink); }
+.quote { border-left: 3px solid var(--pink); padding: 4px 0 4px 16px; margin: 14px 0; color: #d5dce6; font-style: italic; }
+
+/* skill finder */
+.finder { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; margin-top: 30px; }
+.finder button { text-align: left; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; cursor: pointer; }
+.finder button b { display: block; font-size: 18px; }
+.finder button span { display: block; color: var(--muted); font-size: 14.5px; margin-top: 6px; line-height: 1.45; }
+.finder button small { display: block; color: var(--orange); font-size: 13px; font-weight: 700; margin-top: 10px; }
+.finder button[aria-pressed="true"] { border-color: var(--pink); background: color-mix(in srgb, var(--pink) 14%, var(--panel)); }
+
+/* featured RPG */
+.feature { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0; margin-top: 30px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
+.feature .pic img { width: 100%; height: 100%; object-fit: cover; }
+.feature .txt { padding: 28px; }
+.feature .txt p { color: var(--muted); }
+.btn { display: inline-block; margin-top: 10px; padding: 11px 18px; border-radius: 8px; background: var(--grad); color: #fff; font-weight: 800; text-decoration: none; }
+.btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); margin-left: 8px; }
+@media (max-width: 860px) { .feature { grid-template-columns: minmax(0, 1fr); } .btn.ghost { margin-left: 0; } }
+
+/* engine cards */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 18px; }
+.filters button { font: 600 14px var(--body); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.filters button[aria-pressed="true"] { color: #fff; background: var(--pink); border-color: var(--pink); }
+.engines { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 18px; }
+.eng { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+.eng[hidden] { display: none; }
+.eng .pics { display: grid; grid-template-columns: 2fr 1fr; gap: 2px; background: var(--line); }
+.eng .pics img { width: 100%; height: 100%; aspect-ratio: 16/10; object-fit: cover; cursor: zoom-in; background: #000; }
+.eng .body { padding: 18px 20px 20px; display: flex; flex-direction: column; flex: 1; }
+.eng h3 { font-size: 22px; }
+.eng .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.eng .does { color: #d5dce6; margin: 12px 0 0; font-size: 16px; }
+.eng details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.eng summary { cursor: pointer; font-weight: 700; font-size: 15px; color: var(--muted); }
+.eng details p, .eng details li { font-size: 15px; color: var(--muted); }
+.eng details ul { padding-left: 18px; margin: 6px 0; }
+.eng .fit { margin-top: 12px; }
+.eng .fit ul { padding-left: 18px; margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+.eng .plays { margin-top: auto; padding-top: 14px; }
+.plays h4 { margin-bottom: 6px; }
+.plays a, .playgrid a { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); text-decoration: none; font-weight: 600; font-size: 15px; }
+.plays a:hover span, .playgrid a:hover span { text-decoration: underline; }
+.plays small, .playgrid small { color: var(--muted); font-weight: 400; white-space: nowrap; }
+.playgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 16px; margin-top: 30px; }
+.playgrid section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px 10px; }
+.playgrid h3 { font-size: 18px; margin-bottom: 8px; }
+
+/* shipping */
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); margin-top: 30px; }
+.flow .node { position: relative; background: var(--panel); border: 1px solid var(--line); padding: 18px; margin-right: 22px; border-radius: 10px; }
+.flow .node::after { content: "→"; position: absolute; right: -20px; top: 50%; transform: translateY(-50%); color: var(--orange); font-weight: 900; font-size: 20px; }
+.flow .node:last-child { margin-right: 0; } .flow .node:last-child::after { content: none; }
+.flow .node > b { display: block; font-size: 16px; }
+.flow .node span { display: block; font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+.flow .node code { font-size: 12.5px; }
+@media (max-width: 760px) { .flow .node { margin: 0 0 22px; } .flow .node::after { content: "↓"; right: 50%; top: auto; bottom: -24px; transform: translateX(50%); } }
+
+footer { padding-block: 60px 80px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); margin-top: 80px; }
+dialog#lb { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 92vh; }
+dialog#lb::backdrop { background: rgba(3, 6, 12, .9); }
+dialog#lb img { max-width: 96vw; max-height: 86vh; border-radius: 8px; }
+dialog#lb p { color: var(--ink); text-align: center; margin: 10px auto 0; }
+</style>
+
+<nav class="top"><div class="in">
+  <span class="brand"><b>Learning</b> engines</span>
+  <a href="#teach">How they teach</a>
+  <a href="#finder">Pick by skill</a>
+  <a href="#rpg">RPG</a>
+  <a href="#booth">Booth</a>
+  <a href="#journey">Journey</a>
+  <a href="#all">All engines</a>
+  <a href="#ship">Make a scenario</a>
+  <a href="#play">Play</a>
+</div></nav>
+
+<header class="hero">
+  <div class="mosaic" aria-hidden="true">
+    <img src="shots/booth/03-case-arrives.webp" alt=""><img src="shots/tuner/play.webp" alt=""><img src="shots/journey-v3/03-travel.webp" alt="">
+    <img src="shots/valve-room/play.webp" alt=""><img src="shots/rpg/room.webp" alt=""><img src="shots/tower/play.webp" alt="">
+    <img src="shots/pit-lane/racing.webp" alt=""><img src="shots/scale/play.webp" alt=""><img src="shots/hangar/play.webp" alt="">
+  </div>
+  <div class="wrap">
+    <p class="eyebrow">Interactive Learning Creator</p>
+    <h1>Learning<br><span>engines</span></h1>
+    <p class="lede">Each engine is a small game built around one kind of judgment. The engine holds the world and the rules. A scenario file holds the story, the people and the numbers, so one engine can teach many subjects.</p>
+    <div class="stats">
+      <div class="stat"><b>21</b><span>engines</span></div>
+      <div class="stat"><b>43</b><span>playable scenarios today</span></div>
+      <div class="stat"><b>1</b><span>SCORM zip per game</span></div>
+      <div class="stat"><b>0</b><span>network requests at play time</span></div>
+    </div>
+    <p style="margin-top:26px"><a class="btn" href="#play">Play a scenario</a></p>
+  </div>
+</header>
+
+<main>
+<section id="teach"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">How they teach</p>
+  <h2>Read the evidence, make a call, see what it did</h2>
+  <p class="lede">Every engine runs the same three beats. The learner is never told the answer before they commit, and the game never makes the decision for them. What changes from engine to engine is the world and the hands-on action.</p>
+  <div class="beats">
+    <div class="beat"><div class="n">READ</div><h3>The evidence is in the world</h3><p>Papers on a desk, a chart on a wall, a customer's own words, a ticket in a queue. Looking is free.</p></div>
+    <div class="beat"><div class="n">COMMIT</div><h3>A call that sticks</h3><p>Stamp it, pull the lever, ship the fix, send the plan. Most calls can't be undone.</p></div>
+    <div class="beat"><div class="n">REVEAL</div><h3>The world answers</h3><p>The tower collapses, the alert fires late, the deal stalls on day 2. The debrief names the moment that caused it.</p></div>
+  </div>
+  <div class="grid g3" style="margin-top:22px">
+    <div class="card"><h3>Scenarios are data</h3><p>Names, lines, numbers and right answers live in a scenario file. A new subject is a new file, not a new game.</p></div>
+    <div class="card"><h3>Checked before it ships</h3><p>Engines with a check tool refuse to build when a scenario has a broken link, a missing answer or a dead end.</p></div>
+    <div class="card"><h3>Built for an LMS</h3><p>Each game packs into a SCORM zip that reports a score and completion. Nothing is fetched from the internet while it plays.</p></div>
+  </div>
+</div></section>
+
+<section id="finder"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Pick by skill</p>
+  <h2>Start from what the learner needs to do</h2>
+  <p class="lede">The engines group into five kinds of judgment. Click one to filter the engine list further down the page.</p>
+  <div class="finder" id="finder-btns"></div>
+</div></section>
+
+<section id="rpg"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">The biggest engine</p>
+  <h2>RPG</h2>
+  <div class="feature">
+    <div class="pic"><img class="shot" src="shots/rpg/play.webp" alt="RPG close-up conversation with Dev by the whiteboard"></div>
+    <div class="txt">
+      <h3>Walk an office, talk to people, make calls the world remembers</h3>
+      <p>Long role-playing scenarios in an isometric office world. The learner walks between rooms, reads screens and whiteboards, questions people in close-up conversations and decides what to do. Trust, moods and later scenes all depend on earlier calls. It has 29 ready-made rooms, a cast of 16 people and its own scenario checker.</p>
+      <p>Good for: incident response, stakeholder conversations, sales discovery, new-hire scenarios, anything where who you talk to and what you say matters.</p>
+      <a class="btn" href="../engines/rpg/overview/index.html">Read the RPG page</a><a class="btn ghost" href="../engines/rpg/index.html">Play the demo</a>
+    </div>
+  </div>
+</div></section>
+
+<section id="booth"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">In depth</p>
+  <h2>Booth</h2>
+  <p class="lede">A service window in the style of <em>Papers, Please</em>. People bring paperwork, the learner checks it against the records and a rulebook that grows each day, asks about anything that doesn't agree, and stamps each request Approve or Return. The demo, <em>Deal desk</em>, is a sales discount-approval desk over three days.</p>
+  <div class="strip" aria-label="Booth demo, in play order">
+    <figure><img class="shot" src="shots/booth/02-morning-bulletin.webp" alt="Morning bulletin on the desk with the shutter down"><figcaption>1. Each day opens with a bulletin. New rules arrive here.</figcaption></figure>
+    <figure><img class="shot" src="shots/booth/03-case-arrives.webp" alt="Dan Okafor at the window with his papers on the desk"><figcaption>2. A rep arrives with a request, the account record and an email.</figcaption></figure>
+    <figure><img class="shot" src="shots/booth/04-inspect-rule-vs-paper.webp" alt="Inspect mode pairing a rule with the blank signature line"><figcaption>3. Inspect: pick two things that disagree. Here, rule 1 and a blank signature.</figcaption></figure>
+    <figure><img class="shot" src="shots/booth/05-ask-answer.webp" alt="Dan answers the question"><figcaption>4. A real mismatch unlocks a question. Dan: "My VP is out till Monday."</figcaption></figure>
+    <figure><img class="shot" src="shots/booth/06-stamp-bar.webp" alt="Stamps tab open with Approve and Return"><figcaption>5. Open the stamps. The stamp is final.</figcaption></figure>
+    <figure><img class="shot" src="shots/booth/07-wrong-call-citation.webp" alt="Approved stamp with a citation printed"><figcaption>6. A wrong call prints a citation at once.</figcaption></figure>
+    <figure><img class="shot" src="shots/booth/08-day-report.webp" alt="End-of-day report"><figcaption>7. The day report says what every call led to.</figcaption></figure>
+  </div>
+
+  <div class="beats">
+    <div class="beat"><div class="n">1 · CALL NEXT</div><h3>Someone steps up</h3><p>A bell rings, papers slide in, the person says why they need the stamp today.</p></div>
+    <div class="beat"><div class="n">2 · INSPECT</div><h3>Pair two things</h3><p>Any rule, field or line can be paired. Two that agree say "These two match. Nothing to ask."</p></div>
+    <div class="beat"><div class="n">3 · ASK</div><h3>Hear their side</h3><p>Some explanations hold up (the customer asked in writing). Most are pressure.</p></div>
+    <div class="beat"><div class="n">4 · STAMP</div><h3>Approve or Return</h3><p>The stamp lands, the person reacts, a citation prints if a rule broke.</p></div>
+    <div class="beat"><div class="n">5 · REPORT</div><h3>What it led to</h3><p>Finance returns a deal, a clean deal stalls, a deal closes. Choices come back days later.</p></div>
+  </div>
+
+  <div class="split">
+    <div>
+      <h4>On the desk</h4>
+      <ul>
+        <li><b>Request form</b>: the thing being stamped. Discount, volume, price, reason, VP signature line.</li>
+        <li><b>Account record</b>: what the company has on file. "The record wins over the rep's word."</li>
+        <li><b>Supporting papers</b>: a forwarded email or a usage report. Every word can be paired.</li>
+        <li><b>Rulebook</b>: tabs by section, "New" on the shelf when a rule arrives.</li>
+        <li><b>Clock and line</b>: an 8-hour day. When it runs out, anyone still waiting goes home and is named in the report.</li>
+      </ul>
+      <h4 style="margin-top:24px">The rules grow</h4>
+      <div class="tablewrap"><table style="min-width:0">
+        <thead><tr><th>Day</th><th>New rule</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Over 30% needs a VP signature. The request must match the record. Volume can't be below 30-day average use.</td></tr>
+          <tr><td>2</td><td>A discount cap by yearly price (20%, 35%, 45%). A signature does not raise it.</td></tr>
+          <tr><td>3</td><td>A renewal can't start more than 60 days early unless the customer asked in writing.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted" style="font-size:15px">The traps sit on the change: on day 2, a 28% request passes day 1's rules and breaks the new cap.</p>
+    </div>
+    <div>
+      <h4>A worked example: Dan Okafor, day 1</h4>
+      <p class="quote">"It's the same deal they had last year. I just need your stamp before Friday."</p>
+      <p class="muted" style="font-size:15.5px">Request #4471 for Northwind Freight: 38% discount, $310,000 a year, reason "Same as last year", and the VP signature line is empty. The record says the current discount is 22%.</p>
+      <div class="tablewrap"><table style="min-width:0">
+        <thead><tr><th>Stamp</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td><b class="good">Return</b> (right)</td><td>"Dan came back with Northwind at 25% and a VP signature. Closed."</td></tr>
+          <tr><td><b class="bad">Approve</b></td><td>Citation: "Rule 1: 38% discount approved without a Sales VP signature." Day report: Finance returned Northwind. Trust 7 → 6.</td></tr>
+        </tbody>
+      </table></div>
+      <h4 style="margin-top:24px">Scoring and endings</h4>
+      <ul>
+        <li>Two meters: <b>Deals closed</b> (of 18) and <b>Deal desk trust</b> (starts at 7 of 10).</li>
+        <li>Wrong in both directions: approving a bad deal adds a citation and drops trust; returning a clean deal stalls it.</li>
+        <li>Pressure moments are remembered. Accepting a rep's trip offer on day 1 comes back in the day 2 and day 3 reports.</li>
+        <li>Four ending letters: promoted to deal desk lead, kept on, taken off the desk, or walked out by compliance.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="split">
+    <div>
+      <h4>Making a Booth scenario</h4>
+      <p class="muted" style="font-size:15.5px">Type <b>/booth</b> in Claude Code and describe the desk in plain words: who the learner is, what kind of requests come to the window, which rules they must apply, and which mistakes people make in real life. Claude asks a few questions, shows you an answer key of every person and the right call for each, and after your yes writes the days, the rules and the day each one arrives, the people in line with their papers, the mismatches hidden in those papers, and what each wrong stamp leads to.</p>
+      <p class="quote">"Make a Booth scenario for a clinic intake team checking prior authorizations against each patient's coverage. Three days, with a new payer rule each morning."</p>
+    </div>
+    <div>
+      <h4>Checked before you see it</h4>
+      <p class="muted" style="font-size:15.5px">Before the scenario can be played, Claude runs the Booth check. It won't pass until every hidden mismatch can actually be found on the desk that day, every wrong stamp has a citation explaining the broken rule, and every stamp leads to a line in the day report. You then play it in the browser and ask for changes in plain words.</p>
+    </div>
+  </div>
+  <p class="muted" style="font-size:15.5px;margin-top:22px">Good for: any job where a request has to match the records and the current rules. Expense and discount approvals, prior authorizations against a patient's coverage, returns and refunds, loan or claims intake, releasing a work order only when the permit and the inspection log agree.</p>
+</div></section>
+
+<section id="journey"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">In depth</p>
+  <h2>Journey</h2>
+  <p class="lede">A pixel-art walk through a fixed stretch of time. The learner prepares with a budget that can't buy everything, then lives through the days answering decision cards while two resources drain. Some choices come back weeks later, with a line that quotes the early warning sign they could have noticed.</p>
+  <div class="strip" aria-label="Journey demo, in play order">
+    <figure><img class="shot" src="shots/journey-v3/02-prepare.webp" alt="Prepare screen with the shop"><figcaption>1. Prepare: 7 items worth 110 against a budget of 45.</figcaption></figure>
+    <figure><img class="shot" src="shots/journey-v3/03-travel.webp" alt="Day 7 on the map with bars and pace buttons"><figcaption>2. Days pass. Pace sets how fast energy and budget drain.</figcaption></figure>
+    <figure><img class="shot" src="shots/journey-v3/04-decision-card.webp" alt="First Week decision card with a locked option"><figcaption>3. A decision card. The best option is locked: it needed a prep item.</figcaption></figure>
+    <figure><img class="shot" src="shots/journey-v3/05-consequence-lands.webp" alt="Silent Resignation consequence on Day 20"><figcaption>4. Day 20: a choice from Day 2 comes due.</figcaption></figure>
+    <figure><img class="shot" src="shots/journey-v3/06-debrief.webp" alt="Debrief: The Trusted Leader"><figcaption>5. The debrief ties every result to a choice.</figcaption></figure>
+  </div>
+
+  <div class="beats">
+    <div class="beat"><div class="n">1 · PREPARE</div><h3>Buy under scarcity</h3><p>Items give starting energy or budget, block one named future problem, or unlock a better option later.</p></div>
+    <div class="beat"><div class="n">2 · PACE</div><h3>Slow, Normal, Fast</h3><p>Fast burns energy and draws more surprises. Slow restores energy but drains budget.</p></div>
+    <div class="beat"><div class="n">3 · DECIDE</div><h3>Cards stop the clock</h3><p>3 or 4 options, each with its own price in energy or budget. Surprise cards arrive too.</p></div>
+    <div class="beat"><div class="n">4 · COME DUE</div><h3>Weeks later</h3><p>"Because you chose…" plus the sign the learner saw on the day they chose.</p></div>
+    <div class="beat"><div class="n">5 · DEBRIEF</div><h3>A named ending</h3><p>Every decision replayed, and which prep item would have prevented each bad one.</p></div>
+  </div>
+
+  <div class="split">
+    <div>
+      <h4>One choice, followed through</h4>
+      <p class="muted" style="font-size:15.5px">Day 2, "First Week". The learner picks <b style="color:var(--ink)">Skip the meetings, deep-dive into the codebase instead</b>: −6 energy, +8 reputation, −3 team morale.</p>
+      <p class="quote">"Half the team still hasn't spoken to you. You don't know which half."</p>
+      <p class="muted" style="font-size:15.5px">Eighteen days later, <b style="color:var(--ink)">Silent Resignation</b>: one of the strongest engineers accepted another offer. Team morale −15, reputation −5. The debrief adds: "Meet-the-Team Dinner would have prevented it." Good choices pay back the same way: handing meetings to a strong lead on day 15 returns energy on day 33.</p>
+      <h4 style="margin-top:24px">Pace, per stretch of days</h4>
+      <div class="tablewrap"><table style="min-width:0">
+        <thead><tr><th>Pace</th><th>Energy</th><th>Budget</th><th>Surprises</th></tr></thead>
+        <tbody>
+          <tr><td>Fast</td><td>−8</td><td>0</td><td>1.8×</td></tr>
+          <tr><td>Normal</td><td>−2.8</td><td>−0.8</td><td>1×</td></tr>
+          <tr><td>Slow</td><td>+2</td><td>−3.2</td><td>0.6×</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted" style="font-size:15px">Running either one to zero ends the demo early. Always-fast burns out most runs; always-slow hits a spending freeze. Steering between them is the skill.</p>
+    </div>
+    <div>
+      <h4>Three scenarios today</h4>
+      <div class="tablewrap"><table style="min-width:0">
+        <thead><tr><th>Scenario</th><th>For</th></tr></thead>
+        <tbody>
+          <tr><td><b>The First 90 Days</b><br><span class="muted" style="font-size:14px">90 days, 10 decisions</span></td><td>New managers: listen before acting, delegate, tell leadership the truth early, protect the team without burning out.</td></tr>
+          <tr><td><b>Technical Evaluation Sprint</b><br><span class="muted" style="font-size:14px">15 days, 5 decisions</span></td><td>Pre-sales engineers: confirm the real requirement, test the boundary instead of demoing, hand off with evidence.</td></tr>
+          <tr><td><b>Atlas Relay Evaluation</b><br><span class="muted" style="font-size:14px">90 days, 6 decisions</span></td><td>Customer-facing engineers in a product trial: keep acceptance to what's supported, don't hide a failure behind a manual step.</td></tr>
+        </tbody>
+      </table></div>
+      <p class="muted" style="font-size:15px">Each scenario renames the resources to fit. The sales sprint uses specialist time and customer access.</p>
+      <h4 style="margin-top:24px">Theme packs: same game, different setting</h4>
+      <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px">
+        <figure><img class="shot" src="shots/journey-v3/07-theme-kitchen.webp" alt="Kitchen theme pack"><figcaption>Kitchen</figcaption></figure>
+        <figure><img class="shot" src="shots/journey-v3/08-theme-farm.webp" alt="Farm theme pack"><figcaption>Farm</figcaption></figure>
+        <figure><img class="shot" src="shots/journey-v3/09-theme-lab.webp" alt="Lab theme pack"><figcaption>Lab</figcaption></figure>
+      </div>
+      <p class="muted" style="font-size:15px">Office, lab, kitchen and farm. A pack swaps the backdrop, props, walking character and passers-by. The bars, cards and rules stay the same. It's one word in the scenario file.</p>
+    </div>
+  </div>
+
+  <div class="split">
+    <div>
+      <h4>Making a Journey scenario</h4>
+      <p class="muted" style="font-size:15.5px">Tell Claude the stretch of time, who the learner is, what they have to manage, and which early shortcuts tend to cause trouble later. Claude writes the prep items, the decision cards with their trade-offs, the problems that come due weeks later with the warning sign that came first, and the endings. Then it picks the setting (office, lab, kitchen or farm) that fits.</p>
+      <p class="quote">"Make a Journey scenario for a new charge nurse's first 60 days. Staff energy and unit budget, and shortcuts on handoffs that come back as incidents."</p>
+    </div>
+    <div>
+      <h4>Checked before you see it</h4>
+      <p class="muted" style="font-size:15.5px">Claude runs the Journey check, which catches anything that would break mid-game: a setting that doesn't exist, or a prep item that unlocks a choice that isn't there. You then play it through and ask for changes.</p>
+      <p class="muted" style="font-size:15px;margin-top:14px">Journey reports to the LMS when the run ends. It doesn't resume partway on purpose: random surprise cards mean a half-finished run can't be rebuilt, so a learner who leaves starts over.</p>
+    </div>
+  </div>
+  <p class="muted" style="font-size:15.5px;margin-top:22px">Good for: any stretch of time where early choices come due later. A first 90 days, a product pilot, a store opening, a new charge nurse's first quarter, a plant line changeover where skipped checks show up weeks later as incidents.</p>
+</div></section>
+
+<section id="all"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">All engines</p>
+  <h2>The rest of the set</h2>
+  <p class="lede">Each card shows the learner deciding and the moment the world answers. Open "How it works" for the mechanics and the scenarios that ship today.</p>
+  <div class="filters" id="filters"></div>
+  <div class="engines" id="engines"></div>
+</div></section>
+
+<section id="ship"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Make a scenario</p>
+  <h2>From an idea to a course in the LMS</h2>
+  <p class="lede">Nobody edits code. You describe the training to Claude Code, opened in the Interactive Learning Creator project, and it writes the scenario, checks it, and packages it.</p>
+  <div class="flow">
+    <div class="node"><b>1. Ask</b><span>"Make a game about returns fraud for store managers." For the RPG, type <b>/rpg</b>; for Booth, <b>/booth</b>.</span></div>
+    <div class="node"><b>2. Answer questions</b><span>Claude asks who the learner is, what good looks like and which mistakes are common.</span></div>
+    <div class="node"><b>3. Claude builds it</b><span>It writes the people, evidence, choices and endings, then runs the engine's check.</span></div>
+    <div class="node"><b>4. Play and adjust</b><span>Play it in the browser. Ask for changes in plain words: "make Dan pushier."</span></div>
+    <div class="node"><b>5. Upload</b><span>Ask for the SCORM package and upload the zip to the LMS.</span></div>
+  </div>
+  <div class="grid g3" style="margin-top:22px">
+    <div class="card"><h3>Three skills do the work</h3><p>The <b>rpg</b> skill walks through designing an RPG scenario, and the <b>booth</b> skill does the same for a Booth desk. The <b>author-content-pack</b> skill handles the other engines; it starts when you ask Claude to "make a game about" something.</p></div>
+    <div class="card"><h3>What the LMS gets</h3><p>A score, completion and pass or fail. Most engines also save progress so a learner can leave and come back.</p></div>
+    <div class="card"><h3>No internet, no live AI</h3><p>Every picture, font and sound is inside the zip. Everything a learner reads was written and checked before publishing; nothing is generated while they play.</p></div>
+  </div>
+</div></section>
+<section id="play"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Play</p>
+  <h2>Every scenario</h2>
+  <p class="lede">Pick one to play. Your browser's Back button returns here.</p>
+  <div class="playgrid" id="playgrid"></div>
+</div></section>
+</main>
+
+<footer><div class="wrap">Interactive Learning Creator · All companies and people in the demo scenarios are invented for practice. <a href="#play">Play every scenario</a>.</div></footer>
+
+<dialog id="lb" aria-label="Enlarged image"><img alt=""><p></p></dialog>
+
+<script>
+const SITE = "../engines/";
+const GROUPS = {
+  cause: ['Find the cause', 'Trace a symptom back to its source using real evidence.'],
+  judge: ['Judge each case', 'Look at one item at a time and make the right call under pressure.'],
+  plan: ['Plan with limits', 'Schedule, size or commit scarce resources before the future arrives.'],
+  setup: ['Set up a system', 'Tune alerts, rules and cuts so they work on tomorrow\'s data.'],
+  case: ['Make the case', 'Persuade, explain and hand off, backed by evidence.'],
+};
+// [folder, name, group, look, what the learner does, how it works, [good for], [scenarios], [shots], launcher query]
+const ENGINES = [
+  ['node-graph', 'Node Graph', 'cause', '2D', 'Follows the evidence through a map of services to find why checkout got slow, then fixes it and checks the fix.',
+    'Tabs work like real troubleshooting tools: pick slow requests on a heat map, click the slow step in one request, compare versions side by side, decide whether it\'s a server or a release problem, then pick one of four fixes and watch the chart. Six calls are graded with a reason for each.',
+    ['Troubleshooting IT, network or cloud systems', 'A long hospital wait traced to one step in the patient flow', 'A quality drop traced to one batch, shift or machine'],
+    ['The checkout slowdown: a release made checkout five times slower.'], ['play', 'result'], ''],
+  ['agent-review', 'Agent Review', 'cause', '2D', 'Reads the step-by-step log of an AI support agent, finds where it went wrong, picks a fix, tests it and ships it.',
+    'The learner replays a failing conversation one step at a time: the customer\'s message, the model\'s call, the tool it used, the reply. Nothing says what the cause is. A fix is tested on 20 recorded conversations, then shipped into a simulated day of 240, and graded.',
+    ['Reviewing AI chatbots and agents before and after launch', 'Claims staff checking an AI assistant for a missed rule', 'Order-status bots that make up dates when a lookup fails'],
+    ['Skyway Air: vague tool descriptions cancel trips instead of rebooking.', 'Harbor Bank: a safety filter set too tight blocks real customers.', 'Keystone Insurance: the answer leaves out an exclusion it found.', 'Northfield Outfitters: a moved address makes the agent invent delivery dates.'], ['play', 'result'], '?case=0'],
+  ['sorting-triage', 'Sorting / Triage', 'judge', '2D', 'Works a live queue of tickets or requests, giving each the right priority before its timer runs out.',
+    'Every item has a countdown. Left too long, it turns red, escalates and sends an angry follow-up. Partway through, new information changes the right answer for an item already handled, so the learner has to reopen it. The report counts right calls, escalations and items handled out of urgency order.',
+    ['IT and customer support ticket priority', 'Clinic intake: who is seen first when a lab result arrives', 'Refund, complaint and fraud calls competing for attention'],
+    ['IT helpdesk: Monday morning queue (8 tickets drawn from 14).', 'Atlas Relay and Beacon Relay release desks: label product claims as a release changes the facts.', 'Release inbox: route 8 customer requests after a release.'], ['play', 'result'], ''],
+  ['exploration-v2', 'Exploration', 'judge', '3D', 'Walks a 3D room, looks at six things, and for each picks how big a response it needs: leave it, fix it, report it, or stop work.',
+    'Every surface is built in code. Two of the six items are fine, so flagging everything loses points. After each call a sheet says whether the response matched the problem and why. The debrief lists problems let through and safe items flagged.',
+    ['Safety walks in a warehouse, factory, lab or construction site', 'A ward or clinic walk-through for hazards', 'Store opening checks'],
+    ['Receiving bay inspection: a spill, a damaged rack, a blocked extinguisher and two items that are fine.'], ['play', 'result'], ''],
+  ['tuner', 'The Tuner', 'judge', '3D', 'Listens to a customer\'s lines on a sales call and works out whose words they are: the customer\'s own, or a competitor\'s pitch repeated.',
+    'A 1950s radio. Each line is tuned to a source using notes on what each competitor wants the buyer to believe, then the learner picks a reply that answers the source, not the sentence. Each line ends with why. A counter of unanswered pitches rises each time a competitor\'s framing is left standing. After line 8 the hidden competitor lights up.',
+    ['Recognizing a competitor\'s talking points in a buyer\'s words', 'Telling a clinician\'s workflow concern from a vendor\'s marketing line', 'Audit interviews: an account in their own words or a script'],
+    ['A discovery call with a security customer, 8 lines.'], ['play', 'result'], ''],
+  ['port', 'The Port', 'plan', '3D', 'Decides where to store six sources of information in a shipping port so urgent requests arrive on time within a budget.',
+    'Containers are sources, storage areas trade speed for space, and trucks are requests that arrive in waves. Clicking a truck shows where its time went. After each shift the learner can move only a few containers and faces a new mix of requests, three shifts in all.',
+    ['Where to store data and how long to keep it', 'Warehouse stock: fast-pick floor, reserve or ship from supplier', 'Hospital supplies: bedside, ward store or central store'],
+    ['Investigation demand: six data sources before an investigation.', 'Evidence access: old records and proof of access for a review.', 'Warehouse stock and fulfillment: stock groups and customer orders.'], ['play', 'result'], ''],
+  ['rail-yard', 'The Rail Yard', 'plan', '3D', 'Builds a timetable to move security rules to a new system before the old one switches off, then watches 14 weeks of attacks.',
+    'Each train is a family of rules. Orange cars are weeks of rebuilding, white cars are weeks comparing the new rules with the old system, and a steel frame marks the switch-off week. Only two families can be worked at once. The lever runs the weeks and each attack rolls in caught or missed, with the reason.',
+    ['Migrating rules, reports or data before a hard end date', 'Moving clinical alerts to a new records system', 'Switching store software location by location before a contract ends'],
+    ['Calder Health: 41 rules in five families, 6 attacks over 14 weeks, three rounds.'], ['play', 'result'], ''],
+  ['weigh-station', 'The Weigh Station', 'plan', '3D', 'Chooses which of a customer\'s numbers to double-check on a truck scale, then opens enough lanes for their heaviest day.',
+    'Each truck carries one data source, labeled with the volume the customer wrote down and where the number came from. Only three can be weighed. Then the learner sets the lanes, and three days play out with any overflow waiting at the gate. A second customer follows with only two weighings.',
+    ['Capacity planning from a customer\'s own estimates', 'Staffing a clinic from departments\' stated volumes', 'Sizing dock doors or checkout lanes from supplier forecasts'],
+    ['Northgate Logistics and Harrow Mutual, five sources each.'], ['play', 'result'], ''],
+  ['gauge-wall', 'The Gauge Wall', 'plan', '3D', 'Picks how a software contract is billed and how much to commit to each month, then watches five months of real usage arrive on the bill.',
+    'A wall of instruments: a strip chart of seven months of usage, a clipboard of the customer\'s plans (a new site, a migration, a year-end audit), three billing levers and a commitment knob. Once locked, the months run one at a time and the printer prints each bill.',
+    ['Choosing a pricing plan before a known change', 'Committing to a contract level when a seasonal spike is on the calendar', 'Setting a minimum purchase before a planned expansion'],
+    ['A software renewal with seven months of history and five to run.'], ['play', 'result'], ''],
+  ['hangar', 'On Call', 'setup', '3D', 'Sets an alert on each of three machines, then watches a simulated day to see whether each warned the crew in time without false alarms.',
+    'Clicking a machine shows seven days of its signal. The learner picks an alert type, sets its numbers, sees how often it would have fired last week, and activates it for good. A day runs in 72 seconds: a real problem hits each machine and a late alert lets the equipment fail. Each alert is graded Did its job, Too noisy, Too late or Missed it.',
+    ['Alerts and thresholds in IT, cloud and network monitoring', 'Freezer, infusion pump or oxygen supply monitoring', 'Tank temperature and supply levels on a production line'],
+    ['Northstar Air maintenance hangar.', 'Hollow Pine Brewing production floor.'], ['play', 'result'], '?case=0'],
+  ['seismograph', 'The Seismograph', 'setup', '3D', 'Tunes an alert rule on a recording instrument until it catches the real attack and stays quiet on harmless activity.',
+    'Four lanes of paper record risk scores. The current rule runs first and pauses at each false alarm to show why it fired. The learner turns three dials (threshold, time window, quiet period), pulls the lever to run their own rule on the same data, then tests the locked rule on a new day.',
+    ['Tuning fraud, security or uptime alarms', 'Patient-monitor alarms that catch decline without alarm fatigue', 'How big and how long a sensor reading must be before a line stops'],
+    ['Identity signals.', 'Endpoint echoes.', 'Bank review: fraud alerts with a limited review team.'], ['play', 'result'], ''],
+  ['metric-series', 'Metric Series', 'setup', '2D', 'Decides which labels on a data stream to keep or drop so the company stays under its limit and the on-call team can still answer their question.',
+    'Every label is a gate with its count of values, and a tank shows how close the company is to its limit. After the rule is saved, a day runs and an incident hits at 15:00. The learner answers the team\'s question by grouping the chart, and a dropped label simply isn\'t on the list.',
+    ['Controlling monitoring and storage volume', 'Keeping unit and shift but dropping patient-level fields in reports', 'Keeping line and machine type but dropping per-reading serials'],
+    ['Larkspur Goods checkout.', 'Tidewell Streaming restarts.', 'Kestrel Analytics CPU.', 'Granite Peak Hosting switch errors.'], ['play', 'result'], '?case=0'],
+  ['valve-room', 'The Valve Room', 'setup', '3D', 'Works out which of a customer\'s planned data cuts will break the alerts that depend on them, then builds a plan that saves 30 percent with nothing broken.',
+    'A boiler-room wall of eight pipes, one per data source, each with a wheel and five settings from Full to Drop. Round 1: mark which outputs the customer\'s own plan will break, from what each output reads, then run it. Round 2: six changes, tested only when submitted. The wall lights each output as working or broken, with the reason.',
+    ['Trimming data volume without blinding detection rules', 'Which sensor readings to sample or drop without breaking quality alarms', 'Cutting log storage while keeping an audit trail'],
+    ['A customer must index 30 percent less data: eight sources, seven outputs.'], ['play', 'result'], ''],
+  ['tower', 'The Tower', 'case', '3D', 'Builds a five-step argument for an executive by stacking claim blocks, backing each with a real customer quote, then watches it get tested.',
+    'Quotes stand as pegs on a boardroom table. Each level has three claims, some that sound right with nothing behind them. Levels run from the technical problem up to who owns it. In the meeting the tower is tested from the bottom, and the first block that fails is pulled with the executive\'s pushback, collapsing everything above.',
+    ['Building a business case for an executive', 'Making the case for a staffing change from incident reports', 'Tracing a defect from a machine setting to a board-level number'],
+    ['A bank COO and late breach reports.'], ['play', 'result'], ''],
+  ['scale', 'The Scale', 'case', '3D', 'Chooses up to five things for a head-to-head test, knowing the customer walks away from anything that sounds like your own sales sheet.',
+    'A brass balance. The customer\'s stated needs hang on one pan. Each candidate test says what it measures; the learner calls how one-sided it will sound before placing it, and finds out when it lands. A credibility dial swings as choices lean on your own material. On lock, anything past the line is struck off, then each criterion is weighed and lands on the winner\'s pan.',
+    ['Setting evaluation criteria that favor you without looking rigged', 'Proposing a supplier scorecard', 'Proposing success measures for a system pilot'],
+    ['Two vendors bidding to a regional bank.'], ['play', 'result'], ''],
+  ['pit-lane', 'The Pit Lane', 'case', '3D', 'Races a sales team\'s car through four steps of a deal, deciding before each lap who brings what the buyer is hinting at.',
+    'Each lap is a step: discovery, the demo, proof of value, procurement. Before each, someone at the customer says what\'s on their mind without naming what they need. Parts the step needed make the car faster, missing ones slow it, and extra ones only add pit time while rivals pass.',
+    ['What each stakeholder really needs at each stage of a deal', 'What to bring to each gate of a purchasing committee', 'A renewal where the real objection is never said'],
+    ['A four-lap deal against three rival vendors.'], ['play', 'result'], ''],
+  ['marker-board', 'The Marker Board', 'case', '2D', 'Draws a customer\'s data path on a whiteboard with four design choices, explains it, then redraws it when the customer\'s needs change.',
+    'Each choice draws an arrow or label. A wrong one is drawn in red and stays with its reason until it\'s changed. Then the learner answers what to tell the customer, using the drawing as evidence. Part 2 triples the workload and the same drawing has to be edited.',
+    ['Explaining and defending a design to a customer', 'Showing where records flow and who owns each step', 'What happens when throughput doubles'],
+    ['Platform data path.', 'Telemetry collector.', 'Bank boundaries.'], ['play', 'result'], ''],
+  ['fake-os', 'Fake OS', 'case', '2D', 'Reads records and messages in windows on a pretend desktop, then writes a short handoff from pre-written statements with a strict line limit.',
+    'The whole screen is a desktop with a clock, windows, a dock and notifications that count as missed if ignored. Every line included means one left out, and each claim can carry evidence from a record. The handoff is scored on key facts included, the hidden risk caught and lines wasted.',
+    ['Pre-sales handoffs backed by evidence', 'Nurse shift handover', 'On-call and shift-change handovers'],
+    ['Atlas Relay and Beacon Relay qualification desks.', 'Inherited evaluation.', 'Workstation: a duty-desk handover.'], ['play', 'result'], '?scenario=sales'],
+];
+const PLAY = [
+  ['rpg', 'RPG', [
+    ['Reports down since 2 a.m.', '', 'Demo'],
+    ['How the RPG engine works', '', 'Overview', 'overview/index.html']]],
+  ['booth', 'Booth', [
+    ['Deal desk', '', '']]],
+  ['agent-review', 'Agent Review', [
+    ['Skyway Air rebooking agent', '?case=0', 'Case 1'],
+    ['Harbor Bank support agent', '?case=1', 'Case 2'],
+    ['Keystone Insurance claims agent', '?case=2', 'Case 3'],
+    ['Northfield Outfitters order agent', '?case=3', 'Case 4']]],
+  ['metric-series', 'Metric Series', [
+    ['Larkspur Goods checkout metric', '?case=0', 'Case 1'],
+    ['Tidewell Streaming Kubernetes restarts', '?case=1', 'Case 2'],
+    ['Kestrel Analytics EC2 CPU', '?case=2', 'Case 3'],
+    ['Granite Peak Hosting switch discards', '?case=3', 'Case 4']]],
+  ['hangar', 'On Call', [
+    ['Northstar Air maintenance hangar', '?case=0', 'Case 1'],
+    ['Hollow Pine Brewing production floor', '?case=1', 'Case 2']]],
+  ['node-graph', 'Node Graph', [
+    ['The checkout slowdown', '', '']]],
+  ['exploration-v2', 'Exploration', [
+    ['Receiving bay inspection', '', '']]],
+  ['journey-v3', 'Journey', [
+    ['The First 90 Days', '', ''],
+    ['Technical Evaluation Sprint', '?scenario=sales', ''],
+    ['Atlas Relay Evaluation', '?scenario=release', '']]],
+  ['sorting-triage', 'Sorting / Triage', [
+    ['IT helpdesk: Monday morning queue', '', ''],
+    ['Atlas Relay release desk', '?scenario=sales', ''],
+    ['Beacon Relay release desk', '?scenario=sales&variant=atlas-release-retry-b', 'Retry'],
+    ['Release inbox', '?scenario=release', '']]],
+  ['fake-os', 'Fake OS', [
+    ['Workstation', '', 'Greybox'],
+    ['Atlas Relay qualification desk', '?scenario=sales', ''],
+    ['Beacon Relay qualification desk', '?scenario=sales&variant=atlas-retry-b', 'Retry'],
+    ['Inherited evaluation', '?scenario=release', '']]],
+  ['marker-board', 'The Marker Board', [
+    ['Platform data path', '', ''],
+    ['Telemetry collector', '?scenario=telemetry-collector', ''],
+    ['Bank boundaries', '?scenario=bank-boundaries', '']]],
+  ['seismograph', 'The Seismograph', [
+    ['Identity signals', '', ''],
+    ['Endpoint echoes', '?scenario=endpoint-echoes', ''],
+    ['Bank review', '?scenario=bank-fraud', '']]],
+  ['port', 'The Port', [
+    ['Investigation demand', '', ''],
+    ['Evidence access', '?scenario=compliance', ''],
+    ['Warehouse stock and fulfillment', '?scenario=warehouse', '']]],
+  ['tower', 'The Tower', [['The Tower', '', '']]],
+  ['tuner', 'The Tuner', [['The Tuner', '', '']]],
+  ['scale', 'The Scale', [['The Scale', '', '']]],
+  ['valve-room', 'The Valve Room', [['The Valve Room', '', '']]],
+  ['gauge-wall', 'The Gauge Wall', [['The Gauge Wall', '', '']]],
+  ['weigh-station', 'The Weigh Station', [['The Weigh Station', '', '']]],
+  ['rail-yard', 'The Rail Yard', [['The Rail Yard', '', '']]],
+  ['pit-lane', 'The Pit Lane', [['The Pit Lane', '', '']]]
+];
+const playLinks = (id) => (PLAY.find((e) => e[0] === id) || [, , []])[2].map(([t, q, note, page]) =>
+  `<a href="${SITE}${id}/${page || 'index.html'}${q}"><span>${esc(t)}</span><small>${esc(note)}</small></a>`).join('');
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const featured = { cause: ['RPG'], judge: ['Booth'], plan: ['Journey'], setup: [], case: ['RPG'] };
+
+document.getElementById('finder-btns').innerHTML = Object.entries(GROUPS).map(([g, [name, desc]]) => {
+  const names = [...featured[g], ...ENGINES.filter((e) => e[2] === g).map((e) => e[1])];
+  return `<button data-g="${g}" aria-pressed="false"><b>${name}</b><span>${desc}</span><small>${names.map(esc).join(' · ')}</small></button>`;
+}).join('');
+document.getElementById('filters').innerHTML = `<button data-g="all" aria-pressed="true">All</button>` +
+  Object.entries(GROUPS).map(([g, [name]]) => `<button data-g="${g}" aria-pressed="false">${name}</button>`).join('');
+document.getElementById('engines').innerHTML = ENGINES.map(([id, name, g, look, does, how, fit, scen, shots, q]) =>
+  `<article class="eng" data-g="${g}">
+    <div class="pics">${shots.map((s) => `<img loading="lazy" src="shots/${id}/${s}.webp" alt="${esc(name)}, ${s === 'play' ? 'deciding' : 'the result'}">`).join('')}</div>
+    <div class="body">
+      <h3>${esc(name)}</h3>
+      <div class="tags"><span class="tag">${GROUPS[g][0]}</span><span class="tag">${look}</span></div>
+      <p class="does">${esc(does)}</p>
+      <div class="fit"><h4>Good for</h4><ul>${fit.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>
+      <details><summary>How it works</summary><p>${esc(how)}</p><h4 style="margin-top:10px">Scenarios today</h4><ul>${scen.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></details>
+      <div class="plays"><h4>Play</h4>${playLinks(id)}</div>
+    </div>
+  </article>`).join('');
+
+document.getElementById('playgrid').innerHTML = PLAY.map(([id, name]) =>
+  `<section><h3>${esc(name)}</h3>${playLinks(id)}</section>`).join('');
+
+// Filters: the skill cards and the chips drive the same filter
+function filter(g) {
+  document.querySelectorAll('#filters button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.g === g)));
+  document.querySelectorAll('#finder-btns button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.g === g)));
+  document.querySelectorAll('.eng').forEach((e) => { e.hidden = g !== 'all' && e.dataset.g !== g; });
+}
+document.getElementById('filters').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) filter(b.dataset.g); });
+document.getElementById('finder-btns').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  filter(b.getAttribute('aria-pressed') === 'true' ? 'all' : b.dataset.g);
+  document.getElementById('all').scrollIntoView();
+});
+
+// Lightbox
+const lb = document.getElementById('lb');
+document.addEventListener('click', (e) => {
+  if (lb.open) { lb.close(); return; }
+  const img = e.target.closest('.shot, .shot img, .eng .pics img');
+  if (!img || img.tagName !== 'IMG') return;
+  lb.querySelector('img').src = img.src; lb.querySelector('img').alt = img.alt;
+  const cap = img.closest('figure')?.querySelector('figcaption') || img.closest('.eng')?.querySelector('h3');
+  lb.querySelector('p').textContent = cap ? cap.textContent : img.alt;
+  lb.showModal();
+});
+
+// Nav highlight
+const links = [...document.querySelectorAll('nav.top a')];
+const io = new IntersectionObserver((es) => es.forEach((en) => {
+  if (en.isIntersecting) links.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id));
+}), { rootMargin: '-40% 0px -55% 0px' });
+document.querySelectorAll('main section').forEach((s) => io.observe(s));
+</script>

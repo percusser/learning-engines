@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How the RPG engine works: rooms, people, encounters, writing a scenario, and SCORM.">
+<title>The RPG Engine</title>
+<style>
+@font-face { font-family: "Libre Franklin"; src: url("fonts/libre-franklin-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Courier Prime"; src: url("fonts/Courier-Prime_400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+</style>
+<style>
+/* Layout: one dark presentation column, each section a "slide" you scroll to from the sticky nav; art at full bleed inside the column. */
+:root {
+  color-scheme: dark;
+  --bg: #070d16;
+  --panel: #0c1724;
+  --panel-2: #12223a;
+  --line: #22364f;
+  --ink: #f4f6fa;
+  --muted: #9aa8bb;
+  --pink: #e20082;
+  --orange: #f99d1c;
+  --blue: #5aa0ff;
+  --green: #3fbf7f;
+  --grad: linear-gradient(90deg, var(--pink), var(--orange));
+  --display: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  --body: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Courier Prime", "Courier New", monospace;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { background: var(--bg); color: var(--ink); font: 400 17px/1.6 var(--body); }
+img { max-width: 100%; display: block; }
+a { color: var(--orange); }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 3px; }
+
+nav.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+nav.top .in { max-width: 1200px; margin: 0 auto; padding: 0 16px; display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+nav.top .brand { font-weight: 900; margin-right: 12px; white-space: nowrap; padding: 14px 0; }
+nav.top .brand b { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+nav.top a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; padding: 8px 10px; border-radius: 6px; white-space: nowrap; }
+nav.top a:hover, nav.top a.on { color: var(--ink); background: var(--panel-2); }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 16px; }
+section { padding-block: 88px 24px; }
+.eyebrow { font: 700 13px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--orange); margin: 0 0 14px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(32px, 4.4vw, 52px); font-weight: 900; line-height: 1.05; letter-spacing: -.01em; }
+h3 { font-size: 21px; font-weight: 800; line-height: 1.2; }
+.lede { font-size: 20px; color: var(--muted); max-width: 68ch; margin: 18px 0 0; }
+p { max-width: 70ch; }
+.grad-bar { height: 4px; width: 72px; background: var(--grad); border-radius: 2px; margin-bottom: 22px; }
+
+/* hero */
+.hero { position: relative; padding: 0; overflow: hidden; border-bottom: 1px solid var(--line); }
+.hero .art { position: absolute; inset: 0; background: url(keyart/office.webp) center/cover no-repeat; opacity: .55; }
+.hero .art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 0%, var(--bg) 92%), linear-gradient(90deg, var(--bg) 0%, transparent 70%); }
+.hero .wrap { position: relative; padding-block: 120px 56px; }
+.hero h1 { font-size: clamp(48px, 8vw, 104px); font-weight: 900; line-height: .95; letter-spacing: -.02em; }
+.hero h1 span { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .lede { color: #d5dce6; font-size: clamp(18px, 2vw, 23px); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 44px; }
+.stat { background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.stat b { display: block; font: 900 38px/1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 14px; }
+
+/* shared pieces */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 22px; min-width: 0; }
+.card p { margin: 8px 0 0; color: var(--muted); font-size: 16px; }
+.shot { border-radius: 10px; border: 1px solid var(--line); overflow: hidden; background: #000; cursor: zoom-in; }
+figure { margin: 0; min-width: 0; }
+figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+.tag { display: inline-block; font: 700 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; padding: 5px 8px; border-radius: 4px; background: var(--panel-2); color: var(--muted); }
+.tag.p { background: color-mix(in srgb, var(--pink) 22%, transparent); color: #ff7cc0; }
+.tag.o { background: color-mix(in srgb, var(--orange) 20%, transparent); color: var(--orange); }
+.tag.b { background: color-mix(in srgb, var(--blue) 20%, transparent); color: var(--blue); }
+code, pre { font-family: var(--mono); }
+code { background: var(--panel-2); padding: 1px 6px; border-radius: 4px; font-size: .92em; }
+pre { background: #050a12; border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 14.5px; line-height: 1.55; margin: 0; color: #d8e1ee; }
+pre .k { color: #ff7cc0; } pre .s { color: #ffc46b; } pre .c { color: #6f819a; } pre .g { color: var(--green); }
+
+/* loop */
+.beats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 0; margin-top: 36px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.beat { padding: 22px; background: var(--panel); border-right: 1px solid var(--line); }
+.beat:last-child { border-right: 0; }
+.beat .n { font: 900 15px/1 var(--display); color: var(--orange); letter-spacing: .1em; }
+.beat h3 { margin-top: 10px; }
+.beat p { color: var(--muted); font-size: 16px; margin: 8px 0 0; }
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(280px, 1fr); gap: 14px; overflow-x: auto; padding-bottom: 10px; margin-top: 28px; scroll-snap-type: x mandatory; }
+.strip figure { scroll-snap-align: start; }
+
+/* encounters */
+.enc { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; align-items: center; padding-block: 26px; border-top: 1px solid var(--line); }
+.enc:first-of-type { border-top: 0; }
+.enc ul { padding-left: 20px; margin: 12px 0 0; color: var(--muted); }
+.enc li { margin: 4px 0; }
+@media (max-width: 820px) { .enc { grid-template-columns: 1fr; } }
+.recipes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.recipes span { border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 15px; font-weight: 600; }
+.recipes span.built { border-color: var(--orange); color: var(--orange); }
+
+/* reply table */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; margin-top: 18px; }
+table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: 15.5px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--panel); }
+tr:last-child td { border-bottom: 0; }
+td.say { font-weight: 600; }
+td .good { color: var(--green); font-weight: 700; } td .bad { color: #ff6b6b; font-weight: 700; }
+
+/* rooms */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 18px; }
+.filters button { font: 600 14px var(--body); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.filters button[aria-pressed="true"] { color: #fff; background: var(--pink); border-color: var(--pink); }
+.rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 16px; }
+.room .shot { aspect-ratio: 16/10; }
+.room .shot img { width: 100%; height: 100%; object-fit: cover; }
+.room h3 { font-size: 17px; margin-top: 10px; }
+.room p { margin: 4px 0 0; font-size: 14.5px; color: var(--muted); }
+.room .tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.closeups { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-top: 22px; }
+.closeups .shot { aspect-ratio: 16/9; }
+.closeups img { width: 100%; height: 100%; object-fit: cover; }
+.closeups figcaption { font-size: 13.5px; margin-top: 6px; }
+
+/* cast */
+.cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 14px; margin-top: 26px; }
+.person { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.person .face { aspect-ratio: 1; background: radial-gradient(circle at 50% 65%, #2a1a3a 0%, var(--panel-2) 60%); cursor: zoom-in; }
+.person .face img { width: 100%; height: 100%; object-fit: cover; }
+.person .who { padding: 10px 12px 14px; }
+.person b { display: block; font-size: 15.5px; }
+.person span { display: block; font-size: 13px; color: var(--muted); line-height: 1.35; margin-top: 2px; }
+.moods { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+@media (max-width: 640px) { .moods { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.moods figure { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; text-align: center; }
+.moods figcaption { margin: 0; padding: 6px 0 9px; font-weight: 700; color: var(--ink); font-size: 13.5px; }
+.extras { display: flex; gap: 6px; align-items: flex-end; overflow-x: auto; padding: 18px 16px 0; background: linear-gradient(180deg, transparent 60%, var(--panel-2)); border: 1px solid var(--line); border-radius: 12px; margin-top: 18px; }
+.extras img { height: 170px; width: auto; flex: none; }
+
+/* steps */
+.steps { counter-reset: s; display: grid; gap: 0; margin-top: 30px; border-left: 2px solid var(--line); }
+.step { position: relative; padding: 0 0 26px 30px; }
+.step::before { counter-increment: s; content: counter(s); position: absolute; left: -16px; top: -2px; width: 30px; height: 30px; border-radius: 50%; background: var(--grad); color: #fff; font: 900 15px/30px var(--display); text-align: center; }
+.step h3 { font-size: 19px; }
+.step p { color: var(--muted); margin: 6px 0 0; font-size: 16px; }
+.qs { counter-reset: q; list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+.qs li { counter-increment: q; background: var(--panel-2); border-radius: 8px; padding: 10px 14px 10px 44px; position: relative; font-size: 15.5px; }
+.qs li::before { content: counter(q); position: absolute; left: 14px; top: 10px; font-weight: 900; color: var(--orange); }
+
+/* flow diagram */
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 0; margin-top: 30px; }
+.flow .node { position: relative; background: var(--panel); border: 1px solid var(--line); padding: 18px; margin-right: 22px; border-radius: 10px; }
+.flow .node::after { content: "→"; position: absolute; right: -20px; top: 50%; transform: translateY(-50%); color: var(--orange); font-weight: 900; font-size: 20px; }
+.flow .node:last-child { margin-right: 0; } .flow .node:last-child::after { content: none; }
+.flow .node b { display: block; font-size: 16px; }
+.flow .node span { display: block; font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+.flow .node code { font-size: 12.5px; }
+@media (max-width: 760px) { .flow .node { margin: 0 0 22px; } .flow .node::after { content: "↓"; right: 50%; top: auto; bottom: -24px; transform: translateX(50%); } }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; margin-top: 22px; }
+.fact { border-top: 3px solid var(--pink); background: var(--panel); border-radius: 0 0 10px 10px; padding: 16px 18px; }
+.fact:nth-child(2n) { border-top-color: var(--orange); }
+.fact b { display: block; font-size: 16.5px; }
+.fact span { display: block; color: var(--muted); font-size: 15px; margin-top: 6px; }
+.meter { margin-top: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.meter .bar { height: 14px; border-radius: 7px; background: var(--panel-2); overflow: hidden; margin-top: 10px; }
+.meter .bar i { display: block; height: 100%; width: 2.8%; background: var(--grad); }
+.meter small { color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+footer { padding-block: 60px 80px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); margin-top: 80px; }
+
+/* lightbox */
+dialog#lb { border: 0; padding: 0; background: transparent; max-width: 96vw; max-height: 92vh; }
+dialog#lb::backdrop { background: rgba(3, 6, 12, .9); }
+dialog#lb img { max-width: 96vw; max-height: 86vh; border-radius: 8px; }
+dialog#lb p { color: var(--ink); text-align: center; margin: 10px auto 0; }
+</style>
+
+<nav class="top"><div class="in">
+  <span class="brand"><b>RPG</b> engine</span>
+  <a href="#play">How it plays</a>
+  <a href="#encounters">Encounters</a>
+  <a href="#memory">Memory &amp; XP</a>
+  <a href="#rooms">Rooms</a>
+  <a href="#cast">Characters</a>
+  <a href="#authoring">New scenario</a>
+  <a href="#scorm">SCORM</a>
+  <a href="#inside">Sound</a>
+</div></nav>
+
+<header class="hero">
+  <div class="art"></div>
+  <div class="wrap">
+    <p class="eyebrow">Interactive Learning Creator</p>
+    <h1>The <span>RPG</span><br>engine</h1>
+    <p class="lede">Long role-playing scenarios in an isometric office world. Learners walk around, read the evidence, talk to people and make calls that the world remembers. Every name, line and number lives in a scenario file. The engine and the art library are shared by every game.</p>
+    <div class="stats">
+      <div class="stat"><b>29</b><span>ready-made rooms</span></div>
+      <div class="stat"><b>16</b><span>characters with 6 moods each</span></div>
+      <div class="stat"><b>25</b><span>conversation close-ups</span></div>
+      <div class="stat"><b>188</b><span>room pieces in 5 settings</span></div>
+      <div class="stat"><b>0</b><span>network requests at play time</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="play"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">How it plays</p>
+  <h2>Walk, look, talk, then make a call</h2>
+  <p class="lede">The learner arrives with a situation and a goal, never with instructions. Arrow keys, WASD or a click to walk. E to use whatever is in reach. Every clickable thing is also a real button for keyboard and screen reader users.</p>
+  <div class="beats">
+    <div class="beat"><div class="n">READ</div><h3>Find the evidence in the world</h3><p>Screens, logs, whiteboards and people hold the facts. Looking is free.</p></div>
+    <div class="beat"><div class="n">COMMIT</div><h3>Make a call</h3><p>Pick a reply, restart a server, push someone. Each move takes a turn when the stakes are real.</p></div>
+    <div class="beat"><div class="n">REVEAL</div><h3>The world answers</h3><p>Trust moves, a queue fills, a door unlocks. Later scenes can name the moment that caused it.</p></div>
+  </div>
+  <div class="strip" aria-label="Demo playthrough, in order">
+    <figure><img class="shot" src="shots/1440-01-opening.webp" alt="Office floor with the player, Priya at the desks and Dev by the whiteboard"><figcaption>1. Arrive on the office floor. Priya calls you over.</figcaption></figure>
+    <figure><img class="shot" src="shots/1440-05-priya-encounter.webp" alt="Close-up conversation with Priya"><figcaption>2. Question Priya. She knows about the 2 a.m. maintenance.</figcaption></figure>
+    <figure><img class="shot" src="shots/1440-08-door-unlocking.webp" alt="The server room door unlocking"><figcaption>3. Her spare badge opens the server room.</figcaption></figure>
+    <figure><img class="shot" src="shots/1440-11-diagnose-forwarder.webp" alt="fwd-01 screen reading REFUSED"><figcaption>4. Read the forwarder: refused since 02:04, storage filling.</figcaption></figure>
+    <figure><img class="shot" src="shots/1440-14-dev-encounter.webp" alt="Persuading Dev by the whiteboard"><figcaption>5. Persuade Dev, who made the change, to open the port.</figcaption></figure>
+    <figure><img class="shot" src="shots/1440-17-dev-walking.webp" alt="Dev walking to the server room"><figcaption>6. Dev walks to the server room on his own.</figcaption></figure>
+    <figure><img class="shot" src="shots/engine-changes-results.webp" alt="Results card: the live reports are updating again"><figcaption>7. Results: what happened and why, scored in XP.</figcaption></figure>
+  </div>
+  <p style="color:var(--muted);font-size:15px">Demo scenario: <em>Reports down since 2 a.m.</em> The company and people are invented for practice.</p>
+</div></section>
+
+<section id="encounters"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Encounters</p>
+  <h2>Moments with stakes</h2>
+  <p class="lede">Most of a scenario is walking and talking. At the big moments a conversation or a piece of equipment gets stakes: a turn limit, meters such as trust or a filling queue, and its own endings. Every one of them can be lost in a realistic way.</p>
+
+  <div class="enc">
+    <img class="shot" src="shots/1440-14-dev-encounter.webp" alt="Persuade encounter with Dev">
+    <div><span class="tag p">Persuade</span><h3 style="margin-top:10px">Change someone's mind</h3>
+      <p>The person raises concerns one at a time. Each of their lines is one node in a dialogue tree with two to four replies. One reply fits; the rest are mistakes real people make: pressure, blame, half the evidence.</p>
+      <ul><li>A reply only appears once the learner has seen what it rests on</li><li>Weak replies cost trust and lead to push-back</li><li>Dev: 5 turns, trust meter, 3 concerns, 3 endings</li></ul></div>
+  </div>
+  <div class="enc">
+    <img class="shot" src="shots/1440-05-priya-encounter.webp" alt="Probe encounter with Priya">
+    <div><span class="tag b">Probe</span><h3 style="margin-top:10px">Find something out</h3>
+      <p>The person knows things they haven't told you. Good questions open them, in any order. Pushing too hard ends the meeting early.</p>
+      <ul><li>Each answer is remembered and lands in the notebook</li><li>Priya: 4 turns, holds the maintenance lead and the only badge</li></ul></div>
+  </div>
+  <div class="enc">
+    <img class="shot" src="shots/1440-11-diagnose-forwarder.webp" alt="Diagnose encounter on fwd-01">
+    <div><span class="tag o">Diagnose</span><h3 style="margin-top:10px">Work out what is broken</h3>
+      <p>Equipment with evidence screens, actions and a damage meter that rises every turn. Looking is free; every action takes a turn. Fix it under the limit, or fix it late and live with the damage.</p>
+      <ul><li>fwd-01 storage fills 8% a turn; full means the night's data is gone</li><li>Restarting fwd-01 early throws the data away</li></ul></div>
+  </div>
+
+  <h3 style="margin-top:36px">Nine recipes built from the same pieces</h3>
+  <p style="color:var(--muted)">Turns, meters, concerns, hidden facts and endings combine into a recipe per moment. The highlighted three run in the demo.</p>
+  <div class="recipes">
+    <span class="built">Persuade</span><span class="built">Probe</span><span class="built">Diagnose</span>
+    <span>Carry out a procedure</span><span>Inspect</span><span>Negotiate</span><span>Calm someone down</span><span>Prioritize</span><span>Cross-examine</span>
+  </div>
+</div></section>
+
+<section id="memory"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Memory, consequences and XP</p>
+  <h2>The world remembers every call</h2>
+  <p class="lede">Underneath everything is one memory: a list of keys and numbers. What you saw, who you met, which reply you picked, each person's trust. Any line, door, person or ending can depend on it.</p>
+
+  <h3 style="margin-top:34px">One node of Dev's tree, as written in the scenario</h3>
+  <p style="color:var(--muted)">Dev says: <em>“My 2 a.m. change was approved. I'm not undoing it.”</em> Which replies the learner sees depends on what they have found so far.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Reply</th><th>Shows only when</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td class="say">“Your 2 a.m. change closed port 9997, and fwd-01 has been refused since 02:04.”</td><td>Saw the firewall log <b>and</b> the forwarder</td><td><span class="good">Clears the concern.</span> Dev moves on to “How do I know that's the cause?”</td></tr>
+      <tr><td class="say">“It closed port 9997. I saw it in the firewall change log.”</td><td>Saw the firewall, not the forwarder yet</td><td>Push-back: “It's meant to. Rule 14 closes it.”</td></tr>
+      <tr><td class="say">“I'm not asking you to undo it yet. What did the change do?”</td><td>Hasn't seen the firewall</td><td>A lead: rule 14. Come back with a reason.</td></tr>
+      <tr><td class="say">“Everything is down. You have to fix it now.”</td><td>Always</td><td><span class="bad">Trust −1.</span> “Everything is always down.”</td></tr>
+      <tr><td class="say">“Priya said your maintenance broke it.”</td><td>Heard about the maintenance</td><td><span class="bad">Trust −1.</span> “Did she. Two teams signed off on that change.”</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="grid g2" style="margin-top:34px">
+    <div class="card"><h3>Consequences name their cause</h3><p>Any line can name the earlier moment behind it. If Dev walks out, the results card says why: “Asking to go over his head to his manager lost him.” There is never a “wrong” pop-up.</p></div>
+    <div class="card"><h3>Moods last</h3><p>Every person has a mood their portrait always shows. Blame Priya's team and she is still annoyed when you come back, until you apologize or fix what she cares about.</p></div>
+    <div class="card"><h3>XP for working things out</h3><p>XP fires only on discoveries and outcomes the scenario marks, never on clicks or walking. XP earned out of XP possible is the score sent to the LMS.</p></div>
+    <div class="card"><h3>Levels open new things to say</h3><p>A level gives a point in a skill the scenario names. Skills open lines, details or routes. A skill never wins by itself: an opened line still misses at the wrong moment.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <figure><img class="shot" src="shots/1440-06-priya-hit-levelup.webp" alt="Level up banner: new thing to say to Dev"><figcaption>Reaching level 2 opens “I'll watch the port with you for an hour” as a reply to Dev.</figcaption></figure>
+    <figure><img class="shot" src="shots/end-failed.webp" alt="Failed ending: the night's data is gone, with a button to try the server room again"><figcaption>A failed ending says what happened in the world and offers to retry from the moment the losing call was made.</figcaption></figure>
+  </div>
+</div></section>
+
+<section id="rooms"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">The world</p>
+  <h2>29 ready-made rooms</h2>
+  <p class="lede">Rooms are laid out ahead of time on a half-meter grid from a library of pre-rendered pieces. The engine works out the walk map, draw order and door spots from the layout. A scenario picks rooms, opens the doorways it needs, and puts its own things on the spots each room marks: screens, whiteboards, and the company name on signs and logo walls. No room has a brand painted in. Background people fill the seats.</p>
+  <div class="filters" role="group" aria-label="Filter rooms by setting">
+    <button type="button" data-f="all" aria-pressed="true">All 29</button>
+    <button type="button" data-f="office" aria-pressed="false">Office</button>
+    <button type="button" data-f="tech" aria-pressed="false">Tech</button>
+    <button type="button" data-f="events" aria-pressed="false">Events</button>
+    <button type="button" data-f="informal" aria-pressed="false">Informal</button>
+    <button type="button" data-f="video" aria-pressed="false">Video call</button>
+  </div>
+  <div class="rooms" id="rooms-grid"></div>
+
+  <h3 style="margin-top:56px">25 close-ups</h3>
+  <p style="color:var(--muted)">Every conversation and every piece of equipment opens in a close-up: a painted background, both portraits large, and live screens drawn from scenario text. Screens, logs, chats and dashboards need no art.</p>
+  <div class="closeups" id="closeups-grid"></div>
+
+  <h3 style="margin-top:56px">Title art, one per setting</h3>
+  <div class="grid g3" style="margin-top:16px" id="keyart-grid"></div>
+</div></section>
+
+<section id="cast"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Characters</p>
+  <h2>A cast that any scenario can name</h2>
+  <p class="lede">Twelve characters and four player looks. Each walks in eight directions and has six portrait moods. The role below is only what the look suits: a scenario gives each person their own name and job.</p>
+  <div class="cast" id="cast-grid"></div>
+
+  <h3 style="margin-top:44px">Player looks</h3>
+  <p style="color:var(--muted)">One set look, or the learner picks at the start. Look, level and skills carry across a series.</p>
+  <div class="cast" id="player-grid"></div>
+
+  <h3 style="margin-top:44px">Six moods per person</h3>
+  <p style="color:var(--muted)">The portrait always shows the mood the game remembers, so a face never disagrees with how someone feels. Dev, the network lead:</p>
+  <div class="moods" id="moods"></div>
+
+  <h3 style="margin-top:44px">Background people</h3>
+  <p style="color:var(--muted)">Twelve extras sit at desks, listen in audiences and stand around with coffee. One line in a scenario turns them on. They can't be clicked, and the seats near story people stay empty.</p>
+  <div class="extras" id="extras"></div>
+</div></section>
+
+<section id="authoring"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Making a new scenario</p>
+  <h2>From a learning goal to a playable game</h2>
+  <p class="lede">Type <b>/rpg</b> in Claude Code and say what the game should teach. Claude asks the design questions, writes the story with you, builds it and tests it. Nothing new is drawn for a game: the rooms, people, close-ups and music all come from the library, so a new game is writing, not production.</p>
+
+  <div class="grid g2" style="margin-top:30px;align-items:start">
+    <div class="steps">
+      <div class="step"><h3>Answer the design questions</h3><p>What the learner should be able to do by the end, and the shape of the game.</p></div>
+      <div class="step"><h3>Agree a short outline</h3><p>Who the player is, the people, the rooms, the big moments and which recipe each uses, how it can end.</p></div>
+      <div class="step"><h3>Write the story script</h3><p>Beat by beat: the intro card, a people table, the task list, every dialogue tree node by node, every ending.</p></div>
+      <div class="step"><h3>Claude builds it</h3><p>The approved script becomes the game. If the script asks for something the engine can't do yet, Claude stops and says so instead of working around it.</p></div>
+      <div class="step"><h3>Checked automatically</h3><p>The scenario check tries every possible path through the game. An automated playthrough then plays every route and ending and screenshots each one.</p></div>
+      <div class="step"><h3>Play it and ask for changes</h3><p>You get the game running in your browser, with a map of every choice and where it leads. Ask for changes in plain words.</p></div>
+    </div>
+    <div class="card">
+      <h3>The design questions</h3>
+      <ol class="qs">
+        <li>What should the player be able to do by the end?</li>
+        <li>How long is it? One room and one big moment, or chapters.</li>
+        <li>Who is the player? Their own job, or a role the story needs.</li>
+        <li>Which player look, or let the learner choose?</li>
+        <li>One scenario, a series with a menu, or chapters?</li>
+        <li>Levels or not, and which few skills?</li>
+      </ol>
+    </div>
+  </div>
+
+  <h3 style="margin-top:44px">What a scenario describes</h3>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card"><h3>Places</h3><p>Which library rooms it uses, their doorways, locked doors, and the things in it: what each shows, its actions, its live screens.</p></div>
+    <div class="card"><h3>People</h3><p>A look from the cast, a name and job, where they stand, starting mood, which conversation they open based on memory, and where they walk later.</p></div>
+    <div class="card"><h3>Conversations</h3><p>Dialogue trees. Add stakes for an encounter: turns, meters, concerns or hidden facts, and endings.</p></div>
+    <div class="card"><h3>Diagnoses</h3><p>The broken thing, its evidence, the damage meter, and when it counts as fixed.</p></div>
+    <div class="card"><h3>Tasks, XP and levels</h3><p>The goal line, the checklist, XP awards on discoveries, level thresholds and what each unlocks.</p></div>
+    <div class="card"><h3>Endings, music, sound</h3><p>Results text per ending, retry points, the pass score, the music pack, sounds on specific lines.</p></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="card"><h3>What you tell Claude</h3><p>“/rpg Make a game for new support engineers. A customer's dashboards stopped updating overnight. They need to find the cause in the server room and convince the network admin to undo the change, without going around security.”</p></div>
+    <div class="card"><h3>What the check makes sure of</h3><p>For the demo it tried 117,604 situations a learner could be in and found none where they get stuck. Every big moment and every ending can be reached, every problem can be fixed, and the largest save fits easily in the LMS. A scenario that fails the check can't be packaged.</p></div>
+  </div>
+</div></section>
+
+<section id="scorm"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Packaging and the LMS</p>
+  <h2>One SCORM zip per game</h2>
+  <p class="lede">Each game ships as one SCORM 2004 package that runs in any standard LMS, with no server behind it. The build keeps only the art, music and sounds the scenario uses, so the zip carries nothing extra.</p>
+
+  <div class="flow">
+    <div class="node"><b>Scenario file</b><span>Words, people, rooms and numbers, written by Claude.</span></div>
+    <div class="node"><b>Scenario check</b><span>Every state walked. A bad scenario never produces a zip.</span></div>
+    <div class="node"><b>Build</b><span>Library trimmed to what this game names. Fonts bundled.</span></div>
+    <div class="node"><b>SCORM package</b><span>One zip, ready to upload.</span></div>
+    <div class="node"><b>LMS</b><span>Launch, save, resume, score, pass or fail.</span></div>
+  </div>
+
+  <div class="facts">
+    <div class="fact"><b>Saves are inputs, not snapshots</b><span>Only what the learner did is stored: looked, acted, said, met, plus the room and position. Resume replays them. A save survives text edits to the scenario.</span></div>
+    <div class="fact"><b>Saved after every action</b><span>Into the LMS, or into the browser when played outside one. Close the tab mid-conversation and it reopens there.</span></div>
+    <div class="fact"><b>Score is XP earned out of XP possible</b><span>Passed when the score reaches the scenario's pass score (70 in the demo). Completion is reported at a real ending.</span></div>
+    <div class="fact"><b>Retry without gaming the score</b><span>A failed ending offers “Try talking to Dev again”. The run rewinds to that moment; XP can't be earned twice, and nothing goes to the LMS until a real finish.</span></div>
+    <div class="fact"><b>Fully offline</b><span>Nothing loads from the internet and no AI runs while learners play. The automated playthrough fails on any request that leaves the package.</span></div>
+    <div class="fact"><b>Series carry over</b><span>Several scenarios can ship in one package, as a menu or as chapters. The player's look, level, skills and key choices carry into the next one.</span></div>
+  </div>
+
+  <div class="meter">
+    <b>Save size, worst case in the demo</b>
+    <div class="bar"><i></i></div>
+    <small><span>1,796 characters (78 inputs)</span><span>LMS limit 64,000</span></small>
+  </div>
+</div></section>
+
+<section id="inside"><div class="wrap">
+  <div class="grad-bar"></div>
+  <p class="eyebrow">Sound and access</p>
+  <h2>Music, sound and accessibility</h2>
+  <div class="grid g3" style="margin-top:22px">
+    <div class="card"><h3>Music</h3><p>Three packs: Investigation, Systems and Cozy. Each has title, explore, encounter and pressure tracks plus win and lose stings. Pressure plays by itself when a meter rises every turn.</p></div>
+    <div class="card"><h3>Sound</h3><p>Eighteen library sounds a line can name: a phone ringing, a rack door, fans spinning up, applause. The engine adds its own for XP, level-ups, unlocking and menus.</p></div>
+    <div class="card"><h3>Accessibility</h3><p>Every clickable thing is a real button. Every state is a word as well as a color: REFUSED, SENDING, NOT FIXED, trust words.</p></div>
+  </div>
+</div></section>
+</main>
+
+<footer><div class="wrap">RPG engine 0.1.0 · Interactive Learning Creator · Art, rooms and characters are from the engine's library. The demo company and people are invented for practice.</div></footer>
+
+<dialog id="lb" aria-label="Enlarged image"><img alt=""><p></p></dialog>
+
+<script>
+const T = { office: 'Office', tech: 'Tech', events: 'Events', informal: 'Informal', video: 'Video call' };
+const ROOMS = [
+  ['office-demo', 'Office floor', ['office','tech'], 'Desk pods, a glass meeting room, a whiteboard and a kitchen island. The demo starts here.'],
+  ['server-room', 'Server room', ['tech','office'], 'A rack row under a cable tray, a cooling unit, a breaker box and a cart. The demo Diagnose.'],
+  ['openplan', 'Open-plan office', ['office'], 'Compact nook with a sit/stand desk, lockers, a filing cabinet, a printer and a phone booth.'],
+  ['ai_team_floor', 'AI team floor', ['office'], 'Light, warm floor with sit/stand desks, dual monitors, a whiteboard, a wall screen and a kitchenette.'],
+  ['support_center', 'Support center', ['office'], 'Long rows of headset desks, a raised team-lead desk, acoustic panels and a break nook.'],
+  ['help_desk', 'Help desk', ['tech','office'], 'Service counter, parts shelf, returns cart, a queue rope and a technician desk.'],
+  ['agentic_soc', 'Security operations center', ['tech','office'], 'Curved analyst desks, a wall of three big screens, a glass side meeting room and a coffee nook.'],
+  ['ops_center', 'Operations center', ['tech','office'], 'Curved consoles, a large video wall, a raised lead desk and a signal light.'],
+  ['gpu_cluster', 'GPU cluster', ['tech','office'], 'Two long rows of liquid-cooled GPU racks, a control desk and a wall of three screens.'],
+  ['datacenter_aisle', 'Data center aisle', ['tech','office'], 'A data hall corner fenced in mesh: two rows of racks forming a closed hot aisle, a cooling unit, an open cage gate and a floor tile pulled up.'],
+  ['data_cage', 'Data cage', ['tech','office'], 'A customer cage in a shared data hall: mesh walls all around, two locked gates and an open one, a row of racks under a cable tray, and a cart.'],
+  ['network_closet', 'Network closet', ['tech','office'], 'A rack, a wall-mounted switch, a ladder, boxes, a breaker panel and tangled cables.'],
+  ['boardroom', 'Boardroom', ['office'], 'Glass boardroom with a long oval table, a wall screen, windows and a credenza.'],
+  ['briefing_center', 'Briefing center', ['office'], 'Wood floor, a U-shaped conference table, a curved video wall, a refreshment bar and a sofa.'],
+  ['small_meeting', 'Small meeting room', ['office'], 'Glass room with a table for four, a whiteboard, a wall screen and a conference speaker.'],
+  ['executive_office', 'Executive office', ['office','events'], 'L-shaped desk, a bookshelf, a sofa, wall art and two visitors.'],
+  ['reception', 'Reception', ['office','events'], 'Front desk, brand wall, turnstile gates, glass partitions and two elevators.'],
+  ['hallway', 'Hallway', ['office'], 'Long wood-floor corridor with a bench, a water cooler and wall art.'],
+  ['elevator', 'Elevator', ['office'], 'Steel elevator car with a live floor display, a button panel and two other riders.'],
+  ['break_room', 'Break room', ['office'], 'Vending machine, round tables, a kitchen counter with stools, a fridge and a water cooler.'],
+  ['phone_booth', 'Phone booth', ['office','video'], 'Two phone booths, a glass-walled waiting area and a bench.'],
+  ['home_office', 'Home office', ['office','video'], 'Desk with a ring light, a bookshelf, a round rug and a window. Made for video calls.'],
+  ['conference_foyer', 'Conference foyer', ['events','office'], 'Roll-up banners, cocktail tables, a registration desk and a coffee station on navy carpet.'],
+  ['session_room', 'Conference session room', ['events','office'], 'Rows of chairs, a stage with a lectern and projector screen, and a check-in desk.'],
+  ['trade_show', 'Trade show floor', ['events','office'], 'Brand booth, truss lights, brochure racks, a demo kiosk and cocktail tables.'],
+  ['hotel_meeting', 'Hotel meeting room', ['events','office'], 'Two tables, a projector screen, a flip chart and a coffee service table.'],
+  ['hotel_lobby', 'Hotel lobby', ['informal','office'], 'Front desk and brand sign, lounge armchairs and sofas, a luggage cart and two elevators.'],
+  ['coffee_shop', 'Coffee shop', ['informal','office'], 'Espresso counter, pastry case, menu board, window bar stools and small round tables.'],
+  ['restaurant', 'Restaurant', ['informal','office'], 'White-clothed tables, burgundy booths, a host stand facing the entrance, a bar with stools and a wine rack.'],
+];
+const CLOSEUPS = [
+  ['desk','Office desks'],['whiteboard','Whiteboard'],['console','Server console'],['boardroom','Boardroom table'],
+  ['executive','Executive office'],['reception','Reception desk'],['lobby_chairs','Lobby chairs'],['hallway','Hallway'],
+  ['elevator','Elevator'],['breakroom','Break room'],['coffee_table','Coffee table'],['bar_table','Bar table'],
+  ['restaurant_table','Restaurant table'],['help_desk','Help desk'],['support_desk','Support desk'],['soc_desk','Security desk'],
+  ['ops_center','Operations center'],['gpu_desk','GPU cluster desk'],['aiteam_desk','AI team desk'],['briefing_wall','Briefing wall'],
+  ['booth_demo','Trade show booth'],['session_after','After a session'],['call_2','Video call, 2 people'],['call_4','Video call, 4 people'],['call_6','Video call, 6 people'],
+];
+const CAST = [
+  ['executive','Executive','CEO, buyer, director'],['cfo','CFO','Board member, finance director'],
+  ['ops-lead','Operations lead','Team lead, customer contact. Priya in the demo'],['sales-manager','Sales manager','Account executive, procurement'],
+  ['analyst','Analyst','Account manager, new hire'],['compliance-officer','Compliance officer','Auditor, legal, risk'],
+  ['product-manager','Product manager','HR lead, consultant, sponsor'],['receptionist','Receptionist','Front desk, office manager, customer'],
+  ['network-lead','Network lead','IT manager, engineer. Dev in the demo'],['sre','Site reliability engineer','Security analyst, platform engineer'],
+  ['developer','Developer','Support engineer, junior developer'],['principal-engineer','Principal engineer','CTO, architect, database admin'],
+];
+const PLAYERS = [
+  ['player-a','Player A'],['player-b','Player B'],
+  ['player-c','Player C'],['player-d','Player D'],
+];
+const EXTRAS = ['ana','ben','chen','dina','eli','faye','gus','hana','ivan','jo','kai','lena'];
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+
+document.getElementById('rooms-grid').innerHTML = ROOMS.map(([id, name, sets, desc]) =>
+  `<figure class="room" data-sets="${sets.join(' ')}"><div class="shot"><img loading="lazy" src="rooms/${id}.webp" alt="${esc(name)}"></div>
+   <h3>${esc(name)}</h3>${desc ? `<p>${esc(desc)}</p>` : ''}
+   <div class="tags">${sets.map((s) => `<span class="tag">${T[s]}</span>`).join('')}</div></figure>`).join('');
+document.getElementById('closeups-grid').innerHTML = CLOSEUPS.map(([id, name]) =>
+  `<figure><div class="shot"><img loading="lazy" src="closeups/${id}.webp" alt="${esc(name)} close-up"></div><figcaption>${esc(name)}</figcaption></figure>`).join('');
+document.getElementById('keyart-grid').innerHTML = Object.entries(T).map(([id, name]) =>
+  `<figure><img class="shot" loading="lazy" src="keyart/${id}.webp" alt="${name} title art"><figcaption>${name}</figcaption></figure>`).join('');
+const people = (list) => list.map(([id, role, fits]) =>
+  `<div class="person"><div class="face"><img loading="lazy" src="cast/${id}.webp" alt="${esc(role)} portrait"></div><div class="who"><b>${esc(role)}</b><span>${esc(fits)}</span></div></div>`).join('');
+document.getElementById('cast-grid').innerHTML = people(CAST);
+document.getElementById('player-grid').innerHTML = PLAYERS.map(([id, name]) =>
+  `<div class="person"><div class="face"><img loading="lazy" src="cast/${id}.webp" alt="${name} portrait"></div><div class="who"><b>${name}</b></div></div>`).join('');
+document.getElementById('moods').innerHTML = ['neutral','pleased','annoyed','worried','surprised','thinking'].map((m) =>
+  `<figure><img loading="lazy" src="cast/${m === 'neutral' ? 'network-lead' : 'network-lead-' + m}.webp" alt="Dev looking ${m}"><figcaption>${m[0].toUpperCase() + m.slice(1)}</figcaption></figure>`).join('');
+document.getElementById('extras').innerHTML = EXTRAS.map((id) => `<img loading="lazy" src="extras/${id}.webp" alt="Background person">`).join('');
+
+// Room filter
+const btns = document.querySelectorAll('.filters button');
+btns.forEach((b) => b.addEventListener('click', () => {
+  btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  document.querySelectorAll('.room').forEach((r) => { r.hidden = b.dataset.f !== 'all' && !r.dataset.sets.split(' ').includes(b.dataset.f); });
+}));
+
+// Lightbox: click any picture to see it large
+const lb = document.getElementById('lb');
+document.addEventListener('click', (e) => {
+  if (lb.open) { lb.close(); return; }
+  const img = e.target.closest('.shot img, img.shot, .face img');
+  if (!img) return;
+  lb.querySelector('img').src = img.src; lb.querySelector('img').alt = img.alt;
+  const cap = img.closest('figure, .person')?.querySelector('figcaption, h3, b');
+  lb.querySelector('p').textContent = cap ? cap.textContent : '';
+  lb.showModal();
+});
+
+// Highlight the nav link for the section on screen
+const links = [...document.querySelectorAll('nav.top a')];
+const io = new IntersectionObserver((es) => es.forEach((en) => {
+  if (en.isIntersecting) links.forEach((a) => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id));
+}), { rootMargin: '-40% 0px -55% 0px' });
+document.querySelectorAll('main section').forEach((s) => io.observe(s));
+</script>

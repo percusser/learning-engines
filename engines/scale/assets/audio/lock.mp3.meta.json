@@ -1,0 +1,9 @@
+{
+  "name": "lock",
+  "kind": "sfx",
+  "moment": "Lock it confirmed: the scorecard is locked (the commit)",
+  "prompt": "A heavy iron embossing seal press pulled down onto thick paper: the lever creaking, a deep crunching press, then the lever springing back up",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:18.969Z"
+}

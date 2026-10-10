@@ -1,0 +1,9 @@
+{
+  "name": "call",
+  "kind": "sfx",
+  "moment": "round 1: an outlet is called goes dark or survives",
+  "prompt": "A grease pencil marking a quick firm tick on a card tag, short scratchy stroke, close up",
+  "duration": 0.7,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:32.283Z"
+}

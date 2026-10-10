@@ -1,0 +1,9 @@
+{
+  "name": "take-us",
+  "kind": "sfx",
+  "moment": "reveal, right: a criterion lands on your pan (you take it)",
+  "prompt": "A brass weight dropped into a brass balance pan with a clear ringing clink, the pan swinging on its chains",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:55.624Z"
+}

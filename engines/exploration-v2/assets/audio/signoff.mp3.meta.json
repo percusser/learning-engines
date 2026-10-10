@@ -1,0 +1,9 @@
+{
+  "name": "signoff",
+  "kind": "sfx",
+  "moment": "end: the walk is finished and the report appears",
+  "prompt": "A pen signature scribbled quickly on paper, then the sheet torn off a notepad",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:04.824Z"
+}

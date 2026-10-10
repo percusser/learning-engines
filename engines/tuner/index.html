@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>The Tuner</title>
+<style>
+  /* Fonts ship in the package (SIL OFL). No network at play time. */
+  @font-face{font-family:"Bebas Neue";src:url(./assets/fonts/Bebas-Neue_400.woff2) format("woff2");font-weight:400}
+  @font-face{font-family:"Courier Prime";src:url(./assets/fonts/Courier-Prime_400.woff2) format("woff2");font-weight:400}
+  @font-face{font-family:"Rajdhani";src:url(./assets/fonts/Rajdhani_500.woff2) format("woff2");font-weight:500}
+  @font-face{font-family:"Rajdhani";src:url(./assets/fonts/Rajdhani_700.woff2) format("woff2");font-weight:700}
+  :root{ --cream:#F0F3F7; --amber:#F99D1C; --pink:#E20082; --grad:radial-gradient(circle at left top,#E20082,#E20082 50%,#F6931D); --eye:#5CE08A; --red:#B8342A; --ui:1 }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0C1724;color:var(--cream);
+    font-family:"Rajdhani","Arial Narrow",sans-serif;font-weight:500;-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .dial{font-family:"Bebas Neue","Rajdhani",sans-serif;font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+  .type{font-family:"Courier Prime",ui-monospace,monospace}
+  b{font-weight:700}
+
+  /* projected world labels: every label sits on a dark plate */
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));white-space:nowrap;
+    font-size:14px;color:#F0F3F7;background:rgba(12,23,36,.93);padding:3px 9px;border:1px solid #363C44;
+    box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .lbl.small{font-size:12px}
+  #sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+  /* control plates projected into the world */
+  .cp{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));pointer-events:auto;
+    background:linear-gradient(180deg,#1a2433,#0C1724);border:1px solid #363C44;
+    box-shadow:inset 0 0 0 2px #070d16,0 6px 14px rgba(0,0,0,.7);padding:8px 10px}
+  .cp h3{font-family:"Bebas Neue",sans-serif;font-weight:400;font-size:15px;letter-spacing:.18em;color:#AEB5C1;margin-bottom:6px}
+  .cp button{font-family:inherit;cursor:pointer;border:1px solid #363C44;background:#1f2a3a;color:#D5DCE5;border-radius:2px}
+  .cp button:hover:not(:disabled){background:#2b3950;color:#fff}
+  .cp button:disabled{opacity:.45;cursor:default}
+  .cp button:focus-visible,.cp input:focus-visible{outline:3px solid #7FD4FF;outline-offset:1px}
+
+  #tune{width:300px}
+  #tune .val{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+    font-family:"Bebas Neue",sans-serif;font-size:12px;letter-spacing:.18em;color:#969DAA}
+  #tune .val b{font-size:19px;color:var(--amber);letter-spacing:.04em;font-variant-numeric:tabular-nums}
+  #tune input[type=range]{width:100%;margin:7px 0 4px;accent-color:var(--pink);cursor:pointer}
+  #tune .pm{display:flex;gap:5px}
+  #tune .pm button{flex:1;font-size:16px;padding:5px 0}
+  #tune .hint{font-size:15px;color:#AEB5C1;margin:6px 0 8px;line-height:1.3}
+  #tune .files{display:flex;gap:3px;border-top:1px solid #363C44;padding-top:7px}
+  #tune .files button{flex:1;font-size:13px;letter-spacing:.02em;padding:5px 1px;line-height:1.15;min-height:40px}
+
+  #reframe{width:380px}
+  /* Replies are live from the first moment, in any order. They used to share the muted grey-on-navy of the
+     disabled controls (text #D5DCE5 on a fill one shade off the plate), which read as "not yet". */
+  #reframe .opt{display:block;width:100%;text-align:left;padding:7px 9px;margin-bottom:5px;line-height:1.3;
+    background:#24344d;border-color:#5A6780}
+  #reframe .opt span{display:block;font-size:16px;color:#FFFFFF}
+  #reframe .opt:hover:not(:disabled){background:#2f4363;border-color:#8C98AD}
+  #reframe .opt[aria-pressed="true"]{border-color:var(--pink);background:rgba(226,0,130,.22);box-shadow:inset 4px 0 0 var(--pink)}
+  #reframe .opt[aria-pressed="true"] span{color:#FFFFFF}
+
+  /* per-line feedback: docked over the grille, where the strip was, so the dial, eye, counter and tag rail stay in view */
+  #fb{width:540px;padding:12px 18px 14px;display:none;transform:translate(-50%,0) scale(var(--ui));transform-origin:top center}
+  #fb.on{display:block}
+  #fb h3{margin-bottom:4px}
+  #fb .q{font-family:"Courier Prime",ui-monospace,monospace;font-size:14px;line-height:1.4;color:#AEB5C1;margin-bottom:4px}
+  #fb dt{font-family:"Bebas Neue",sans-serif;font-size:13px;letter-spacing:.18em;color:#969DAA;margin-top:8px}
+  #fb dd{font-size:16px;line-height:1.32;color:#D5DCE5}
+  #fb dd b.ok,#fb dd b.bad{font-family:"Bebas Neue",sans-serif;font-weight:400;font-size:19px;letter-spacing:.06em;margin-right:4px}
+  #fb .lb{color:#F0F3F7;font-weight:700}
+  #fb .note{font-size:15px;color:var(--amber);margin-top:9px}
+  #fb .row{display:flex;justify-content:flex-end;margin-top:10px}
+  #fb #fbNext{font-family:"Bebas Neue",sans-serif;font-size:19px;letter-spacing:.08em;padding:8px 26px;border:0;color:#FFFFFF;
+    background:var(--grad);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 4px 0 #4d002c}
+  #fb #fbNext:hover{background:var(--grad);filter:brightness(1.1)}
+
+  /* the transcript strip: dark ink on paper, the one cream plate in the layout */
+  #strip{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));width:480px;pointer-events:none;
+    background:#FFFFFF;color:#0C1724;padding:11px 16px 14px;min-height:118px;
+    box-shadow:inset 0 0 0 1px #D5DCE5,0 6px 16px rgba(0,0,0,.55)}
+  #strip .h{font-family:"Bebas Neue",sans-serif;font-size:14px;letter-spacing:.2em;color:#5b6472;margin-bottom:7px}
+  #strip .t{font-family:"Courier Prime",ui-monospace,monospace;font-size:17px;line-height:1.45}
+
+  /* diegetic HUD */
+  .plate{position:fixed;z-index:10;padding:10px 16px;
+    background:linear-gradient(180deg,#1a2433,#0C1724);border:2px solid #363C44;
+    box-shadow:inset 0 0 0 3px #070d16,inset 0 0 0 4px #363C44,0 6px 18px rgba(0,0,0,.6);color:var(--cream)}
+  .plate::before,.plate::after{content:"";position:absolute;top:6px;width:6px;height:6px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#D5DCE5,#363C44);box-shadow:0 1px 0 #000}
+  .plate::before{left:6px}.plate::after{right:6px}
+  #sign{left:50%;transform:translateX(-50%) scale(var(--ui));transform-origin:top center;top:12px;font-size:18px;line-height:1.05;text-align:center;max-width:min(760px,92vw)}
+  #sign small{display:block;font-size:17px;letter-spacing:.02em;opacity:.9;margin-top:5px;text-transform:none;
+    font-family:"Rajdhani";font-weight:500;line-height:1.35}
+  #progress{right:16px;top:14px;transform:scale(var(--ui));transform-origin:top right;font-size:12px;letter-spacing:.16em;text-align:right;width:200px}
+  #sound{left:16px;top:14px;z-index:30;cursor:pointer;font-size:14px;letter-spacing:.08em;padding:8px 20px;transform:scale(var(--ui));transform-origin:top left}
+  #sound[aria-pressed=false]{opacity:.7}
+  #sound:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #progress b{display:block;font-size:30px;line-height:1;margin-top:3px;color:var(--amber);font-variant-numeric:tabular-nums}
+  #progress i{font-style:normal;font-size:15px;opacity:.85;display:block;margin-top:3px;letter-spacing:.05em;font-variant-numeric:tabular-nums}
+  #lock{position:fixed;right:16px;bottom:16px;z-index:10;cursor:pointer;transform-origin:bottom right;
+    width:210px;height:64px;border:0;border-radius:6px;padding:0 10px;
+    background:var(--grad);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #9a0058,0 8px 0 #4d002c,0 12px 20px rgba(0,0,0,.6);
+    color:#FFFFFF;font-size:18px;transition:transform .08s,box-shadow .08s;transform:scale(var(--ui))}
+  #lock:active:not(:disabled){transform:scale(var(--ui)) translateY(6px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 #9a0058,0 2px 0 #4d002c}
+  #lock:disabled{filter:saturate(.25) brightness(.55);cursor:default}
+  #lock:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+
+  .toast{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));padding:6px 12px;font-size:17px;letter-spacing:.06em;
+    background:rgba(12,23,36,.94);border-left:4px solid var(--pink);color:var(--cream);
+    animation:toast 3s ease-out forwards;white-space:nowrap;z-index:5}
+  .toast.bad{border-color:#E0533F}
+  .toast.ok{border-color:#6FD08C}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,-30%)}12%{opacity:1;transform:translate(-50%,-50%)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%)}}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,rgba(12,23,36,.74),rgba(5,10,18,.93));opacity:0;pointer-events:none;
+    transition:opacity .35s}
+  .ov:not(.on){visibility:hidden}          /* closed cards leave the tab order entirely */
+  .ov.on{opacity:1;pointer-events:auto}
+  .card{width:min(700px,92vw);padding:32px 38px;background:#121d2c;border:2px solid #363C44;
+    box-shadow:inset 0 0 0 4px #070d16,inset 0 0 0 5px #363C44,0 30px 60px #000;color:var(--cream);max-height:92vh;overflow:auto}
+  .card h1{font-size:36px;line-height:1;margin-bottom:6px}
+  .card h1 small{display:block;font-size:12px;letter-spacing:.3em;opacity:.55;margin-bottom:10px}
+  .card .sub{margin-top:4px;color:#AEB5C1}
+  #intro h2{font-size:14px;letter-spacing:.2em;color:#969DAA;margin:18px 0 -4px}
+  .card p{font-size:17px;line-height:1.45;margin:12px 0;color:#D5DCE5}
+  .card ol,.card ul{margin:10px 0 4px 22px;font-size:17px;line-height:1.5;color:#D5DCE5}
+  .card b{color:var(--amber)}
+  .card .rule{border-top:1px dashed #363C44;margin:18px 0}
+  .card button{font-family:inherit;font-weight:700;font-size:18px;padding:12px 26px;cursor:pointer;border:0;color:#FFFFFF;
+    background:var(--grad);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 #4d002c}
+  .card button:active{transform:translateY(4px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 1px 0 #4d002c}
+  .card button.quiet{background:#363C44;color:#eee;box-shadow:none}
+  .card button:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  @media (max-height:700px){
+    .card{padding:20px 26px}
+    .card h1{font-size:28px}
+    .card p{font-size:15px;margin:9px 0}
+    .card ol,.card ul{font-size:15px}
+    .card .rule{margin:12px 0}
+    .card button{font-size:16px;padding:9px 20px}
+    .spec dd{font-size:15px}
+  }
+  .spec dt{font-size:11px;letter-spacing:.2em;opacity:.55;margin-top:14px}
+  .spec dd{font-size:16.5px;line-height:1.45;color:#D5DCE5;margin:2px 0 0}
+  .quote{background:#FFFFFF;color:#0C1724;padding:13px 16px;margin:14px 0;font-family:"Courier Prime",ui-monospace,monospace;
+    font-size:15px;line-height:1.5;box-shadow:inset 0 0 0 1px #D5DCE5}
+  table.dbf{width:100%;border-collapse:collapse;font-size:16px;margin:8px 0}
+  table.dbf.sum td{font-size:17px}
+  table.dbf.sum td:last-child{text-align:right;font-weight:700;color:var(--amber);white-space:nowrap}
+  table.dbf th{text-align:left;font-weight:500;letter-spacing:.14em;font-size:13px;opacity:.65;padding:4px 5px;border-bottom:1px solid #363C44}
+  table.dbf td{padding:6px 5px;border-bottom:1px solid #1f2a3a;vertical-align:top}
+  .ok{color:#6FD08C}.bad{color:#E0533F}.amb{color:var(--amber)}
+  .needs{font-size:16px;color:#AEB5C1;line-height:1.45}
+  #debrief{position:fixed;top:0;right:0;bottom:0;z-index:20;width:min(600px,94vw);overflow:auto;padding:24px 26px;
+    transform:translateX(105%);transition:transform .45s;border-width:0 0 0 2px;max-height:none}
+  #debrief.on{transform:none}
+  #debrief h1{font-size:28px}
+  #debrief h2{font-size:14px;letter-spacing:.18em;opacity:.8;margin-top:20px;margin-bottom:2px}
+  #debrief p{font-size:17px;margin:8px 0}
+  #debrief button{font-size:15px;padding:9px 16px}
+  #debrief details summary{cursor:pointer;margin-top:14px;font-size:17px;color:#AEB5C1}
+  .say{margin:8px 0;padding:8px 10px;border-left:3px solid #6FD08C;background:rgba(111,208,140,.08);font-size:17px;line-height:1.45}
+  #dbShow{position:fixed;right:16px;bottom:16px;z-index:21;transform:scale(var(--ui));transform-origin:bottom right;cursor:pointer;
+    width:210px;height:64px;border:0;border-radius:6px;background:var(--grad);color:#FFFFFF;font-size:18px;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #9a0058,0 8px 0 #4d002c,0 12px 20px rgba(0,0,0,.6)}
+  #err{position:fixed;left:0;right:0;bottom:0;z-index:99;background:#400;color:#fdd;font:12px monospace;padding:8px;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div class="plate dial" id="sign">The Tuner<small id="signsub">Click Start to begin.</small></div>
+<div id="sr" role="status" aria-live="polite"></div>
+<div class="plate dial" id="progress">Line<b id="pgNum">1 / 8</b><i id="pgTags">Answered: 0</i></div>
+<button id="sound" class="plate dial" type="button">Sound on</button>
+<button id="lock" class="dial" disabled>Submit answer</button>
+
+<div class="ov on" id="intro"><div class="card">
+  <h1 class="dial">The Tuner</h1>
+  <p class="sub">Find out whose words your customer is repeating.</p>
+  <h2 class="dial">The situation</h2>
+  <p>You are replaying a sales call with a security customer. The customer says 8 lines. Some are their own words, and some repeat a competitor's pitch. One competitor is already in this account.</p>
+  <h2 class="dial">Your goal</h2>
+  <p>For each line, name who it came from and pick your reply. At the end, see which competitor is in the account.</p>
+  <h2 class="dial">What to do</h2>
+  <ol>
+    <li>Read the customer's line on the white paper strip.</li>
+    <li>Click a name under <b>Source notes</b> to read what that source wants the customer to believe.</li>
+    <li>Click <b>Next</b> or <b>Previous</b> to tune the dial. It starts each line off every station.</li>
+    <li>Click a reply in the <b>Your reply</b> list.</li>
+    <li>Click <b>Submit answer</b>.</li>
+    <li>Read what you got right, then click <b>Next line</b>.</li>
+  </ol>
+  <div class="rule"></div>
+  <button id="start" class="dial">Start</button>
+</div></div>
+
+<div class="ov" id="file"><div class="card" style="width:min(600px,92vw)" role="dialog" aria-labelledby="fileTitle">
+  <h1 class="dial"><small>Source notes</small><span id="fileTitle"></span></h1>
+  <dl class="spec" id="fileBody"></dl>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button id="fileTune" class="dial">Tune to this source</button>
+    <button id="fileClose" class="dial quiet">Close</button>
+  </div>
+</div></div>
+
+<div class="ov" id="confirm"><div class="card" style="width:min(560px,92vw)" role="dialog" aria-labelledby="cfTitle">
+  <h1 class="dial"><small>Check your answer</small><span id="cfTitle"></span></h1>
+  <div class="quote" id="cfPhrase"></div>
+  <dl class="spec" id="cfBody"></dl>
+  <p class="needs">You can't change it after you submit.</p>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px"><button id="cfYes" class="dial">Submit</button><button id="cfNo" class="dial quiet">Back</button></div>
+</div></div>
+
+<aside id="debrief" class="card" aria-label="Results" tabindex="-1" inert>
+  <h1 class="dial"><small>Results</small><span id="dbTitle"></span></h1>
+  <table class="dbf sum" id="dbSummary"></table>
+  <h2 class="dial">Line by line</h2>
+  <table class="dbf" id="dbTable"></table>
+  <h2 class="dial">Best reply for each line</h2>
+  <div id="dbSay"></div>
+  <details id="dbMore"><summary>Source notes</summary><div id="dbFiles"></div></details>
+  <div class="rule"></div>
+  <button id="dbHide" class="dial quiet">Hide results</button>
+  <button id="startOver" class="dial quiet">Start over</button>
+</aside>
+<button id="dbShow" class="dial" hidden>Show results</button>
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/",
+  "scorm": "./scorm.js"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { connectScorm } from 'scorm';
+import { createAudio } from './assets/audio/audio.js';
+import defaultContent from './content.js';
+import { validatePack } from './validate-pack.mjs';
+
+window.addEventListener('error', e=>{ const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.error?.stack || e.message); });
+
+// CONTENT PACK — a pack swaps every learner-facing name, phrase and colour.
+// See content.js for the shape and content-packs/README.md for the contract.
+const CONTENT = window.__ENGINE_CONTENT__ ?? defaultContent;
+{
+  const problems = validatePack(CONTENT);
+  if (problems.length) {
+    const el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = 'This pack will not load:\n' + problems.map(p=>'- '+p).join('\n');
+    throw new Error('invalid content pack:\n' + problems.join('\n'));
+  }
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  THEME — a tiny copy of layers/theme/registry.ts's pack lookup (that file is
+  .ts and this engine has no build step, so it can't be imported directly).
+  Same contract: name -> pack, unknown name warns and falls back, never
+  crashes. `pack.theme.colors` overrides individual roles on top of the pick.
+  No `theme` field at all means these are exactly the hex values the engine
+  always shipped with, so old packs render unchanged.
+═══════════════════════════════════════════════════════════════════════════*/
+const THEME_PACKS = {
+  default: { cream:'#F0F3F7', amber:'#F99D1C', pink:'#E20082' },
+};
+function getThemePack(id){
+  const t = THEME_PACKS[id || 'default'];
+  if (t) return t;
+  console.warn(`[tuner] theme pack "${id}" not available, using "default"`);
+  return THEME_PACKS.default;
+}
+const THEME = { ...getThemePack(CONTENT.theme?.pack), ...(CONTENT.theme?.colors || {}) };
+{
+  const s = document.documentElement.style;
+  s.setProperty('--cream', THEME.cream);
+  s.setProperty('--amber', THEME.amber);
+  s.setProperty('--pink', THEME.pink);
+  s.setProperty('--grad', `radial-gradient(circle at left top,${THEME.pink},${THEME.pink} 50%,${THEME.amber})`);
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MODEL
+═══════════════════════════════════════════════════════════════════════════*/
+const ST = CONTENT.stations, stOf = id=>ST.find(s=>s.id===id);
+const N = CONTENT.phrases.length;
+const LOCK_W = .045;                     // half-width of a station's lock window, in dial units
+const isRival = id => id !== 'own';
+const kHzOf = s => String(Math.round(50 + 120*s.f));   // same formula the printed scale uses
+
+const answerOf = P => P.reframes.findIndex(r=>r.answers);
+
+// NEUTRAL: where the needle rests at the start of every line, inside no station's lock window,
+// so leaving the dial alone never names a source. The middle of the widest gap between neighbours.
+const NEUTRAL = (()=>{ const fs=ST.map(s=>s.f).sort((a,b)=>a-b); let best=fs[0]/2, gap=fs[0];   // the left end counts as a gap too
+  for(let k=1;k<fs.length;k++) if(fs[k]-fs[k-1]>gap){ gap=fs[k]-fs[k-1]; best=(fs[k]+fs[k-1])/2; }
+  if(1-fs[fs.length-1]>gap) best=(1+fs[fs.length-1])/2;
+  return best; })();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STATE — phase: read (tuning this phrase) -> reveal (tag drops) -> done
+═══════════════════════════════════════════════════════════════════════════*/
+const state = { phase:'read', i:0, tune:NEUTRAL, ref:null, calls:[], standing:0, seen:{}, finished:false };
+for (const s of ST) state.seen[s.id] = 0;
+const phrase = ()=>CONTENT.phrases[state.i];
+function stationAt(f){ let best=null, bd=1e9; for(const s of ST){ const d=Math.abs(f-s.f); if(d<bd){ bd=d; best=s; } }
+  return bd<LOCK_W ? best : null; }
+const tunedStation = ()=>stationAt(state.tune);
+if(stationAt(NEUTRAL)){                // the stations are packed too tightly to leave the needle anywhere neutral
+  const el=document.getElementById('err'); el.style.display='block';
+  el.textContent='This pack will not load:\n- the stations leave no spot on the dial outside every lock window';
+  throw new Error('no neutral dial position'); }
+function lockStrength(){ let bd=1e9; for(const s of ST) bd=Math.min(bd, Math.abs(state.tune-s.f));
+  return THREE.MathUtils.clamp(1-bd/(LOCK_W*2.4), 0, 1); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SOUND — assets/audio/audio.json lists each sound and the moment it fires on
+═══════════════════════════════════════════════════════════════════════════*/
+const audio = createAudio({ storageKey:'tuner.muted',
+  sfx:{ 'tape-start':'./assets/audio/tape-start.mp3', station:'./assets/audio/station.mp3',
+    'file-open':'./assets/audio/file-open.mp3', reframe:'./assets/audio/reframe.mp3', 'strip-feed':'./assets/audio/strip-feed.mp3',
+    punch:'./assets/audio/punch.mp3', 'lock-right':'./assets/audio/lock-right.mp3', 'lock-wrong':'./assets/audio/lock-wrong.mp3',
+    counter:'./assets/audio/counter.mp3', 'hidden-lit':'./assets/audio/hidden-lit.mp3' } });
+audio.mountToggle(document.getElementById('sound'));
+let lastStation=null;   // the dial boots on NEUTRAL, so the boot tune is silent
+
+/*═══════════════════════════════════════════════════════════════════════════
+  RENDERER, ENVIRONMENT, LIGHT
+═══════════════════════════════════════════════════════════════════════════*/
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0C1724);
+scene.fog = new THREE.Fog(0x0C1724, 16, 30);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .35;
+
+const DIST = 10.8, LOOK_Y = 1.80;
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, .1, 60);
+camera.position.set(0, 2.45, DIST); camera.lookAt(0, LOOK_Y, 0);
+// The set has to fit any window: pick the fov that shows the whole working
+// width (11.4 units) as well as the whole height (7.0), and scale the HTML with it.
+function fitCamera(){
+  const needH=7.0, needW=11.4, aspect=innerWidth/innerHeight;
+  const fovH=2*Math.atan(needH/2/DIST), fovW=2*Math.atan(needW/2/DIST/aspect);
+  camera.fov=THREE.MathUtils.radToDeg(Math.max(fovH,fovW)); camera.aspect=aspect; camera.updateProjectionMatrix();
+  const vh=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*DIST;
+  camera.lookAt(0, LOOK_Y + Math.max(0, vh-needH)*.15, 0);   // on narrow aspects, centre the machine instead of the floor
+  const ref=2*Math.tan(THREE.MathUtils.degToRad(34)/2)*DIST, cur=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*DIST;
+  document.documentElement.style.setProperty('--ui', Math.max(.55, Math.min(1, (innerHeight/900)*(ref/cur))).toFixed(3));
+}
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0x3a4658, .55));
+function deskLamp(x,y,z,color=0xf2f5ff,i=24){
+  const L=new THREE.SpotLight(color, i, 22, Math.PI/3.4, .6, 1.5);
+  L.position.set(x,y,z); L.target.position.set(x*.4, 2, -.4); L.castShadow=true;
+  L.shadow.mapSize.set(2048,2048); L.shadow.bias=-.0006; L.shadow.normalBias=.02;
+  scene.add(L, L.target); return L;
+}
+deskLamp(-5.2, 7.0, 4.2); deskLamp(5.2, 7.0, 4.2, 0xe8eeff, 16);
+const fill = new THREE.DirectionalLight(0x5a8fe6, .35); fill.position.set(-3, 3, 9); scene.add(fill);
+const wallWash = new THREE.SpotLight(0x3d7fe0, 30, 16, Math.PI/3.2, .8, 1.4);
+wallWash.position.set(4.6, 6.6, 4.4); wallWash.target.position.set(4.5, 3.6, -1.8); scene.add(wallWash, wallWash.target);
+const dialGlow = new THREE.PointLight(0xff2f8f, 5.5, 3.2, 2); dialGlow.position.set(-1.45, 3.76, .9); scene.add(dialGlow);
+const eyeGlow  = new THREE.PointLight(0xF0506A, 0, 3, 2); eyeGlow.position.set(2.15, 3.76, .8); scene.add(eyeGlow);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MATERIALS
+═══════════════════════════════════════════════════════════════════════════*/
+const tl = new THREE.TextureLoader();
+function tex(name, rx=1, ry=1){ const t=tl.load(`./assets/tex/${name}.jpg`); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t; }
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; t.canvas=c; t.draw=draw; return t; }
+// pink-to-orange ramp. 'v' runs top to bottom, 'r' runs from the centre out (the eye).
+function gradTex(kind){ return canvasTex(kind==='r'?256:8, 256, (g,w,h)=>{
+  const gr = kind==='r' ? g.createRadialGradient(w/2,h/2,w*.17,w/2,h/2,w/2) : g.createLinearGradient(0,0,0,h);
+  gr.addColorStop(0,THEME.pink); gr.addColorStop(.45,THEME.pink); gr.addColorStop(1,THEME.amber); g.fillStyle=gr; g.fillRect(0,0,w,h); }); }
+const FD='"Bebas Neue",Impact,sans-serif', FT='"Courier Prime",Courier,monospace', FB='"Rajdhani",Arial,sans-serif';
+
+// Grille cloth: a plain over-under weave. Seamless by construction, so it never
+// needed a generated tile. ponytail: procedural beats a 400 KB jpg here.
+const clothTex = (()=>{ const t=canvasTex(256,256,(g,w,h)=>{
+    const p=8; g.fillStyle='#161e2a'; g.fillRect(0,0,w,h);
+    for(let y=0;y<h;y+=p) for(let x=0;x<w;x+=p){
+      const warp=((x/p)+(y/p))%2===0;
+      g.fillStyle = warp ? `hsl(214 14% ${27+Math.random()*7}%)` : `hsl(216 16% ${16+Math.random()*6}%)`;
+      g.fillRect(x,y,p-1,p-1);
+    }
+  }); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(9,6); return t; })();
+
+const M = {
+  wall:   new THREE.MeshStandardMaterial({ color:0x111e30, roughness:.95, metalness:.05 }),
+  bench:  new THREE.MeshStandardMaterial({ map:tex('desk',5,3), roughness:.6, metalness:.08, color:0xb8c2d0 }),
+  shell:  new THREE.MeshStandardMaterial({ map:tex('shell',1.4,1), roughness:.5, metalness:.15, color:0xBCC5D2 }),
+  trim:   new THREE.MeshStandardMaterial({ map:tex('desk',.7,.7), roughness:.4, metalness:.25, color:0xffffff }),
+  cloth:  new THREE.MeshStandardMaterial({ map:clothTex, roughness:.96, metalness:0 }),
+  alu:    new THREE.MeshStandardMaterial({ map:tex('alu',1,1), roughness:.3, metalness:.9, color:0xEEF2F7 }),
+  aluD:   new THREE.MeshStandardMaterial({ map:tex('alu',2,2), roughness:.42, metalness:.85, color:0x8C95A3 }),
+  bake:   new THREE.MeshStandardMaterial({ color:0x0C1724, roughness:.28, metalness:.35 }),
+  dark:   new THREE.MeshStandardMaterial({ color:0x070d16, roughness:.8, metalness:.2 }),
+  iron:   new THREE.MeshStandardMaterial({ color:0x363C44, roughness:.5, metalness:.8 }),
+  // the Splunk pink-to-orange: only on what the learner reads or turns (needle, knob pointer, eye, the reveal)
+  hot:    new THREE.MeshBasicMaterial({ map:gradTex('v') }),
+  glass:  new THREE.MeshPhysicalMaterial({ color:0xd6dde2, transmission:.9, thickness:.08, roughness:.05, metalness:0, ior:1.4, transparent:true, opacity:.2, depthWrite:false }),
+};
+
+const pickables = [];
+function box(w,h,d,m,x,y,z,parent=scene){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.set(x,y,z); b.castShadow=b.receiveShadow=true; parent.add(b); return b; }
+function cyl(r,len,m,seg=28){ const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg),m); c.castShadow=c.receiveShadow=true; return c; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  ROOM — a wall, a bench, the cabinet on it
+═══════════════════════════════════════════════════════════════════════════*/
+const CAB = { x:-1.0, y:2.35, w:7.8, h:4.40, d:1.6, z:-.5 };   // front face lands at z = .30
+const FRONT = CAB.z + CAB.d/2;
+box(30,16,.3,M.wall,0,6,-2.1);
+const bench = box(20,.34,7.4,M.bench,0,-.17,-.2); bench.receiveShadow=true;
+box(20,2.8,.18,M.trim,0,-1.7,3.4);                                   // bench apron, fills the bottom of tall windows
+
+box(CAB.w, CAB.h, CAB.d, M.shell, CAB.x, CAB.y, CAB.z);                 // cabinet
+box(CAB.w+.22, .2, CAB.d+.18, M.trim, CAB.x, CAB.y+CAB.h/2+.08, CAB.z);   // top cap
+box(CAB.w+.16, .22, CAB.d+.12, M.trim, CAB.x, .11, CAB.z);                // plinth
+for(const sx of [-1,1]) box(.1, CAB.h, CAB.d*.9, M.trim, CAB.x+sx*(CAB.w/2-.05), CAB.y, CAB.z+.04);  // side trim
+
+/*═══════════════════════════════════════════════════════════════════════════
+  GRILLE — recessed slate cloth behind four dark bars
+═══════════════════════════════════════════════════════════════════════════*/
+const GR = { x0:-4.40, x1:-.75, y0:1.48, y1:3.12 };
+(function grille(){
+  const w=GR.x1-GR.x0, h=GR.y1-GR.y0, cx=(GR.x0+GR.x1)/2, cy=(GR.y0+GR.y1)/2;
+  box(w+.14, h+.14, .06, M.aluD, cx, cy, FRONT-.005);
+  const cloth=new THREE.Mesh(new THREE.PlaneGeometry(w,h), M.cloth); cloth.position.set(cx,cy,FRONT+.03); cloth.receiveShadow=true; scene.add(cloth);
+  for(let k=0;k<4;k++) box(w+.02, .1, .09, M.trim, cx, GR.y0+.22+k*(h-.44)/3, FRONT+.07);
+  // a slim aluminium surround
+  for(const s of [-1,1]){ box(.07, h+.2, .1, M.alu, cx+s*(w/2+.06), cy, FRONT+.04);
+                          box(w+.2, .07, .1, M.alu, cx, cy+s*(h/2+.06), FRONT+.04); }
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  DIAL — backlit white glass, station names printed along it
+═══════════════════════════════════════════════════════════════════════════*/
+const DIAL = { x0:-4.35, x1:1.45, y:3.76, h:.94 };
+DIAL.w = DIAL.x1-DIAL.x0; DIAL.cx = (DIAL.x0+DIAL.x1)/2;
+DIAL.xAt = f => DIAL.x0 + DIAL.w*(.055 + .89*f);
+const dialTex = canvasTex(2048, 353, drawDial);
+function drawDial(g,w,h){
+  const grad=g.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'#FFFFFF'); grad.addColorStop(.45,'#F0F3F7'); grad.addColorStop(1,'#D5DCE5');
+  g.fillStyle=grad; g.fillRect(0,0,w,h);
+  const px = f => w*(.055 + .89*f);
+  // frequency scale along the bottom
+  g.strokeStyle='#363C44'; g.lineWidth=3;
+  g.beginPath(); g.moveTo(px(0)-30, h-72); g.lineTo(px(1)+30, h-72); g.stroke();
+  for(let i=0;i<=40;i++){ const f=i/40, major=i%5===0;
+    g.beginPath(); g.moveTo(px(f), h-72); g.lineTo(px(f), h-72+(major?26:14)); g.lineWidth=major?4:2; g.stroke(); }
+  g.fillStyle='#363C44'; g.font=`400 34px ${FD}`; g.textAlign='center'; g.textBaseline='top';
+  for(let i=0;i<=40;i+=5) g.fillText(String(50+i*3), px(i/40), h-38);
+  // station names
+  ST.forEach(s=>{
+    const x=px(s.f);
+    g.fillStyle='#0C1724'; g.textAlign='center'; g.textBaseline='alphabetic';
+    g.font=`400 ${s.short.length>12?56:66}px ${FD}`;
+    g.fillText(s.short, x, 152);                       // pushed down: the lamp row owns the top of the glass
+    g.fillStyle='#0070F3'; g.font=`400 40px ${FD}`; g.fillText(kHzOf(s), x, 196);
+    g.strokeStyle='#0070F3'; g.lineWidth=5; g.beginPath(); g.moveTo(x, 210); g.lineTo(x, h-78); g.stroke();
+  });
+  g.fillStyle='#5b6472'; g.font=`400 34px ${FD}`; g.textAlign='center'; g.textBaseline='top';
+  // in a gap between two stations, but not the one the needle rests in at the start of each line
+  const fs=ST.map(s=>s.f).sort((a,b)=>a-b); let mid=NEUTRAL, gap=-1;
+  for(let k=1;k<fs.length;k++){ const m=(fs[k]+fs[k-1])/2; if(Math.abs(m-NEUTRAL)>.01 && fs[k]-fs[k-1]>gap){ gap=fs[k]-fs[k-1]; mid=m; } }
+  g.fillText('WHO SAID IT', px(mid), 18);
+}
+(function dialBuild(){
+  const {cx,y,w,h}=DIAL;
+  box(w+.34, h+.34, .1, M.bake, cx, y, FRONT-.02);
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(w,h),
+    new THREE.MeshStandardMaterial({ map:dialTex, emissiveMap:dialTex, emissive:0xffffff, emissiveIntensity:.62, roughness:.55, metalness:0 }));
+  face.position.set(cx,y,FRONT+.035); scene.add(face); DIAL.face=face;
+  const gl=new THREE.Mesh(new THREE.PlaneGeometry(w+.04,h+.04), M.glass); gl.position.set(cx,y,FRONT+.09); scene.add(gl);
+  for(const s of [-1,1]){ box(.09, h+.3, .12, M.alu, cx+s*(w/2+.07), y, FRONT+.05);
+                          box(w+.3, .09, .12, M.alu, cx, y+s*(h/2+.07), FRONT+.05); }
+  // pointer, rides the glass
+  const ptr=new THREE.Group(); ptr.position.set(DIAL.xAt(state.tune), y, FRONT+.075); scene.add(ptr);
+  box(.05, h-.06, .02, M.hot, 0,0,0, ptr);
+  box(.13,.09,.04,M.alu,0,h/2-.02,.01,ptr);
+  DIAL.ptr=ptr;
+  // station evidence lamps, under each name: they brighten as sources land
+  DIAL.lamps = ST.map(s=>{ const m=new THREE.MeshBasicMaterial({ color:0x363C44 });
+    const ly = y + h/2 - .16;
+    const dot=new THREE.Mesh(new THREE.CircleGeometry(.05,20), m); dot.position.set(DIAL.xAt(s.f), ly, FRONT+.055); scene.add(dot);
+    const ring=new THREE.Mesh(new THREE.RingGeometry(.062,.08,20), new THREE.MeshBasicMaterial({color:0x969DAA}));
+    ring.position.copy(dot.position); scene.add(ring);
+    return { s, m, lit:0, dot, ring }; });
+  // invisible grab plates over each printed station name
+  ST.forEach(s=>{ const gz=new THREE.Mesh(new THREE.PlaneGeometry(w/5.2, h*.62), new THREE.MeshBasicMaterial({visible:false}));
+    gz.position.set(DIAL.xAt(s.f), y-.04, FRONT+.12); gz.userData.station=s.id; scene.add(gz); pickables.push(gz); });
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MAGIC EYE — green annulus with a dark shadow wedge. Pure transforms, no redraw.
+═══════════════════════════════════════════════════════════════════════════*/
+const EYE = (()=>{ const x=2.15, y=DIAL.y, R=.42, z=FRONT+.02;
+  box(R*2.7, R*2.7, .12, M.bake, x, y, FRONT-.06);
+  const back=new THREE.Mesh(new THREE.CircleGeometry(R+.03,40), new THREE.MeshBasicMaterial({color:0x050a12})); back.position.set(x,y,z); scene.add(back);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(R*.36, R, 56), new THREE.MeshBasicMaterial({map:gradTex('r'), color:0x333333})); ring.position.set(x,y,z+.015); scene.add(ring);
+  // the shadow: a triangle with its apex at the centre, pointing down. scale.x is its width.
+  const sg=new THREE.BufferGeometry(); const wdt=R*2.4;
+  sg.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0, -wdt,-R*1.4,0, wdt,-R*1.4,0], 3));
+  const shadow=new THREE.Mesh(sg, new THREE.MeshBasicMaterial({color:0x050a12})); shadow.position.set(x,y,z+.03); scene.add(shadow);
+  const hub=new THREE.Mesh(new THREE.CircleGeometry(R*.30,28), new THREE.MeshBasicMaterial({color:0x0C1724})); hub.position.set(x,y,z+.04); scene.add(hub);
+  const cupRing=new THREE.Mesh(new THREE.TorusGeometry(R+.07,.055,12,44), M.alu); cupRing.position.set(x,y,z+.02); scene.add(cupRing);
+  return { x, y, R, ring, shadow, level:0, target:0, flutter:0 };
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  TUNING KNOB (large) + a dead volume knob for the look
+═══════════════════════════════════════════════════════════════════════════*/
+function knob(x,y,R,fluted=true,nubMat=M.hot){
+  const g=new THREE.Group(); g.position.set(x,y,FRONT+.02); scene.add(g);
+  const skirt=cyl(R*1.1,.06,M.aluD,44); skirt.rotation.x=Math.PI/2; skirt.position.z=-.02; g.add(skirt);
+  const spin=new THREE.Group(); g.add(spin);
+  const body=cyl(R,.22,M.bake,44); body.rotation.x=Math.PI/2; body.position.z=.09; spin.add(body);
+  const cap=cyl(R*.62,.06,M.alu,36); cap.rotation.x=Math.PI/2; cap.position.z=.22; spin.add(cap);
+  if(fluted) for(let i=0;i<28;i++){ const t=box(.035,.075,.2,M.bake,0,0,.09,spin); const a=i/28*Math.PI*2;
+    t.position.set(Math.sin(a)*R, Math.cos(a)*R, .09); t.rotation.z=-a; }
+  const nub=box(.06,R*.72,.06,nubMat,0,R*.5,.24,spin);
+  return { g, spin, x, y, R };
+}
+const KNOB = knob(1.85, 1.95, .58);
+knob(1.85, .74, .30, false, M.alu);     // volume: does nothing, so it stays grey
+
+/*═══════════════════════════════════════════════════════════════════════════
+  FRAMES STANDING — a bakelite window. Redrawn only when the number moves.
+═══════════════════════════════════════════════════════════════════════════*/
+const COUNT = (()=>{ const x=.25, y=1.98, W=1.6, H=.74;
+  box(W,H,.1,M.bake,x,y,FRONT-.09);
+  const rim=new THREE.Mesh(new THREE.BoxGeometry(W+.12,H+.12,.06),M.aluD); rim.position.set(x,y,FRONT-.12); scene.add(rim);
+  const t=canvasTex(512,250,()=>{});
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(W-.16,H-.16), new THREE.MeshStandardMaterial({map:t, emissiveMap:t, emissive:0x3a4a66, emissiveIntensity:.5, roughness:.6})); face.position.set(x,y,FRONT+.02); scene.add(face);
+  const gl=new THREE.Mesh(new THREE.PlaneGeometry(W-.16,H-.16),M.glass); gl.position.set(x,y,FRONT+.05); scene.add(gl);
+  const o={ x, y, t, face, bump:0 };
+  o.draw=v=>{ const g=t.canvas.getContext('2d'), w=512, h=250;
+    g.fillStyle='#0C1724'; g.fillRect(0,0,w,h);
+    g.fillStyle='#969DAA'; g.font=`400 40px ${FD}`; g.textAlign='center'; g.textBaseline='top'; g.fillText('PITCHES UNANSWERED', w/2, 22);
+    g.fillStyle= v>0 ? '#E2604A' : '#7FD9A0'; g.font=`400 132px ${FD}`; g.textBaseline='alphabetic'; g.fillText(String(v), w/2, 218);
+    t.needsUpdate=true; };
+  o.draw(0); return o;
+})();
+function setStanding(v){ COUNT.draw(v); COUNT.bump=1; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  TRANSCRIPT STRIP — paper fed out of a slot under the grille
+═══════════════════════════════════════════════════════════════════════════*/
+const STRIP = (()=>{ const x=-2.55, top=1.42, w=3.9, len=1.38;
+  box(w+.3,.16,.12,M.bake,x,top+.06,FRONT-.01);
+  box(w,.05,.05,M.dark,x,top,FRONT+.04);
+  const geo=new THREE.PlaneGeometry(w,len); geo.translate(0,-len/2,0);   // anchored at the top edge
+  const mat=new THREE.MeshStandardMaterial({ map:tex('paperw',1,1), color:0xffffff, roughness:.95, side:THREE.DoubleSide });
+  const paper=new THREE.Mesh(geo, mat); paper.position.set(x, top-.02, FRONT+.06); paper.castShadow=true; paper.scale.y=.001; scene.add(paper);
+  return { x, y:top-len/2, paper, feed:0 };
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  TAG HOOK — one punched tag per phrase, hung as it is locked
+═══════════════════════════════════════════════════════════════════════════*/
+// Tags are sized so their two result lines read at every supported window: TAG_W x TAG_H world units,
+// 4 per row. The rail starts just clear of the cabinet's right side and stops inside the right edge
+// of a 1440x900 window; the second row ends above the reply plate.
+const TAG_W=.56, TAG_H=.84;
+const HOOK = (()=>{ const x0=3.46, pitch=.62, cols=4, z=-.15, rows=[4.48, 3.50];
+  const w=pitch*(cols-1);
+  for(const y of rows){
+    const rail=cyl(.045, w+.62, M.iron, 14); rail.rotation.z=Math.PI/2; rail.position.set(x0+w/2, y, z); scene.add(rail);
+    for(const sx of [x0-.31, x0+w+.31]) box(.08,.26,.09,M.iron,sx,y-.13,z-.05);
+    for(let c=0;c<cols;c++){ const n=new THREE.Mesh(new THREE.SphereGeometry(.033,10,8), M.alu);
+      n.position.set(x0+c*pitch, y, z+.06); scene.add(n); }
+  }
+  return { x0, rows, cols, z, pitch, tags:[], at:i=>[x0+(i%cols)*pitch, rows[Math.floor(i/cols)]] };
+})();
+const TAG_COL = { ok:'#3F8F5B', part:'#C06A00', bad:'#8E2A20' };
+// The words carry the result, SOURCE then REPLY, each RIGHT or WRONG; the frame color is the second signal.
+function tagTex(n, srcOk, refOk){ const grade = srcOk&&refOk ? 'ok' : (srcOk||refOk) ? 'part' : 'bad';
+  return canvasTex(300,450,(g,w,h)=>{
+  g.fillStyle = grade==='ok' ? '#DCEFE0' : grade==='part' ? '#FBE9D2' : '#F7D6DE'; g.fillRect(0,0,w,h);
+  for(let i=0;i<390;i++){ g.fillStyle=`rgba(40,50,70,${Math.random()*.07})`; g.fillRect(Math.random()*w,Math.random()*h,4,4); }
+  g.strokeStyle=TAG_COL[grade]; g.lineWidth=12; g.strokeRect(10,10,w-20,h-20);
+  g.fillStyle='#141210'; g.beginPath(); g.arc(w/2,38,15,0,7); g.fill();
+  g.textAlign='center'; g.font=`400 64px ${FD}`; g.fillText(String(n), w/2, 112);
+  // each half is a small label over a big result word, so the result reads even in a small window
+  const half=(label, ok, y)=>{ g.fillStyle='#1d2430'; g.font=`400 62px ${FD}`; g.fillText(label, w/2, y);
+    g.fillStyle=TAG_COL[ok?'ok':'bad']; g.font=`400 100px ${FD}`; g.fillText(ok?'RIGHT':'WRONG', w/2, y+84); };
+  half('SOURCE', srcOk, 172);
+  half('REPLY', refOk, 318);
+}); }
+function hangTag(idx, srcOk, refOk){
+  const [tx,ty]=HOOK.at(idx);
+  const g=new THREE.Group(); g.position.set(tx, ty, HOOK.z+.05); scene.add(g);
+  const chain=cyl(.006,.1,M.iron,6); chain.position.y=-.05; g.add(chain);
+  const tx2=tagTex(idx+1, srcOk, refOk);
+  const card=new THREE.Mesh(new THREE.PlaneGeometry(TAG_W,TAG_H),
+    new THREE.MeshStandardMaterial({ map:tx2, roughness:.9, side:THREE.DoubleSide }));
+  card.position.y=-(.1+TAG_H/2); card.castShadow=true; g.add(card);
+  g.rotation.z=.5; HOOK.tags.push({ g, swing:.5, v:0, tex:tx2 });
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  LABELS + CONTROL PLATES — HTML, projected into the world
+═══════════════════════════════════════════════════════════════════════════*/
+const labelsEl=document.getElementById('labels'), LABELS=[];
+function label(text, x, y, z, cls=''){ const el=document.createElement('div'); el.className='lbl dial '+cls; el.textContent=text;
+  labelsEl.appendChild(el); const L={ el, p:new THREE.Vector3(x,y,z) }; LABELS.push(L); return L; }
+function plate(id, html, x, y, z){ const el=document.createElement('div'); el.id=id; el.className='cp'; el.innerHTML=html;
+  labelsEl.appendChild(el); LABELS.push({ el, p:new THREE.Vector3(x,y,z) }); return el; }
+label('Signal', EYE.x, EYE.y-.80, FRONT, 'small');
+
+const tuneEl = plate('tune', `
+  <div class="val"><span>Tuned to</span><b id="tnName">…</b></div>
+  <input type="range" id="tnRange" min="0" max="1000" step="10" value="0" aria-label="Tuning dial">
+  <div class="pm"><button type="button" id="tnPrev">&#9664; Previous</button><button type="button" id="tnNext">Next &#9654;</button></div>
+  <div class="hint">You can also drag the big knob.</div>
+  <h3>Source notes</h3>
+  <div class="files" id="tnFiles"></div>`, 1.85, -.55, FRONT);
+tuneEl.setAttribute('role','group'); tuneEl.setAttribute('aria-label','Tuning dial');
+const tnRange=tuneEl.querySelector('#tnRange'), tnName=tuneEl.querySelector('#tnName');
+tuneEl.querySelector('#tnFiles').innerHTML = ST.map(s=>`<button type="button" data-file="${s.id}">${s.short.replace(/ /g,'<br>')}</button>`).join('');
+tuneEl.querySelectorAll('[data-file]').forEach(b=>b.addEventListener('click', ()=>openFile(b.dataset.file)));
+
+const refEl = plate('reframe', `<h3>Your reply</h3><div id="rfOpts"></div>`, 4.0, 1.62, FRONT);
+refEl.setAttribute('role','group'); refEl.setAttribute('aria-label','Your reply');
+
+const stripEl=document.createElement('div'); stripEl.id='strip';
+stripEl.innerHTML=`<div class="h" id="spH"></div><div class="t" id="spT"></div>`;
+labelsEl.appendChild(stripEl); LABELS.push({ el:stripEl, p:new THREE.Vector3(STRIP.x, STRIP.y, FRONT+.08) });
+
+// per-line feedback panel, anchored at the top of the grille and growing down over the strip slot
+const fbEl=document.createElement('div'); fbEl.id='fb'; fbEl.className='cp'; fbEl.setAttribute('role','region'); fbEl.setAttribute('aria-labelledby','fbH');
+fbEl.innerHTML=`<h3 id="fbH"></h3><div class="q" id="fbQ"></div><dl id="fbBody"></dl><p class="note" id="fbNote" hidden>Your reply and your source are scored separately.</p>
+  <div class="row"><button type="button" id="fbNext">Next line</button></div>`;
+labelsEl.appendChild(fbEl); LABELS.push({ el:fbEl, p:new THREE.Vector3((GR.x0+GR.x1)/2, GR.y1+.04, FRONT+.1) });
+
+const _v=new THREE.Vector3();
+function projectLabels(){ for(const L of LABELS){ _v.copy(L.p).project(camera);
+  L.el.style.left=((_v.x+1)/2*innerWidth)+'px'; L.el.style.top=((1-_v.y)/2*innerHeight)+'px'; } }
+function toast(text, x, y, z, cls=''){ document.getElementById('sr').textContent=text;
+  _v.set(x,y,z).project(camera); const el=document.createElement('div'); el.className='toast dial '+cls; el.textContent=text;
+  el.style.left=((_v.x+1)/2*innerWidth)+'px'; el.style.top=((1-_v.y)/2*innerHeight)+'px';
+  labelsEl.appendChild(el); setTimeout(()=>el.remove(), 3100); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  TUNING
+═══════════════════════════════════════════════════════════════════════════*/
+function setTune(f, fromRange=false){
+  state.tune = THREE.MathUtils.clamp(f, 0, 1);
+  if(!fromRange) tnRange.value = Math.round(state.tune*1000);
+  DIAL.ptr.position.x = DIAL.xAt(state.tune);
+  KNOB.spin.rotation.z = -state.tune*Math.PI*2.6;
+  const s = tunedStation();
+  if(state.phase==='read' && s && s!==lastStation) audio.play('station', { gain:.3 });   // soft click, neutral: not a right/wrong signal
+  lastStation = s;
+  tnName.textContent = s ? s.short : 'no source';
+  tnName.style.color = s ? 'var(--amber)' : '#969DAA';
+  refreshLock();
+}
+tnRange.addEventListener('input', ()=>setTune(+tnRange.value/1000, true));
+function step(dir){ const cur=state.tune;
+  const cands = ST.map(s=>s.f).filter(f=> dir>0 ? f>cur+.004 : f<cur-.004);
+  if(cands.length) setTune(dir>0?Math.min(...cands):Math.max(...cands)); }   // stops on the end stations, never detunes
+tuneEl.querySelector('#tnPrev').addEventListener('click', ()=>step(-1));
+tuneEl.querySelector('#tnNext').addEventListener('click', ()=>step(1));
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STATION FILES (the READ evidence)
+═══════════════════════════════════════════════════════════════════════════*/
+let openFileId=null, lastFocus=null;
+function openFile(id){ const s=stOf(id); if(!s) return; openFileId=id; lastFocus=document.activeElement; audio.play('file-open', { gain:.5 });
+  document.getElementById('fileTitle').textContent = s.name;
+  document.getElementById('fileBody').innerHTML =
+    // evidence only: the tell list gives the answer away, so it waits until the game is over
+    // (each line's own tells show in the per-line panel right after it is submitted)
+    `<dt>What they want the customer to believe</dt><dd>${s.points}</dd><dt>What they leave out</dt><dd>${s.leaves}</dd>`
+    + (state.finished ? `<dt>Words that give it away</dt><dd>${s.tells}</dd>` : '');
+  document.getElementById('fileTune').style.display = state.phase==='read' ? '' : 'none';
+  document.getElementById('file').classList.add('on');
+  document.getElementById(state.phase==='read' ? 'fileTune' : 'fileClose').focus();
+}
+function closeFile(){ document.getElementById('file').classList.remove('on'); openFileId=null;
+  if(lastFocus && lastFocus.focus) lastFocus.focus(); }
+document.getElementById('fileClose').addEventListener('click', closeFile);
+document.getElementById('fileTune').addEventListener('click', ()=>{ const s=stOf(openFileId); closeFile(); if(s) setTune(s.f); });
+addEventListener('keydown', e=>{ if(e.key!=='Escape') return;
+  if(openFileId){ closeFile(); return; }
+  const cf=document.getElementById('confirm');
+  if(cf.classList.contains('on')){ cf.classList.remove('on'); document.getElementById('lock').focus(); } });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  PHRASE FLOW
+═══════════════════════════════════════════════════════════════════════════*/
+function showPhrase(){
+  const P=phrase();
+  document.getElementById('spH').textContent = `CUSTOMER · LINE ${state.i+1} OF ${N}`;
+  document.getElementById('spT').textContent = '“' + P.text + '”';
+  document.getElementById('pgNum').textContent = `${state.i+1} / ${N}`;
+  // shuffled once per line. data-ref carries the TRUE index, so scoring and resume are unaffected.
+  const order=P.reframes.map((_,k)=>k);
+  for(let k=order.length-1;k>0;k--){ const j=Math.floor(Math.random()*(k+1)); [order[k],order[j]]=[order[j],order[k]]; }
+  document.getElementById('rfOpts').innerHTML = order.map(k=>{ const r=P.reframes[k];
+    return `<button type="button" class="opt" data-ref="${k}" aria-pressed="false"><span>${r.line}</span></button>`; }).join('');
+  document.getElementById('rfOpts').querySelectorAll('[data-ref]').forEach(b=>
+    b.addEventListener('click', ()=>pickRef(+b.dataset.ref)));
+  if(STRIP.feed!==1 && state.calls.length && !state.restoring) audio.play('strip-feed', { gain:.6 });
+  state.ref=null; STRIP.feed=1;
+  if(!state.restoring) setTune(NEUTRAL);   // every line starts off every station: no stale source carried over
+  refreshLock();
+  document.getElementById('sr').textContent = `Line ${state.i+1} of ${N}. ${P.text}`;
+}
+function pickRef(k){ if(state.phase!=='read') return; if(state.ref!==k) audio.play('reframe', { gain:.5 }); state.ref=k;
+  document.getElementById('rfOpts').querySelectorAll('[data-ref]').forEach(b=>
+    b.setAttribute('aria-pressed', String(+b.dataset.ref===k)));
+  refreshLock();
+}
+function refreshLock(){ const s=tunedStation();
+  document.getElementById('lock').disabled = !(state.phase==='read' && s && state.ref!=null);
+  document.getElementById('signsub').textContent = state.phase!=='read' ? `Read what you got right, then click ${state.i+1>=N?'See results':'Next line'}.`
+    : !s ? 'Tune the dial to whoever said this line.'
+    : state.ref==null ? 'Click a reply on the right.'
+    : 'Click Submit answer.';
+}
+
+document.getElementById('lock').addEventListener('click', ()=>{
+  if(state.phase!=='read') return; const s=tunedStation(), P=phrase(); if(!s||state.ref==null) return;
+  document.getElementById('cfTitle').textContent = `Line ${state.i+1} of ${N}`;
+  document.getElementById('cfPhrase').textContent = '“'+P.text+'”';
+  document.getElementById('cfBody').innerHTML =
+    `<dt>Source</dt><dd>${s.name}</dd><dt>Your reply</dt><dd>&ldquo;${P.reframes[state.ref].line}&rdquo;</dd>`;
+  document.getElementById('confirm').classList.add('on'); document.getElementById('cfYes').focus();
+});
+document.getElementById('cfNo').addEventListener('click', ()=>{
+  document.getElementById('confirm').classList.remove('on'); document.getElementById('lock').focus(); });
+document.getElementById('cfYes').addEventListener('click', ()=>{
+  const cf=document.getElementById('confirm'); if(!cf.classList.contains('on')) return;
+  cf.classList.remove('on'); commit(); });
+
+function commit(){
+  if(state.phase!=='read') return;
+  const P=phrase(), s=tunedStation(); if(!s||state.ref==null) return;   // never half-advance the machine
+  state.phase='reveal';
+  const srcOk = s.id===P.src, refOk = P.reframes[state.ref].answers;
+  state.calls.push({ said:s.id, ref:state.ref, srcOk, refOk });
+  hangTag(state.i, srcOk, refOk);
+  audio.play('punch', { gain:.8 });
+  state.seen[P.src]++; DIAL.lamps.find(l=>l.s.id===P.src).lit = Math.min(1, state.seen[P.src]/3);
+  if(isRival(P.src) && !refOk){ state.standing++; const v=state.standing; setTimeout(()=>{ setStanding(v); audio.play('counter', { gain:.7 }); }, 1300); }   // face bumps with the clack
+  // the eye dips shut at the punch, then holds open on a right call or flutters on a wrong one
+  EYE.target = 0; EYE.flutter = 0;
+  setTimeout(()=>{ EYE.target = srcOk ? 1 : .12; EYE.flutter = srcOk ? 0 : 1.4; audio.play(srcOk ? 'lock-right' : 'lock-wrong', { gain:.6 }); }, 220);
+  refreshLock();
+  document.getElementById('pgTags').textContent = `Answered: ${state.calls.length}`;
+  const trueName = stOf(P.src).short;
+  toast(srcOk ? `Right: ${trueName}` : `Wrong. It was ${trueName}`, EYE.x, EYE.y+1.05, FRONT, srcOk?'ok':'bad');
+  save();
+  // the paper feeds back into the slot and the line's feedback opens in its place. The learner moves on.
+  const at=state.i;
+  setTimeout(()=>{ if(state.phase==='reveal' && state.i===at){ STRIP.feed=0; openFeedback(); } }, 650);
+}
+
+const esc = t=>String(t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function openFeedback(){
+  const P=phrase(), c=state.calls[state.i], a=answerOf(P), said=stOf(c.said), truth=stOf(P.src);
+  const word = ok=>`<b class="${ok?'ok':'bad'}">${ok?'Right.':'Wrong.'}</b>`;
+  document.getElementById('fbH').textContent = `Line ${state.i+1} of ${N}`;
+  document.getElementById('fbQ').textContent = '“'+P.text+'”';
+  document.getElementById('fbBody').innerHTML =
+      `<dt>Source</dt><dd>${word(c.srcOk)} You said ${esc(said.name)}. It was ${esc(truth.name)}.</dd>`
+    + `<dt>Words that gave it away</dt><dd>${esc(truth.tells)}</dd>`
+    + `<dt>Why</dt><dd>${esc(P.why)}</dd>`
+    + `<dt>Reply</dt><dd>${word(c.refOk)} <span class="lb">${esc(P.reframes[a].label)}:</span> &ldquo;${esc(P.reframes[a].line)}&rdquo;</dd>`
+    + (c.refOk ? '' : `<dd>You picked: <span class="lb">${esc(P.reframes[c.ref].label)}</span></dd>`);
+  document.getElementById('fbNote').hidden = state.i!==0;
+  const next=document.getElementById('fbNext'); next.textContent = state.i+1>=N ? 'See results' : 'Next line';
+  fbEl.classList.add('on'); refreshLock(); next.focus({preventScroll:true});
+  document.getElementById('sr').textContent = `Line ${state.i+1}. Source ${c.srcOk?'right':'wrong'}, it was ${truth.name}. Reply ${c.refOk?'right':'wrong'}.`;
+}
+function nextLine(){
+  if(state.phase!=='reveal' || !fbEl.classList.contains('on')) return;
+  fbEl.classList.remove('on');
+  if(state.i+1>=N) return finish();
+  state.i++; state.phase='read'; EYE.target=0; showPhrase(); tnRange.focus({preventScroll:true});
+}
+document.getElementById('fbNext').addEventListener('click', nextLine);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SCORE, DEBRIEF, SCORM
+═══════════════════════════════════════════════════════════════════════════*/
+const lms = connectScorm();
+function save(){ if(!lms.connected) return;
+  lms.save(JSON.stringify({ v:1, contentVersion:CONTENT.version, calls:state.calls.map(c=>[c.said,c.ref]) })); }
+
+function finish(){
+  if(state.finished) return; state.finished=true; state.phase='done';
+  const srcRight=state.calls.filter(c=>c.srcOk).length, refRight=state.calls.filter(c=>c.refOk).length;
+  const srcScore=Math.round(50*srcRight/N), refScore=Math.round(50*refRight/N), score=srcScore+refScore;
+  lms.finish({ score, max:100, passed:score>=70 });
+
+  // the hidden competitor lights up on the dial
+  if(!state.restoring) audio.play('hidden-lit', { gain:.7 });
+  const H=stOf(CONTENT.hidden); DIAL.lamps.forEach(l=>{ l.lit = l.s.id===CONTENT.hidden ? 1 : l.lit*.35; });
+  const win=DIAL.lamps.find(l=>l.s.id===CONTENT.hidden);      // that station lights: bigger lamp, amber wash on its slice
+  win.dot.scale.setScalar(2.2); win.ring.scale.setScalar(2.2); win.ring.material.color.set(THEME.amber);
+  const wash=new THREE.Mesh(new THREE.PlaneGeometry(1.0, DIAL.h*.94),
+    new THREE.MeshBasicMaterial({ map:gradTex('v'), transparent:true, opacity:.28, depthWrite:false }));
+  wash.position.set(DIAL.xAt(H.f), DIAL.y, FRONT+.06); scene.add(wash);
+  DIAL.hiddenX = DIAL.xAt(H.f);
+  const hl=label(`In the account: ${H.short}`, DIAL.xAt(H.f), DIAL.y-DIAL.h/2-.20, FRONT);
+  hl.el.style.borderColor=THEME.pink; hl.el.style.color=THEME.amber;
+  setTune(H.f);
+  document.getElementById('signsub').textContent = 'Your results are on the right.';
+  document.getElementById('lock').hidden=true;
+  tnRange.disabled=true; tuneEl.querySelectorAll('.pm button').forEach(b=>b.disabled=true);
+  document.getElementById('rfOpts').querySelectorAll('button').forEach(b=>b.disabled=true);
+  refEl.querySelector('h3').textContent='Your last reply';  refEl.style.opacity='.6';
+
+  const rivalCount = CONTENT.phrases.filter(p=>p.src===CONTENT.hidden).length;
+  document.getElementById('dbTitle').textContent = `${H.name} was in the account`;
+  const row=(k,v)=>`<tr><td>${k}</td><td>${v}</td></tr>`;
+  document.getElementById('dbSummary').innerHTML =
+    row('Score', `${score} of 100`)
+    + row('Sources named right', `${srcRight} of ${N}`)
+    + row('Replies that answered the source', `${refRight} of ${N}`)
+    + row('Pitches left unanswered', state.standing)
+    + row(`Lines from ${H.short}`, `${rivalCount} of ${N}`);
+
+  document.getElementById('dbTable').innerHTML =
+    `<tr><th>#</th><th>Line</th><th>Source</th><th>Your pick</th><th>Reply</th></tr>` +
+    CONTENT.phrases.map((P,i)=>{ const c=state.calls[i];
+      return `<tr><td>${i+1}</td><td class="needs">${P.text}</td><td>${stOf(P.src).short}</td>`
+        + `<td class="${c.srcOk?'ok':'bad'}">${stOf(c.said).short}</td>`
+        + `<td class="${c.refOk?'ok':'bad'}">${c.refOk?'Right':'Wrong'}</td></tr>`; }).join('');
+
+  document.getElementById('dbSay').innerHTML = CONTENT.phrases.map((P,i)=>{ const c=state.calls[i], a=answerOf(P);
+    return `<h2 class="dial">Line ${i+1} · ${stOf(P.src).short}</h2>`
+      + `<p class="needs">${P.why}</p>`
+      + `<div class="say">${P.reframes[a].line}</div>`
+      + (c.refOk ? '' : `<p class="needs">You picked: &ldquo;${P.reframes[c.ref].line}&rdquo;</p>`); }).join('');
+  document.getElementById('dbFiles').innerHTML = ST.map(s=>
+    `<h2 class="dial">${s.name}</h2><p class="needs"><b>What they want the customer to believe:</b> ${s.points}<br><b>Words that give it away:</b> ${s.tells}<br><b>What they leave out:</b> ${s.leaves}</p>`).join('');
+
+  const db=document.getElementById('debrief'); db.removeAttribute('inert');
+  db.classList.add('on'); db.scrollTop=0; db.focus({preventScroll:true});
+}
+document.getElementById('dbHide').addEventListener('click', ()=>{
+  const db=document.getElementById('debrief'); db.classList.remove('on'); db.setAttribute('inert','');
+  const b=document.getElementById('dbShow'); b.hidden=false; b.focus(); });
+document.getElementById('dbShow').addEventListener('click', ()=>{
+  const db=document.getElementById('debrief'); db.removeAttribute('inert'); db.classList.add('on');
+  document.getElementById('dbShow').hidden=true; document.getElementById('dbHide').focus(); });
+document.getElementById('startOver').addEventListener('click', ()=>{ lms.save(''); location.reload(); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  KNOB DRAG
+═══════════════════════════════════════════════════════════════════════════*/
+const ray=new THREE.Raycaster(), ptr2=new THREE.Vector2(); let drag=null, hover=null;
+KNOB.grab = (()=>{ const g=new THREE.Mesh(new THREE.CircleGeometry(KNOB.R+.06,26), new THREE.MeshBasicMaterial({visible:false}));
+  g.position.set(KNOB.x, KNOB.y, FRONT+.3); g.userData.knob=true; scene.add(g); pickables.push(g); return g; })();
+function pick(e){ ptr2.set((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1); ray.setFromCamera(ptr2,camera);
+  return ray.intersectObjects(pickables,false)[0]?.object || null; }
+function knobCentre(){ const v=new THREE.Vector3(KNOB.x,KNOB.y,FRONT).project(camera);
+  return [(v.x+1)/2*innerWidth, (1-v.y)/2*innerHeight]; }
+const ptrAngle=(e,c)=>Math.atan2(e.clientY-c[1], e.clientX-c[0]);
+renderer.domElement.addEventListener('pointermove', e=>{
+  if(drag){ let d=ptrAngle(e,drag.c)-drag.last; if(d>Math.PI) d-=Math.PI*2; if(d<-Math.PI) d+=Math.PI*2; drag.last+=d;
+    setTune(state.tune + d/(Math.PI*2.6)); return; }
+  const o=pick(e); if(o!==hover){ hover=o;
+    renderer.domElement.style.cursor = !o ? 'default' : o.userData.knob ? (state.phase==='read'?'grab':'default') : 'pointer'; }
+});
+renderer.domElement.addEventListener('pointerdown', e=>{ const o=pick(e); if(!o) return;
+  if(o.userData.knob){ if(state.phase!=='read') return; const c=knobCentre(); drag={ c, last:ptrAngle(e,c) };
+    renderer.domElement.style.cursor='grabbing'; renderer.domElement.setPointerCapture(e.pointerId); }
+  else if(o.userData.station) openFile(o.userData.station); });
+function release(){ if(!drag) return; drag=null; renderer.domElement.style.cursor='grab'; }
+renderer.domElement.addEventListener('pointerup', release);
+renderer.domElement.addEventListener('pointercancel', release);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  FRAME
+═══════════════════════════════════════════════════════════════════════════*/
+const clock=new THREE.Clock();
+const LAMP_OFF=new THREE.Color(0x363C44), LAMP_PINK=new THREE.Color(THEME.pink), LAMP_ORANGE=new THREE.Color(THEME.amber);
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime;
+  // magic eye: follows tuning while reading, holds or flutters after a call
+  const want = state.phase==='read' ? lockStrength() : EYE.target;
+  EYE.flutter = Math.max(0, EYE.flutter - dt);
+  const jitter = EYE.flutter>0 ? Math.sin(t*24)*.22*Math.min(1,EYE.flutter) : 0;
+  EYE.level += (THREE.MathUtils.clamp(want+jitter,0,1) - EYE.level) * Math.min(1, dt*9);
+  EYE.shadow.scale.x = THREE.MathUtils.lerp(1, .05, EYE.level);
+  EYE.ring.material.color.setScalar(.14 + EYE.level*.86);
+  eyeGlow.intensity = EYE.level*2.4;
+  // knob and dial
+  KNOB.spin.rotation.z += (-state.tune*Math.PI*2.6 - KNOB.spin.rotation.z) * Math.min(1, dt*12);
+  for(const l of DIAL.lamps){ const c=l.m.color;   // slate when unheard, pink as sources land, orange when certain
+    c.copy(LAMP_OFF).lerp(LAMP_PINK, Math.min(1,l.lit*1.6)); if(l.lit>.6) c.lerp(LAMP_ORANGE, (l.lit-.6)/.4); }
+  dialGlow.intensity = 5.2 + Math.sin(t*1.7)*.25; dialGlow.position.x = DIAL.ptr.position.x;   // the pink glow rides the needle
+  // paper feed and tag swing
+  STRIP.paper.scale.y += (Math.max(.001, STRIP.feed) - STRIP.paper.scale.y) * Math.min(1, dt*5);
+  stripEl.style.opacity = STRIP.paper.scale.y > .8 ? 1 : 0;
+  for(const tg of HOOK.tags){ tg.v += (-tg.swing*14 - tg.v*3.2)*dt; tg.swing += tg.v*dt; tg.g.rotation.z=tg.swing; }
+  COUNT.bump=Math.max(0,COUNT.bump-dt*3); COUNT.face.position.z = FRONT+.02+.035*Math.sin(COUNT.bump*Math.PI);
+  renderer.render(scene,camera); projectLabels(); requestAnimationFrame(frame);
+}
+addEventListener('resize', ()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  BOOT
+═══════════════════════════════════════════════════════════════════════════*/
+document.fonts.ready.then(()=>{ drawDial(dialTex.canvas.getContext('2d'), 2048, 353); dialTex.needsUpdate=true; COUNT.draw(state.standing);
+  for(const tg of HOOK.tags){ tg.tex.draw(tg.tex.canvas.getContext('2d'), 300, 450); tg.tex.needsUpdate=true; } });   // tags restored before the fonts landed
+setTune(NEUTRAL); showPhrase(); frame();
+document.getElementById('start').addEventListener('click', ()=>{
+  document.getElementById('intro').classList.remove('on'); tnRange.focus(); audio.play('tape-start', { gain:.6 }); });
+(function restore(){ const raw=lms.resumeData(); if(!raw) return;
+  try{ const s=JSON.parse(raw); if(s.v!==1 || s.contentVersion!==CONTENT.version || !Array.isArray(s.calls) || !s.calls.length) return;
+    document.getElementById('intro').classList.remove('on'); state.restoring=true;
+    for(const [said,ref] of s.calls){                      // replay each locked call with no animation
+      if(state.i>=N) break; const P=phrase(), srcOk=said===P.src, refOk=!!P.reframes[ref]?.answers;
+      state.calls.push({ said, ref, srcOk, refOk });
+      hangTag(state.i, srcOk, refOk);
+      state.seen[P.src]++; DIAL.lamps.find(l=>l.s.id===P.src).lit=Math.min(1,state.seen[P.src]/3);
+      if(isRival(P.src) && !refOk) state.standing++;
+      state.i++;
+    }
+    HOOK.tags.forEach(tg=>{ tg.swing=0; tg.v=0; tg.g.rotation.z=0; });
+    setStanding(state.standing); COUNT.bump=0;
+    document.getElementById('pgTags').textContent=`Answered: ${state.calls.length}`;
+    if(state.i>=N){ state.i=N-1; finish(); } else showPhrase();
+    state.restoring=false;
+  }catch(_){}
+})();
+
+if(document.getElementById('intro').classList.contains('on')) document.getElementById('start').focus();
+
+window.__dbg = { audio, state, CONTENT, ST, NEUTRAL, setTune, pickRef, tunedStation, commit, finish, nextLine, EYE, DIAL, KNOB, HOOK, camera,
+  project:(x,y,z)=>{ const v=new THREE.Vector3(x,y,z).project(camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]; } };
+</script>
+</body>
+</html>

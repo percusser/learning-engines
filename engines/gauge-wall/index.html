@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Gauge Wall</title>
+<style>
+  /* Fonts ship in the package (SIL OFL). No network at play time. */
+  @font-face{font-family:"Rajdhani";src:url(./assets/fonts/Rajdhani_500.woff2) format("woff2");font-weight:500}
+  @font-face{font-family:"Rajdhani";src:url(./assets/fonts/Rajdhani_700.woff2) format("woff2");font-weight:700}
+  @font-face{font-family:"Josefin Sans";src:url(./assets/fonts/Josefin-Sans_600.woff2) format("woff2");font-weight:600}
+  :root{ --cream:#F0F3F7; --brass:#F99D1C; --red:#E20082; --ink:#0C1724; --grad:linear-gradient(90deg,#E20082,#F6931D); --ui:1 }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0C1724;color:var(--cream);
+    font-family:"Rajdhani","Arial Narrow",sans-serif;font-weight:500;-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .dial{font-family:"Josefin Sans","Rajdhani",sans-serif;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+  b{font-weight:700}
+
+  /* projected world labels: every label sits on a dark plate */
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));white-space:nowrap;
+    font-size:16px;color:#F0F3F7;background:rgba(12,23,36,.94);padding:4px 10px;border:1px solid #363C44;
+    box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .lbl.small{font-size:15px}
+  .lbl.sw::before{content:"";display:inline-block;width:10px;height:10px;margin-right:7px;background:var(--sw);vertical-align:-1px;border:1px solid #F0F3F7}
+  button.lbl{cursor:pointer;pointer-events:auto;font-family:inherit}
+  button.lbl:hover{background:#363C44}
+  button.lbl:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  button.lbl:not(:disabled)::after{content:" ▸";opacity:.7}
+  button.lbl[aria-pressed="true"]{border:0;background:linear-gradient(135deg,#E20082,#AD0065);color:#fff}
+  button.lbl[aria-pressed="true"]::before{content:"PULLED\00a0·\00a0";color:#fff;width:auto;height:auto;background:none;border:0;margin:0}
+  button.lbl:disabled{cursor:default;opacity:.85}
+  #sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+  /* commit control plate, projected under the knob */
+  #commit{position:absolute;bottom:10px;transform:translateX(-50%) scale(var(--ui));transform-origin:50% 100%;width:600px;display:grid;grid-template-columns:250px 1fr;column-gap:14px;pointer-events:auto;
+    background:#0C1724;border:1px solid #363C44;padding:6px 8px;
+    box-shadow:0 4px 12px rgba(12,23,36,.35)}
+  #commit .val{display:flex;gap:8px;white-space:nowrap;justify-content:space-between;align-items:baseline;font-size:17px;letter-spacing:.1em;color:#D5DCE5}
+  #commit .val b{font-size:22px;color:var(--brass);font-variant-numeric:tabular-nums}
+    #commit .pm{display:flex;gap:4px;margin-top:6px}
+  #commit .pm button{flex:1;font-family:inherit;font-weight:700;font-size:24px;line-height:1;padding:4px 0;border:1px solid #363C44;background:#1a2636;color:#D5DCE5;cursor:pointer;border-radius:2px}
+  #commit .pm button:hover{background:#363C44;color:#fff}
+  #commit button:focus-visible,#commit input:focus-visible{outline:3px solid #7FD4FF;outline-offset:1px}
+  #commit.locked{opacity:.55}
+  #commit .pm input{flex:1.6;min-width:0;font-family:inherit;font-weight:700;font-size:20px;text-align:center;padding:4px 2px;border:1px solid #363C44;background:#0C1724;color:var(--brass);border-radius:2px;font-variant-numeric:tabular-nums}
+  #commit .pm input::placeholder{font-size:15px;font-weight:500;color:#8993A3}
+  #commit .r{border-left:1px solid #363C44;padding-left:12px;align-self:center}
+  #commit .def,#commit .fit,#commit .um{font-size:15px;line-height:1.3;color:#C3CAD5;margin-top:4px;letter-spacing:.02em}
+  #commit .def{margin-top:0}
+  #commit .fit{color:#F0F3F7}
+  #commit .hint{font-size:17px;color:#A8AFBB;letter-spacing:.04em;margin-top:4px}
+
+  /* diegetic HUD */
+  .plate{position:fixed;z-index:10;padding:10px 16px;
+    background:linear-gradient(90deg,#E20082,#F6931D) top/100% 3px no-repeat,#0C1724;border:1px solid #363C44;border-top:0;
+    box-shadow:0 6px 18px rgba(12,23,36,.35);color:var(--cream)}
+  #sign{left:50%;transform:translateX(-50%) scale(var(--ui));transform-origin:top center;top:14px;font-size:18px;line-height:1.05;text-align:center}
+  #sign small{display:block;font-size:19px;letter-spacing:.03em;margin-top:5px;text-transform:none;font-family:"Rajdhani";font-weight:500;line-height:1.35}
+  #status{left:18px;bottom:18px;transform:scale(var(--ui));transform-origin:bottom left;font-size:14px;letter-spacing:.14em;min-width:380px}
+  #status b{display:block;font-size:26px;line-height:1.05;margin-top:3px;color:var(--brass);font-variant-numeric:tabular-nums}
+  #status i{font-style:normal;font-size:17px;color:#D5DCE5;display:block;margin-top:2px;letter-spacing:.06em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #sound{left:18px;top:18px;z-index:30;cursor:pointer;font-family:inherit;font-size:15px;letter-spacing:.14em;transform:scale(var(--ui));transform-origin:top left}
+  #sound[aria-pressed=false]{opacity:.7}
+  #sound:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #lock{position:fixed;right:18px;bottom:18px;z-index:10;cursor:pointer;transform-origin:bottom right;
+    width:200px;height:64px;border:0;border-radius:6px;padding:0 10px;
+    background:linear-gradient(135deg,#E20082,#AD0065);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.3),inset 0 -6px 0 #8a0050,0 8px 0 #0C1724,0 12px 20px rgba(12,23,36,.4);
+    color:#fff;font-size:18px;transition:transform .08s,box-shadow .08s;transform:scale(var(--ui))}
+  #lock:active{transform:scale(var(--ui)) translateY(6px);box-shadow:inset 0 2px 0 rgba(255,255,255,.3),inset 0 -2px 0 #8a0050,0 2px 0 #0C1724}
+  #lock:disabled{background:#363C44;box-shadow:inset 0 -6px 0 #0C1724,0 8px 0 #0C1724;color:#969DAA;cursor:default}
+  #lock:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+
+  .toast{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));padding:6px 12px;font-size:18px;letter-spacing:.08em;
+    background:rgba(12,23,36,.94);border-left:4px solid #0070F3;color:var(--cream);
+    animation:toast 3s ease-out forwards;white-space:nowrap}
+  .toast.bad{border-image:linear-gradient(180deg,#E20082,#F6931D) 1}
+  .toast.ok{border-color:#6FD08C}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,-30%)}12%{opacity:1;transform:translate(-50%,-50%)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%)}}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,rgba(12,23,36,.72),rgba(12,23,36,.94));opacity:0;pointer-events:none;transition:opacity .4s}
+  .ov.on{opacity:1;pointer-events:auto}
+  .card{width:min(680px,92vw);padding:34px 40px;background:linear-gradient(90deg,#E20082,#F6931D) top/100% 4px no-repeat,#0C1724;border:1px solid #363C44;border-top:0;
+    box-shadow:0 30px 60px rgba(0,0,0,.6);color:var(--cream)}
+  .card h1{font-size:34px;line-height:1;margin-bottom:6px}
+  .card h1 small{display:block;font-size:14px;letter-spacing:.2em;color:#A8AFBB;margin-bottom:10px}
+  .card p{font-size:17px;line-height:1.45;margin:12px 0;color:#D5DCE5}
+  .card ol,.card ul{margin:10px 0 4px 22px;font-size:17px;line-height:1.5;color:#D5DCE5}
+  .card b{color:var(--brass)}
+  .card .rule{border-top:1px solid #363C44;margin:18px 0}
+  .card h2.sect{font-size:14px;letter-spacing:.16em;color:#F99D1C;margin:16px 0 0}
+  .card h2.sect+p,.card h2.sect+ol{margin-top:4px}
+  .card button{font-family:inherit;font-weight:700;font-size:18px;padding:12px 26px;cursor:pointer;border:0;color:#fff;
+    background:linear-gradient(135deg,#E20082,#AD0065);box-shadow:inset 0 2px 0 rgba(255,255,255,.3),0 5px 0 #8a0050}
+  .card button:active{transform:translateY(4px);box-shadow:inset 0 2px 0 rgba(255,255,255,.3),0 1px 0 #8a0050}
+  .card button.quiet{background:#363C44;color:#F0F3F7;box-shadow:none}
+  .card button:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  table.dbf{width:100%;border-collapse:collapse;font-size:16px;margin:12px 0}
+  table.dbf th{text-align:left;font-weight:500;letter-spacing:.08em;font-size:14px;color:#A8AFBB;padding:4px 6px;border-bottom:1px solid #363C44}
+  table.dbf td{padding:6px;border-bottom:1px solid #1e2a3a;vertical-align:top;font-variant-numeric:tabular-nums}
+  table.dbf tr.you td{background:rgba(226,0,130,.16)}
+  .ok{color:#6FD08C}.bad{color:#FF4FAE}.amber{color:#F99D1C}
+  .needs{font-size:15px;color:#A8AFBB}
+  .memo{background:#F0F3F7;color:#0C1724;padding:18px 22px;font-size:19px;line-height:1.45;box-shadow:inset 0 0 0 1px #D5DCE5;margin:12px 0}
+  .card .memo ul{margin:0;list-style:none;color:#0C1724;font-size:19px}
+  .memo li{margin:0;padding:10px 0;border-top:1px solid #D5DCE5}
+  .memo li:first-child{border-top:0;padding-top:0}
+  .card .memo b{color:#0C1724}
+  .memo .mo{color:#B0006A;font-weight:700;margin-right:8px}
+  .memo li span{display:block;font-size:17px;color:#363C44;letter-spacing:.01em;margin-top:2px}
+  .spec dt{font-size:14px;letter-spacing:.14em;color:#A8AFBB;margin-top:14px;text-transform:uppercase}
+  .spec dd{font-size:17px;line-height:1.45;color:#D5DCE5;margin:2px 0 0}
+  #debrief{position:fixed;top:0;right:0;bottom:0;z-index:20;width:min(520px,92vw);overflow:auto;padding:26px 28px;
+    transform:translateX(105%);transition:transform .45s;border-width:0 0 0 2px}
+  #debrief.on{transform:none}
+  #debrief h1{font-size:26px}
+  #debrief h2{font-size:14px;letter-spacing:.16em;color:#A8AFBB;margin-top:20px;margin-bottom:2px}
+  #debrief p{font-size:17px;margin:8px 0}
+  #debrief table.dbf{font-size:16px;margin:6px 0}
+  #debrief button{font-size:16px;padding:10px 18px}
+  #debrief details summary{cursor:pointer;margin-top:8px}
+  .look{margin:10px 0;padding:10px 12px;border-left:4px solid #E20082;background:rgba(226,0,130,.1);font-size:17px;line-height:1.45;color:#D5DCE5}
+  .look b{color:var(--brass)}
+  #dbShow{position:fixed;right:18px;bottom:18px;z-index:21;transform:scale(var(--ui));transform-origin:bottom right;cursor:pointer;
+    width:200px;height:64px;border:0;border-radius:6px;background:linear-gradient(135deg,#E20082,#AD0065);color:#fff;font-size:18px;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.3),inset 0 -6px 0 #8a0050,0 8px 0 #0C1724,0 12px 20px rgba(12,23,36,.4)}
+  #err{position:fixed;left:0;right:0;bottom:0;z-index:99;background:#400;color:#fdd;font:12px monospace;padding:8px;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div class="plate dial" id="sign">The Gauge Wall<small id="signsub">Click Customer plans.</small></div>
+<div id="sr" role="status" aria-live="polite"></div>
+<div class="plate dial" id="status">Lever<b id="stLever">None</b><i id="stCommit">Commitment: not set</i></div>
+<button id="lock" class="dial" disabled>Lock commitment</button>
+<button id="sound" class="plate dial" type="button">Sound on</button>
+
+<div class="ov on" id="intro"><div class="card">
+  <h1 class="dial"><small id="introTag"></small>The Gauge Wall</h1>
+  <p id="introLede" style="margin-top:4px"></p>
+  <div class="rule"></div>
+  <h2 class="dial sect">The situation</h2>
+  <p id="introSituation"></p>
+  <h2 class="dial sect">Your goal</h2>
+  <p id="introGoal"></p>
+  <h2 class="dial sect">What to do</h2>
+  <ol>
+    <li>Click <b>Customer plans</b> to see what happens next.</li>
+    <li id="introLeverStep"></li>
+    <li>Pick one lever and click <b>Pull lever</b>.</li>
+    <li>Type the monthly commitment, or set it with the knob or the <b>−</b> and <b>+</b> buttons.</li>
+    <li id="introRunStep"></li>
+  </ol>
+  <div class="rule"></div>
+  <button id="start" class="dial">Start</button>
+</div></div>
+
+<div class="ov" id="spec"><div class="card" style="width:min(560px,92vw)" role="dialog" aria-labelledby="specTitle">
+  <h1 class="dial"><small>Lever</small><span id="specTitle"></span></h1>
+  <dl class="spec" id="specBody"></dl>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button id="specPull" class="dial">Pull lever</button>
+    <button id="specClose" class="dial quiet">Close</button>
+  </div>
+</div></div>
+
+<div class="ov" id="clip"><div class="card" style="width:min(600px,92vw)" role="dialog" aria-labelledby="clipTitle">
+  <h1 class="dial"><small id="clipTermTag"></small><span id="clipTitle">Customer plans</span></h1>
+  <div class="memo" id="clipBody"></div>
+  <button id="clipClose" class="dial quiet">Close</button>
+</div></div>
+
+<div class="ov" id="confirm"><div class="card" style="width:min(520px,92vw)" role="dialog" aria-labelledby="cfTitle">
+  <h1 class="dial"><small>Lock commitment</small><span id="cfTitle"></span></h1>
+  <table class="dbf" id="cfBody"></table>
+  <p class="needs">You can't change it after you lock it.</p>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px"><button id="cfYes" class="dial">Lock</button><button id="cfNo" class="dial quiet">Back</button></div>
+</div></div>
+
+<aside id="debrief" class="card" aria-label="Results" tabindex="-1">
+  <h1 class="dial"><small id="dbScore">Results</small><span id="dbTitle"></span></h1>
+  <table class="dbf" id="dbSummary"></table>
+  <div class="look" id="dbLook"></div>
+  <h2 class="dial">Month by month</h2>
+  <table class="dbf" id="dbMonths"></table>
+  <h2 class="dial">Each lever at its best commitment</h2>
+  <table class="dbf" id="dbLevers"></table>
+  <h2 class="dial">Why</h2>
+  <p id="dbSay"></p>
+  <details id="dbMore"><summary class="needs">The other two levers</summary><p id="dbSayMore"></p></details>
+  <div class="rule"></div>
+  <button id="dbHide" class="dial quiet">Hide results</button>
+  <button id="startOver" class="dial quiet">Start over</button>
+</aside>
+<button id="dbShow" class="dial" hidden>Show results</button>
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/",
+  "scorm": "./scorm.js"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { connectScorm } from 'scorm';
+import { createAudio } from './assets/audio/audio.js';
+import defaultContent from './content.js';
+import { validatePack } from './validate-pack.mjs';
+import { pastFit } from './fit.js';
+
+window.addEventListener('error', e=>{ const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.error?.stack || e.message); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CONTENT PACK — the only place a company, a plan or a price appears.
+  Real money is on the table in this engine, so money words are allowed here.
+═══════════════════════════════════════════════════════════════════════════*/
+const CONTENT = window.__ENGINE_CONTENT__ ?? defaultContent;
+const packProblems = validatePack(CONTENT);
+if (packProblems.length) {
+  const el = document.getElementById('err');
+  el.style.display = 'block';
+  el.textContent = 'Content pack problems:\n' + packProblems.map(p => '- ' + p).join('\n');
+  throw new Error('invalid content pack: ' + packProblems.join('; '));
+}
+const TERM = CONTENT.levers[0].future.length;   // months still to run, after "known"
+
+/*═══════════════════════════════════════════════════════════════════════════
+  THEME — one registered look ("default"); pack.theme.colors overrides on top
+═══════════════════════════════════════════════════════════════════════════*/
+// pattern from layers/theme/registry.ts
+function createThemeRegistry(label, packs, defaultPack) {
+  if (!packs[defaultPack]) throw new Error(`[${label}] default pack "${defaultPack}" is not registered`);
+  return function getTheme(packId) {
+    const requestedPack = packId || defaultPack;
+    const theme = packs[requestedPack];
+    if (theme) return { theme, requestedPack, activePack: requestedPack };
+    console.warn(`[${label}] pack "${requestedPack}" not available, using "${defaultPack}"`);
+    return { theme: packs[defaultPack], requestedPack, activePack: defaultPack };
+  };
+}
+const THEME_PACKS = {
+  default: { colors: { '--cream':'#F0F3F7', '--brass':'#F99D1C', '--red':'#E20082', '--ink':'#0C1724',
+    '--grad':'linear-gradient(90deg,#E20082,#F6931D)' } },
+};
+const getTheme = createThemeRegistry('gauge-wall', THEME_PACKS, 'default');
+const { theme: activeTheme } = getTheme(CONTENT.theme?.pack);
+const THEME_COLORS = { ...activeTheme.colors, ...(CONTENT.theme?.colors || {}) };
+for (const [k, v] of Object.entries(THEME_COLORS)) document.documentElement.style.setProperty(k, v);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  INTRO COPY — the company, the term length and the overage multiplier all
+  come from the pack, so a different pack reads as a different company.
+═══════════════════════════════════════════════════════════════════════════*/
+const joinWithAnd = (items) => items.length<2 ? items.join('') : `${items.slice(0,-1).join(', ')} and ${items.at(-1)}`;
+const leverNames = CONTENT.levers.map(L=>L.name);
+document.getElementById('introTag').textContent = `${CONTENT.company} pricing`;
+document.getElementById('introLede').textContent = `Choose how a customer's ${CONTENT.company} contract is billed.`;
+document.getElementById('introSituation').textContent =
+  `A customer is renewing their ${CONTENT.company} contract for ${TERM} months. The chart shows their last ${CONTENT.known} months of usage. Usage over the monthly commitment bills at ${CONTENT.overage}× the rate.`;
+document.getElementById('introGoal').textContent = `Pick the lever and commitment that give the lowest ${TERM}-month bill.`;
+document.getElementById('introLeverStep').innerHTML = `Click ${joinWithAnd(leverNames.map(n=>`<b>${n}</b>`))} to see what each lever bills for.`;
+document.getElementById('introRunStep').innerHTML = `Click <b>Lock commitment</b> to run the ${TERM} months.`;
+document.getElementById('clipTermTag').textContent = `Next ${TERM} months`;
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MODEL — bill for a lever at a commitment, over the months still to run
+═══════════════════════════════════════════════════════════════════════════*/
+const fmt$ = n=>'$'+Math.round(n).toLocaleString('en-US');
+const rate$ = n=>'$'+n.toLocaleString('en-US',{minimumFractionDigits:n%1?2:0, maximumFractionDigits:2});
+function monthCost(L, commit, usage){ return { base:commit*L.rate, over:Math.max(0,usage-commit)*L.rate*CONTENT.overage }; }
+function bill(L, commit){ return L.future.reduce((n,u)=>{ const c=monthCost(L,commit,u); return n+c.base+c.over; },0); }
+function bestCommit(L){ let best=null; for(let c=L.range[0]; c<=L.range[1]; c+=L.step){ const b=bill(L,c); if(!best||b<best.bill) best={commit:c,bill:b}; } return best; }
+const BEST = Object.fromEntries(CONTENT.levers.map(L=>[L.id, bestCommit(L)]));
+const RANKED = [...CONTENT.levers].sort((a,b)=>BEST[a.id].bill-BEST[b.id].bill);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STATE — phase: read -> reveal -> done
+═══════════════════════════════════════════════════════════════════════════*/
+const state = { phase:'read', lever:null, focus:null, commit:null, month:CONTENT.known, finished:false, billed:0 };
+/*═══════════════════════════════════════════════════════════════════════════
+  SOUND — assets/audio/audio.json lists each sound and the moment it fires on
+═══════════════════════════════════════════════════════════════════════════*/
+const audio = createAudio({ storageKey:'gauge-wall.muted',
+  sfx:{ 'spec-open':'./assets/audio/spec-open.mp3', clipboard:'./assets/audio/clipboard.mp3', 'lever-pull':'./assets/audio/lever-pull.mp3',
+    detent:'./assets/audio/detent.mp3', lock:'./assets/audio/lock.mp3', pen:'./assets/audio/pen.mp3', counter:'./assets/audio/counter.mp3',
+    printer:'./assets/audio/printer.mp3', overage:'./assets/audio/overage.mp3', invoice:'./assets/audio/invoice.mp3' } });
+audio.mountToggle(document.getElementById('sound'));
+let quiet=false, detentAt=0;   // quiet: setCommit calls that are not the learner turning the knob (pull, restore)
+const leverOf = id=>CONTENT.levers.find(L=>L.id===id);
+const planAt = m=>CONTENT.plans.find(p=>m>=p.month&&m<=(p.until||p.month));
+const monthsOf = p=>p.until?`Months ${p.month}–${p.until}`:`Month ${p.month}`;
+
+/*═══════════════════════════════════════════════════════════════════════════
+  RENDERER, ENVIRONMENT, LIGHT
+═══════════════════════════════════════════════════════════════════════════*/
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0C1724);
+scene.fog = new THREE.Fog(0x0C1724, 14, 26);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .4;
+
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, .1, 60);
+camera.position.set(0, 2.9, 11.0);
+camera.lookAt(0, 2.8, 0);
+function fitCamera(){
+  const dist=11, needH=6.6, needW=12.2, aspect=innerWidth/innerHeight;
+  const fovH=2*Math.atan(needH/2/dist), fovW=2*Math.atan(needW/2/dist/aspect);
+  camera.fov=THREE.MathUtils.radToDeg(Math.max(fovH,fovW)); camera.aspect=aspect; camera.updateProjectionMatrix();
+  const ref=2*Math.tan(THREE.MathUtils.degToRad(34)/2)*dist, cur=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*dist;
+  document.documentElement.style.setProperty('--ui', Math.max(.55, Math.min(1, (innerHeight/900)*(ref/cur))).toFixed(3));
+}
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0xdfe6f0, .5));
+function cageLamp(x,y,z,color=0xf4f7ff,i=22){
+  const L = new THREE.SpotLight(color, i, 20, Math.PI/3.2, .55, 1.6);
+  L.position.set(x,y,z); L.target.position.set(x, 0, z-.4); L.castShadow = true;
+  L.shadow.mapSize.set(2048,2048); L.shadow.bias = -0.0006; L.shadow.normalBias = .02;
+  scene.add(L, L.target);
+  const g = new THREE.Group(); g.position.set(x,y,z);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.09,.16,.22,12,1,true), new THREE.MeshStandardMaterial({color:0x0C1724, metalness:.3, roughness:.45, side:THREE.DoubleSide})));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(.07,16,12), new THREE.MeshBasicMaterial({color})); bulb.position.y=-.12; g.add(bulb);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,1.2,6), new THREE.MeshStandardMaterial({color:0x111, metalness:.9, roughness:.4})).translateY(.7));
+  scene.add(g); return L;
+}
+cageLamp(-3.0, 6.2, 1.8); cageLamp(3.0, 6.2, 1.8);
+const redLamp = new THREE.PointLight(THEME_COLORS['--red'], 0, 7, 2); redLamp.position.set(3.4, 3.2, 1.0); scene.add(redLamp);
+const fill = new THREE.DirectionalLight(0xc8d8f0, .35); fill.position.set(-4, 3, 8); scene.add(fill);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MATERIALS
+═══════════════════════════════════════════════════════════════════════════*/
+const tl = new THREE.TextureLoader();
+function tex(name, rx=1, ry=1){ const t=tl.load(`./assets/tex/${name}.jpg`); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t; }
+const M = {
+  wall:  new THREE.MeshStandardMaterial({ map:tex('steel-pale',3,1.7), roughness:.6, metalness:.05 }),
+  floor: new THREE.MeshStandardMaterial({ map:tex('floor-slate',4,4), roughness:.35, metalness:.1 }),
+  // "brass" slots keep their names: satin aluminium now, theme grey
+  brass: new THREE.MeshStandardMaterial({ map:tex('alu',1,1), roughness:.32, metalness:.55, color:0xF0F3F7 }),
+  brassDark: new THREE.MeshStandardMaterial({ map:tex('alu',2,2), roughness:.4, metalness:.55, color:0xD5DCE5 }),
+  ox:    new THREE.MeshStandardMaterial({ color:0x363C44, roughness:.5, metalness:.2 }),
+  iron:  new THREE.MeshStandardMaterial({ color:0x363C44, roughness:.5, metalness:.6 }),
+  black: new THREE.MeshStandardMaterial({ color:0x0C1724, roughness:.45, metalness:.2 }),
+  glass: new THREE.MeshPhysicalMaterial({ color:0xcfd8dd, transmission:.9, thickness:.1, roughness:.06, metalness:0, ior:1.4, transparent:true, opacity:.25, depthWrite:false }),
+  cream: new THREE.MeshStandardMaterial({ color:0xF0F3F7, roughness:.6, metalness:.1 }),
+};
+// Theme gradient, hot pink to warm orange by default, for the things that carry the reading or the
+// call: needles, the pulled lever, the commit pointer. UV v runs along the part, so boxes and spheres both take it.
+const GRAD_TEX = (()=>{ const c=document.createElement('canvas'); c.width=4; c.height=256; const g=c.getContext('2d');
+  const lg=g.createLinearGradient(0,256,0,0); lg.addColorStop(0,THEME_COLORS['--red']); lg.addColorStop(.5,THEME_COLORS['--red']); lg.addColorStop(1,THEME_COLORS['--brass']); g.fillStyle=lg; g.fillRect(0,0,4,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+M.grad = new THREE.MeshStandardMaterial({ map:GRAD_TEX, emissiveMap:GRAD_TEX, emissive:0xffffff, emissiveIntensity:.35, roughness:.35, metalness:.1 });
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; t.canvas=c; return t; }
+const FD='"Josefin Sans","Rajdhani",sans-serif', FB='"Rajdhani",Arial,sans-serif';
+
+function gaugeFace(title, ticks, redFrom, redTo, sub){
+  return canvasTex(1024,1024,(g,w,h)=>{
+    const cx=w/2, cy=h/2, R=470;
+    g.fillStyle='#FFFFFF'; g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.fill();
+    const rg=g.createRadialGradient(cx,cy,R*.6,cx,cy,R); rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(1,'rgba(12,23,36,.14)'); g.fillStyle=rg; g.fillRect(0,0,w,h);
+    const a0=-Math.PI*1.25, a1=Math.PI*.25, ang=v=>a0+(a1-a0)*v;
+    if(redFrom!=null){ g.beginPath(); g.arc(cx,cy,R*.82,ang(redFrom),ang(redTo)); g.lineWidth=46; const cg=g.createConicGradient(ang(redFrom),cx,cy); const span=(ang(redTo)-ang(redFrom))/(Math.PI*2); cg.addColorStop(0,'#E20082'); cg.addColorStop(span*.5,'#E20082'); cg.addColorStop(span,'#F6931D'); cg.addColorStop(Math.min(1,span+.001),'#F6931D'); g.strokeStyle=cg; g.stroke(); }
+    for(let i=0;i<=ticks.n;i++){ const v=i/ticks.n, a=ang(v), major=i%ticks.major===0, r1=R*.9, r0=R*(major?.76:.83);
+      g.beginPath(); g.moveTo(cx+Math.cos(a)*r0, cy+Math.sin(a)*r0); g.lineTo(cx+Math.cos(a)*r1, cy+Math.sin(a)*r1);
+      g.lineWidth=major?8:4; g.strokeStyle='#0C1724'; g.stroke();
+      const t=major && ticks.label?.(v); if(t){ g.fillStyle='#0C1724'; g.font=`700 128px ${FB}`; g.textAlign='center'; g.textBaseline='middle'; g.fillText(t, cx+Math.cos(a)*R*.52, cy+Math.sin(a)*R*.52); } }
+    g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.lineWidth=14; g.strokeStyle='#363C44'; g.stroke();
+  });
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  ROOM
+═══════════════════════════════════════════════════════════════════════════*/
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(22,12), M.wall); wall.position.set(0,5,0); wall.receiveShadow=true; scene.add(wall);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(24,16), M.floor); floor.rotation.x=-Math.PI/2; floor.position.set(0,0,6); floor.receiveShadow=true; scene.add(floor);
+function box(w,h,d,m,x,y,z,parent=scene){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.set(x,y,z); b.castShadow=b.receiveShadow=true; parent.add(b); return b; }
+function cyl(r,len,m,seg=24){ const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg),m); c.castShadow=c.receiveShadow=true; return c; }
+box(22,.2,.24,M.iron,0,.1,.12);                                    // skirting
+const conduit = cyl(.06,22,M.iron,10); conduit.rotation.z=Math.PI/2; conduit.position.set(0,5.9,.12); scene.add(conduit);
+// rivets along the top rail
+for(let x=-10.5;x<=10.5;x+=1.5){ const r=new THREE.Mesh(new THREE.SphereGeometry(.035,10,8),M.brassDark); r.position.set(x,5.65,.02); scene.add(r); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STRIP CHART RECORDER — three pens, one per lever
+═══════════════════════════════════════════════════════════════════════════*/
+const CH = { x:-2.9, y:4.15, w:4.6, h:2.2, z:.28, padL:250/1880, padR:70/1880, pady:70/880 };
+const chartTex = canvasTex(1880,880,()=>{});
+function drawChart(prog){  // prog: months of ink, 7..12 (fractional while the pen moves)
+  const g=chartTex.canvas.getContext('2d'), w=chartTex.canvas.width, h=chartTex.canvas.height;
+  g.fillStyle='#FFFFFF'; g.fillRect(0,0,w,h);
+  const pad=70, padL=Math.round(CH.padL*w), gw=w-padL-pad, gh=h-pad*2, mx=i=>padL+gw*(i/(CONTENT.months-1)), my=v=>pad+gh*(1-v);
+  const F=state.focus?leverOf(state.focus):null, nf=v=>v.toLocaleString('en-US');
+  g.textBaseline='alphabetic';
+  // plan months: a light band with the plan title along the bottom, where the lines are lowest
+  const bandStep=gw/(CONTENT.months-1), titleBoxes=[], titleDraws=[];
+  for(const p of CONTENT.plans){ const x0=Math.max(padL, mx(p.month-1)-bandStep/2), x1=Math.min(w-10, mx((p.until||p.month)-1)+bandStep/2);
+    g.fillStyle='rgba(226,0,130,.09)'; g.fillRect(x0, pad, x1-x0, gh);
+    g.strokeStyle='rgba(176,0,106,.55)'; g.lineWidth=3; g.beginPath(); g.moveTo(x0,pad); g.lineTo(x1,pad); g.stroke();
+    g.fillStyle='#8A004F'; const room=x1-x0-8, lastBand=(p.until||p.month)>=CONTENT.months; g.font=`700 58px ${FB}`;
+    const lines=[]; let cur='';
+    for(const wd of p.title.split(' ')){ const t=cur?cur+' '+wd:wd; if(cur&&g.measureText(t).width>room){ lines.push(cur); cur=wd; } else cur=t; } lines.push(cur);
+    const lw=Math.max(...lines.map(l=>g.measureText(l).width)), tx=lastBand?mx(CONTENT.months-1)-20:(x0+x1)/2, left=lastBand?tx-lw:tx-lw/2;
+    let row=0; while(titleBoxes.some(r=>left<r.x1&&left+lw>r.x0&&row<r.row+r.n&&row+lines.length>r.row)) row++;
+    titleBoxes.push({x0:left,x1:left+lw,row,n:lines.length,y0:h-pad-24-(row+lines.length-1)*64-52,y1:h-pad-24-row*64+16});
+    titleDraws.push(()=>{ g.fillStyle='#8A004F'; g.font=`700 58px ${FB}`; g.textAlign=lastBand?'right':'center'; g.lineWidth=8; g.lineJoin='round';
+      lines.forEach((ln,i)=>{ const ty=h-pad-24-(row+lines.length-1-i)*64; g.strokeStyle='rgba(255,255,255,.9)'; g.strokeText(ln,tx,ty); g.fillText(ln,tx,ty); }); }); }
+  g.strokeStyle='#D5DCE5'; g.lineWidth=2;
+  for(let i=0;i<CONTENT.months;i++){ g.beginPath(); g.moveTo(mx(i),pad); g.lineTo(mx(i),h-pad); g.stroke(); }
+  for(let k=0;k<=10;k++){ g.beginPath(); g.moveTo(padL,my(k/10)); g.lineTo(w-pad,my(k/10)); g.stroke(); }
+  g.fillStyle='#0C1724'; g.font=`700 58px ${FB}`; g.textAlign='center';
+  for(let i=0;i<CONTENT.months;i++) g.fillText(String(i+1), mx(i), h-pad+56);
+  // unrecorded paper is a shade lighter, with a red "today" line
+  g.fillStyle='rgba(213,220,229,.45)'; g.fillRect(mx(prog-1), 0, w-mx(prog-1), h-pad);
+  g.strokeStyle='#0C1724'; g.lineWidth=5; g.setLineDash([18,14]); g.beginPath(); g.moveTo(mx(CONTENT.known-1),pad-30); g.lineTo(mx(CONTENT.known-1),h-pad); g.stroke(); g.setLineDash([]);
+  g.fillStyle='#0C1724'; g.font=`600 44px ${FD}`; g.textAlign='right'; g.fillText('TODAY', mx(CONTENT.known-1)-16, pad-22);
+  if(F){ // the y-axis of the lever in focus: five ticks and its unit
+    g.strokeStyle=F.ink; g.lineWidth=6; g.beginPath(); g.moveTo(padL,pad); g.lineTo(padL,h-pad); g.stroke();
+    g.fillStyle=F.ink; g.textAlign='right'; g.textBaseline='middle'; g.font=`700 58px ${FB}`;
+    for(let k=0;k<=4;k++){ const v=F.range[0]+(F.range[1]-F.range[0])*k/4, y=my(k/4); g.fillText(nf(Math.round(v)), padL-18, y); g.beginPath(); g.moveTo(padL-12,y); g.lineTo(padL,y); g.stroke(); }
+    g.textBaseline="alphabetic"; g.font=`700 52px ${FB}`; g.fillText(F.unit, padL-34, h-pad+56);
+  } else {
+    g.fillStyle='#0C1724'; g.textAlign='left'; g.font=`600 46px ${FB}`;
+    g.fillText('Each line has its own scale.', padL+24, pad+130); g.fillText('Click a lever to read its numbers.', padL+24, pad+186);
+  }
+  // traces, each on its own axis (the lever's range)
+  const traces=[...CONTENT.levers].sort((a,b)=>(a===F)-(b===F));
+  for(const L of traces){
+    const all=[...L.history,...L.future], norm=v=>(v-L.range[0])/(L.range[1]-L.range[0]);
+    const mine=!F||F===L; g.strokeStyle=L.ink; g.lineWidth=mine?12:6; g.globalAlpha=mine?1:.28; g.lineJoin='round'; g.lineCap='round'; g.beginPath();
+    const n=Math.min(all.length, Math.floor(prog));
+    for(let i=0;i<n;i++){ const x=mx(i), y=my(norm(all[i])); i?g.lineTo(x,y):g.moveTo(x,y); }
+    if(n<all.length && prog>n){ const t=prog-n; const v=all[n-1]+(all[n]-all[n-1])*t; g.lineTo(mx(n-1+t), my(norm(v))); }
+    g.stroke(); g.globalAlpha=1;
+    const cyL=(state.commit!=null&&state.lever===L.id)?my(norm(state.commit)):null, placed=titleBoxes.map(r=>({x0:r.x0,x1:r.x1,y0:r.y0,y1:r.y1}));
+    if(cyL!=null){ g.font=`700 50px ${FB}`; const cw=g.measureText(`Commitment ${nf(state.commit)}`).width, cty=cyL-60>pad+30?cyL-18:cyL+56; placed.push({x0:padL+14,x1:padL+34+cw,y0:cty-44,y1:cty+10}); }
+    if(F===L){ // the value at each month already inked
+      g.font=`700 52px ${FB}`; g.textBaseline='middle'; g.lineWidth=10; g.lineJoin='round';
+      for(let i=0;i<n;i++){ const x=mx(i), y=my(norm(all[i])); g.fillStyle=L.ink; g.beginPath(); g.arc(x,y,13,0,Math.PI*2); g.fill(); }
+      for(let i=0;i<n;i++){ const x=mx(i), y=my(norm(all[i])), txt=nf(all[i]), tw=g.measureText(txt).width;
+        const mode=(i===n-1||i===CONTENT.known-1||i===CONTENT.months-1)?'right':i===0?'left':'center';
+        const tx=mode==='right'?x-26:mode==='left'?x+16:x, bx0=mode==='right'?tx-tw:mode==='left'?tx:tx-tw/2;
+        const cands=(i===CONTENT.known-1?[y-102,y+48,y-48,y+100]:[y-48,y+48,y-100,y+100]).filter(t=>t>pad+30&&t<pad+gh-10);
+        const hit=ty=>placed.some(r=>bx0<r.x1&&bx0+tw>r.x0&&ty-28<r.y1&&ty+28>r.y0)||(cyL!=null&&Math.abs(ty-cyL)<44);
+        let ty=cands.find(t=>!hit(t)); if(ty==null) ty=cands[0]??y+48;
+        placed.push({x0:bx0,x1:bx0+tw,y0:ty-28,y1:ty+28}); g.textAlign=mode;
+        g.strokeStyle='#FFFFFF'; g.strokeText(txt,tx,ty); g.fillStyle='#0C1724'; g.fillText(txt,tx,ty); }
+      g.textBaseline='alphabetic'; }
+    // the learner's commitment as a dashed line in the lever's ink, from the moment it is set
+    if(cyL!=null){ g.strokeStyle=L.ink; g.setLineDash([26,14]); g.lineWidth=7; g.beginPath(); g.moveTo(padL,cyL); g.lineTo(w-pad,cyL); g.stroke(); g.setLineDash([]);
+      g.font=`700 50px ${FB}`; g.textAlign='left'; g.lineWidth=10; const ty=cyL-60>pad+30?cyL-18:cyL+56, ct=`Commitment ${nf(state.commit)}`; g.strokeStyle='#FFFFFF'; g.strokeText(ct, padL+24, ty); g.fillStyle='#0C1724'; g.fillText(ct, padL+24, ty); }
+  }
+  g.textBaseline='alphabetic'; titleDraws.forEach(f=>f()); // plan titles last, so no line strikes through them
+  chartTex.needsUpdate=true;
+}
+(function chartRecorder(){
+  const {x,y,w,h,z}=CH;
+  box(w+.5, h+.6, .22, M.black, x, y, z-.11);                       // housing
+  const rim=new THREE.Mesh(new THREE.BoxGeometry(w+.56,h+.66,.06), M.brassDark); rim.position.set(x,y,z-.2); scene.add(rim);
+  const paper=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshStandardMaterial({ map:chartTex, roughness:.85, metalness:0 })); paper.position.set(x,y,z+.01); scene.add(paper);
+  for(const s of [-1,1]){ const roll=cyl(.11,h+.1,M.brass,20); roll.position.set(x+s*(w/2+.12),y,z+.02); scene.add(roll); }
+  // pen carriage: a bar across the paper with three pens, rides the current month
+  const car=new THREE.Group(); scene.add(car);
+  const bar=cyl(.02,h-.4,M.iron,8); car.add(bar);
+  CONTENT.levers.forEach((L,i)=>{ const pen=new THREE.Mesh(new THREE.ConeGeometry(.03,.14,10), new THREE.MeshStandardMaterial({color:L.ink, roughness:.4})); pen.rotation.x=Math.PI/2; pen.position.set(0, 0, .06); car.add(pen); L.pen=pen; });
+  CH.car=car; CH.pen=(i)=>{ car.position.set(x-w/2+w*(CH.padL+(1-CH.padL-CH.padR)*(i/(CONTENT.months-1))), y, z+.04);
+    for(const L of CONTENT.levers){ const all=[...L.history,...L.future]; const k=Math.min(all.length-1,Math.max(0,i)); const a=all[Math.floor(k)], b=all[Math.ceil(k)]; const v=a+(b-a)*(k-Math.floor(k));
+      L.pen.position.y = -h/2 + h*(CH.pady+(1-2*CH.pady)*((v-L.range[0])/(L.range[1]-L.range[0]))); } };
+  CH.pen(CONTENT.known-1);
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  UTILITY METER — one big counter, counts up as each month bills
+═══════════════════════════════════════════════════════════════════════════*/
+const METER = (()=>{
+  const x=3.4, y=5.05, z=.3, W=2.7, H=.8;
+  box(W,H,.3,M.black,x,y,z-.15);
+  const rim=new THREE.Mesh(new THREE.BoxGeometry(W+.08,H+.08,.06),M.brassDark); rim.position.set(x,y,z-.28); scene.add(rim);
+  const tex=canvasTex(1024,304,()=>{});
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(W-.16,H-.16), new THREE.MeshStandardMaterial({ map:tex, emissiveMap:tex, emissive:0xffffff, emissiveIntensity:.55, roughness:.6, metalness:0 })); face.position.set(x,y,z+.01); scene.add(face);
+  const glass=new THREE.Mesh(new THREE.PlaneGeometry(W-.16,H-.16),M.glass); glass.position.set(x,y,z+.05); scene.add(glass);
+  const m={ tex, x, y, z, face, bump:0 };
+  m.draw=(v)=>{ const g=tex.canvas.getContext('2d'), w=1024, h=304;
+    g.fillStyle='#0C1724'; g.fillRect(0,0,w,h);
+    const rg=g.createLinearGradient(0,0,0,h); rg.addColorStop(0,'rgba(255,255,255,.06)'); rg.addColorStop(.5,'rgba(255,255,255,0)'); g.fillStyle=rg; g.fillRect(0,0,w,h);
+    g.fillStyle='#969DAA'; g.textBaseline='middle'; g.textAlign='left'; g.font=`700 120px ${FB}`; g.fillText('$', 40, h/2+8);
+    g.textAlign='right'; g.font=`700 230px ${FB}`; const dg=g.createLinearGradient(w*.25,0,w,0); dg.addColorStop(0,'#E20082'); dg.addColorStop(.5,'#E20082'); dg.addColorStop(1,'#F6931D'); g.fillStyle=dg; g.fillText(Math.round(v).toLocaleString('en-US'), w-40, h/2+12);
+    tex.needsUpdate=true; };
+  m.draw(0); return m;
+})();
+function setDrums(value){ METER.draw(value); METER.bump=1; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  DIALS — usage as % of commit, overage this month, month of term
+═══════════════════════════════════════════════════════════════════════════*/
+function gauge(x,y,R,face,depth=.16){
+  const g=new THREE.Group(); g.position.set(x,y,.3);
+  const rim=cyl(R,depth,M.brass,48); rim.rotation.x=Math.PI/2; g.add(rim);
+  const inner=cyl(R*.93,depth*.4,M.black,48); inner.rotation.x=Math.PI/2; inner.position.z=depth*.3; g.add(inner);
+  const fc=new THREE.Mesh(new THREE.CircleGeometry(R*.9,48), new THREE.MeshStandardMaterial({map:face, roughness:.7, metalness:0})); fc.position.z=depth*.52; g.add(fc);
+  const needle=new THREE.Group(); needle.position.z=depth*.56;
+  const n=new THREE.Mesh(new THREE.BoxGeometry(.028,R*.8,.01), M.grad); n.position.y=R*.32; needle.add(n);
+  const tail=new THREE.Mesh(new THREE.BoxGeometry(.03,R*.18,.008), M.black); tail.position.y=-R*.09; needle.add(tail);
+  const cap=cyl(R*.08,.03,M.black,16); cap.rotation.x=Math.PI/2; needle.add(cap); g.add(needle);
+  const glass=new THREE.Mesh(new THREE.CircleGeometry(R*.92,48), M.glass); glass.position.z=depth*.7; g.add(glass);
+  const bezel=new THREE.Mesh(new THREE.TorusGeometry(R*.93,.025,10,48), M.brass); bezel.position.z=depth*.7; g.add(bezel);
+  g.traverse(o=>{ if(o.isMesh && o!==glass) o.castShadow=true; });
+  scene.add(g); return { g, needle, angle:Math.PI*.75, target:Math.PI*.75 };
+}
+const angFor=(v0,v1,v)=>THREE.MathUtils.lerp(Math.PI*.75, -Math.PI*.75, THREE.MathUtils.clamp((v-v0)/(v1-v0),0,1));
+const D = {
+  usage: gauge(1.15, 3.2, .7, gaugeFace('', { n:20, major:10, label:v=>`${Math.round(v*200)}%` }, .5, 1)),
+  over:  gauge(2.85, 3.2, .7, gaugeFace('', { n:20, major:10, label:v=>v?`$${Math.round(v*40)}k`:'0' }, .25, 1)),
+  month: gauge(4.55, 3.2, .7, gaugeFace('', { n:11, major:1, label:v=>{ const m=Math.round(1+v*11); return [1,7,12].includes(m)?String(m):''; } }, (CONTENT.known-1)/11, 1)),
+};
+D.month.target=D.month.angle=angFor(1,12,CONTENT.known);
+D.usage.target=D.usage.angle=angFor(0,200,0);
+D.over.target=D.over.angle=angFor(0,40000,0);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  LEVERS — three on the wall, one gets pulled
+═══════════════════════════════════════════════════════════════════════════*/
+const LEV_Y=1.55, LEV_X=[-3.9,-2.5,-1.1];
+const pickables=[];
+const LEVERS = CONTENT.levers.map((L,i)=>{
+  const x=LEV_X[i];
+  const plate=box(.62,1.5,.08,M.ox,x,LEV_Y,.06);
+  const slot=box(.1,1.1,.02,M.black,x,LEV_Y,.11);
+  const arm=new THREE.Group(); arm.position.set(x,LEV_Y-.42,.14); scene.add(arm);
+  const rod=cyl(.03,.9,M.iron,10); rod.position.set(0,.45,0); arm.add(rod);
+  const pivot=cyl(.07,.1,M.brass,16); pivot.rotation.x=Math.PI/2; arm.add(pivot);
+  const knob=new THREE.Mesh(new THREE.SphereGeometry(.11,24,16), M.brass); knob.position.set(0,.92,.05); arm.add(knob);
+  const inkDot=new THREE.Mesh(new THREE.CircleGeometry(.07,20), new THREE.MeshStandardMaterial({color:L.ink, roughness:.5})); inkDot.position.set(x,LEV_Y+.66,.11); scene.add(inkDot);
+  const grab=new THREE.Mesh(new THREE.BoxGeometry(.7,1.6,.4), new THREE.MeshBasicMaterial({visible:false})); grab.position.set(x,LEV_Y,.2); grab.userData.lever=i; scene.add(grab); pickables.push(grab);
+  return { L, x, arm, knob, angle:0, target:0 };
+});
+
+/*═══════════════════════════════════════════════════════════════════════════
+  COMMIT KNOB, TICKET PRINTER, CLIPBOARD
+═══════════════════════════════════════════════════════════════════════════*/
+const KNOB = (()=>{ const x=1.55, y=1.55, z=.3;
+  const base=cyl(.62,.1,M.black,40); base.rotation.x=Math.PI/2; base.position.set(x,y,z-.02); scene.add(base);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.6,.035,12,48),M.brassDark); ring.position.set(x,y,z+.03); scene.add(ring);
+  const g=new THREE.Group(); g.position.set(x,y,z+.06); scene.add(g);
+  const k=cyl(.42,.16,M.brass,40); k.rotation.x=Math.PI/2; g.add(k);
+  const grip=cyl(.3,.06,M.brass,40); grip.rotation.x=Math.PI/2; grip.position.z=.1; g.add(grip);
+  const ptr=box(.06,.36,.04,M.grad,0,.24,.1,g);
+  for(let i=0;i<24;i++){ const t=box(.03,.14,.05,M.black,0,0,0,g); const a=i/24*Math.PI*2; t.position.set(Math.sin(a)*.42,Math.cos(a)*.42,.02); t.rotation.z=-a; }
+  const grab=new THREE.Mesh(new THREE.CircleGeometry(.5,24), new THREE.MeshBasicMaterial({visible:false})); grab.position.z=.12; g.add(grab); grab.userData.knob=true; pickables.push(grab);
+  return { g, ring, x, y, z, angle:0 };
+})();
+const PRINTER = (()=>{ const x=3.3, y=1.9, z=.3;
+  box(1.2,.5,.4,M.black,x,y,z-.2); const rim=new THREE.Mesh(new THREE.BoxGeometry(1.26,.56,.06),M.brassDark); rim.position.set(x,y,z-.38); scene.add(rim);
+  box(.95,.05,.02,M.iron,x,y-.2,z+.01);                            // slot
+  const tapeTex=canvasTex(512,1400,()=>{});
+  const geo=new THREE.PlaneGeometry(.9,2.4); geo.translate(0,-1.2,0);   // anchored at the top edge
+  const tape=new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map:tapeTex, roughness:.9, side:THREE.DoubleSide, transparent:true })); tape.position.set(x,y-.2,z+.02); tape.rotation.x=.06; tape.castShadow=true; scene.add(tape);
+  tape.scale.y=0.001;
+  return { x, y, z, tape, tex:tapeTex, lines:[] };
+})();
+function printTape(){ const g=PRINTER.tex.canvas.getContext('2d'), w=512, h=1400, lines=PRINTER.lines, rows=Math.max(1,lines.length), need=Math.min(1, (60+rows*90+120)/h);
+  g.clearRect(0,0,w,h); g.fillStyle='#FFFFFF'; g.fillRect(0,0,w,h*need);
+  g.fillStyle='#0C1724'; g.font=`600 30px ${FD}`; g.textAlign='left'; g.fillText('INVOICE', 30, 50);
+  g.font=`500 32px ${FB}`; lines.forEach((l,i)=>{ const y=110+i*90; g.fillStyle=l.over?'#E20082':'#0C1724'; g.fillText(l.a, 30, y); g.font=`700 34px ${FB}`; g.textAlign='right'; g.fillText(l.b, w-30, y); g.textAlign='left'; g.font=`500 32px ${FB}`;
+    g.fillStyle='#363C44'; g.font=`500 24px ${FB}`; g.fillText(l.c, 30, y+34); g.font=`500 32px ${FB}`; });
+  g.strokeStyle='rgba(0,0,0,.25)'; for(let x=0;x<w;x+=24){ g.beginPath(); g.moveTo(x,h*need); g.lineTo(x+12,h*need-14); g.stroke(); }
+  PRINTER.tex.needsUpdate=true; PRINTER.tape.userData.target=need; }
+const CLIP = (()=>{ const x=-5.2, y=1.45, z=.2;
+  const board=box(1.2,1.6,.04,M.black,x,y,z);
+  const clip=box(.4,.12,.08,M.brass,x,y+.76,z+.05);
+  const nail=new THREE.Mesh(new THREE.SphereGeometry(.03,8,8),M.iron); nail.position.set(x,y+.84,z+.06); scene.add(nail);
+  const pt=canvasTex(640,800,(g,w,h)=>{ g.fillStyle='#FFFFFF'; g.fillRect(0,0,w,h);
+    g.fillStyle='#0C1724'; g.font=`700 84px ${FB}`; g.fillText('Plans', 28, 100);
+    CONTENT.plans.forEach((p,i)=>{ const y=250+i*205; g.fillStyle='#B0006A'; g.font=`700 76px ${FB}`; g.fillText(monthsOf(p), 28, y);
+      g.fillStyle='#0C1724'; g.font=`700 76px ${FB}`; g.fillText(p.title, 28, y+80); });
+  });
+  const sheet=new THREE.Mesh(new THREE.PlaneGeometry(1.1,1.375), new THREE.MeshBasicMaterial({ map:pt, toneMapped:false })); sheet.position.set(x,y-.06,z+.03); scene.add(sheet); sheet.userData.clip=true; pickables.push(sheet);
+  return { x, y, z };
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  LABELS — HTML on dark plates, projected into the world
+═══════════════════════════════════════════════════════════════════════════*/
+const labelsEl=document.getElementById('labels'), LABELS=[];
+function label(text, x, y, z, cls='', onClick=null){ const el=document.createElement(onClick?'button':'div'); el.className='lbl dial '+cls; el.textContent=text; labelsEl.appendChild(el);
+  if(onClick){ el.type='button'; el.addEventListener('click', onClick); }
+  const L={ el, p:new THREE.Vector3(x,y,z) }; LABELS.push(L); return L; }
+label('Usage by month · one line per lever', CH.x-.8, CH.y+CH.h/2+.42, CH.z, 'small');
+label('Bill to date', METER.x, METER.y+.6, METER.z, 'small');
+label('Invoice', PRINTER.x, PRINTER.y+.4, PRINTER.z, 'small');
+label('% of commitment', D.usage.g.position.x, D.usage.g.position.y+.9, .4, 'small');
+label('Overage this month', D.over.g.position.x, D.over.g.position.y+.9, .4, 'small');
+label('Month', D.month.g.position.x, D.month.g.position.y+.9, .4, 'small');
+const clipBtn=label('Customer plans', CLIP.x, CLIP.y+1.1, CLIP.z, 'small', ()=>openClip());
+LEVERS.forEach(v=>{ v.lbl=label(v.L.name, v.x, LEV_Y+1.0, .2, 'sw', ()=>openSpec(v)); v.lbl.el.style.setProperty('--sw', v.L.ink); v.lbl.el.setAttribute('aria-pressed','false'); v.lbl.el.setAttribute('aria-label',`${v.L.name} lever details`); });
+
+// commit control plate
+const commitEl=document.createElement('div'); commitEl.id='commit'; commitEl.setAttribute('role','group'); commitEl.setAttribute('aria-label','Commitment');
+commitEl.innerHTML=`<div class="l"><div class="val"><span>Commitment <span id="cmUnit">· pick a lever</span></span><b id="cmVal">—</b></div>
+  <div class="pm"><button type="button" id="cmDown" aria-label="Lower commitment" disabled>−</button><input type="number" id="cmInput" inputmode="numeric" placeholder="Number" aria-label="Commitment, typed" disabled><button type="button" id="cmUp" aria-label="Raise commitment" disabled>+</button></div>
+  <div class="hint">Drag the knob or click − and +</div></div>
+  <div class="r"><div class="def">You pay for this much every month, used or not. Use above it bills at ${CONTENT.overage}×.</div>
+  <div class="um" id="cmMeans" hidden></div>
+  <div class="fit" id="cmFit" aria-live="polite"></div></div>`;
+labelsEl.appendChild(commitEl); LABELS.push({ el:commitEl, noTop:true, p:new THREE.Vector3(KNOB.x, KNOB.y-.62, KNOB.z) });
+const cmVal=commitEl.querySelector('#cmVal'), cmUnit=commitEl.querySelector('#cmUnit'), cmInput=commitEl.querySelector('#cmInput'), cmFit=commitEl.querySelector('#cmFit'), cmMeans=commitEl.querySelector('#cmMeans');
+const nfmt=v=>v.toLocaleString('en-US'), plural=(k,w)=>`${k} ${w}${k===1?'':'s'}`;
+function fitLine(L, v){ const f=pastFit(L, v), n=CONTENT.known;
+  const over=f.overMonths?`over in ${plural(f.overMonths,'month')} (by up to ${nfmt(f.maxOver)})`:'never over';
+  const under=f.underMonths?`unused in ${plural(f.underMonths,'month')} (about ${nfmt(f.avgUnused)} ${L.unit} a month)`:'never unused';
+  return `Last ${n} months at ${nfmt(v)} ${L.unit}: ${over}, ${under}.`; }
+function clearCommit(){ const L=leverOf(state.lever); state.commit=null;
+  cmVal.textContent='—'; cmInput.value=''; if(L){ cmInput.min=L.range[0]; cmInput.max=L.range[1]; cmInput.step=L.step; cmUnit.textContent='· '+L.unit; cmMeans.hidden=false; cmMeans.textContent=L.unitMeans; }
+  cmFit.textContent=L?`Set a number to see how it would have done over the last ${CONTENT.known} months.`:'';
+  KNOB.angle=Math.PI*.75; D.usage.target=angFor(0,200,0);
+  document.getElementById('stCommit').textContent='Commitment: not set'; document.getElementById('lock').disabled=true; drawChart(state.month); }
+function setCommit(v){ const L=leverOf(state.lever); if(!L||!Number.isFinite(v)) return; v=THREE.MathUtils.clamp(Math.round(v/L.step)*L.step, L.range[0], L.range[1]);
+  if(v!==state.commit && !quiet && performance.now()-detentAt>400){ detentAt=performance.now(); audio.play('detent', { gain:.3, rate:.95+Math.random()*.1 }); }
+  state.commit=v; cmVal.textContent=nfmt(v); cmUnit.textContent='· '+L.unit;
+  if(document.activeElement!==cmInput) cmInput.value=v;
+  cmFit.textContent=fitLine(L, v);
+  if(state.phase==='read') document.getElementById('lock').disabled=false;
+  KNOB.angle = -((v-L.range[0])/(L.range[1]-L.range[0]))*Math.PI*1.5 + Math.PI*.75;
+  document.getElementById('stCommit').textContent=`Commitment: ${nfmt(v)} ${L.unit} · ${fmt$(v*L.rate)} a month`;
+  D.usage.target=angFor(0,200, L.history.at(-1)/v*100);
+  drawChart(state.month); }
+const commitBase=()=>state.commit ?? leverOf(state.lever).range[0];
+commitEl.querySelector('#cmDown').addEventListener('click', ()=>setCommit(commitBase()-(state.commit==null?0:leverOf(state.lever).step)));
+commitEl.querySelector('#cmUp').addEventListener('click', ()=>setCommit(commitBase()+leverOf(state.lever).step));
+cmInput.addEventListener('input', ()=>{ const L=leverOf(state.lever); if(L&&state.phase==='read'&&cmInput.value===''){ if(state.commit!=null) clearCommit(); return; } const v=cmInput.valueAsNumber; if(L&&state.phase==='read'&&Number.isFinite(v)&&v>=L.range[0]&&v<=L.range[1]) setCommit(v); });
+cmInput.addEventListener('change', ()=>{ const v=cmInput.valueAsNumber; if(state.phase!=='read') return; if(cmInput.value===''){ if(state.commit!=null) clearCommit(); return; } if(Number.isFinite(v)) setCommit(v); cmInput.value=state.commit??''; });
+addEventListener('keydown', e=>{ if(!state.lever||state.phase!=='read') return; if(!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) return;
+  const t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='BUTTON'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')) return; if(document.querySelector('.ov.on')) return;
+  e.preventDefault(); const st=leverOf(state.lever).step, up=(e.key==='ArrowUp'||e.key==='ArrowRight'); setCommit(commitBase()+(up?st:(state.commit==null?0:-st))); });
+
+const _v=new THREE.Vector3();
+function projectLabels(){ for(const L of LABELS){ _v.copy(L.p).project(camera); let x=(_v.x+1)/2*innerWidth;
+    if(L.noTop){ const half=300*parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui')||1); x=Math.max(half+4, Math.min(innerWidth-half-4, x)); L.el.style.left=x+'px'; continue; }
+    L.el.style.left=x+'px'; L.el.style.top=((1-_v.y)/2*innerHeight)+'px'; } }
+function toast(text, x, y, z, cls=''){ document.getElementById('sr').textContent=text; labelsEl.querySelectorAll('.toast').forEach(t=>t.remove()); _v.set(x,y,z).project(camera); const el=document.createElement('div'); el.className='toast dial '+cls; el.textContent=text;
+  el.style.left=((_v.x+1)/2*innerWidth)+'px'; el.style.top=((1-_v.y)/2*innerHeight)+'px'; labelsEl.appendChild(el); setTimeout(()=>el.remove(), 3100); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SPEC PLATE, CLIPBOARD, PULL
+═══════════════════════════════════════════════════════════════════════════*/
+let SPEC=null, lastFocus=null;
+function openSpec(v){ SPEC=v; state.focus=v.L.id; drawChart(state.month); audio.play('spec-open', { gain:.45 }); lastFocus=v.lbl.el; const L=v.L;
+  document.getElementById('specTitle').textContent=L.name;
+  const sw=`<span style="display:inline-block;width:14px;height:14px;background:${L.ink};border:1px solid #F0F3F7;vertical-align:-1px;margin-right:6px"></span>`;
+  document.getElementById('specBody').innerHTML=`<dt>Unit</dt><dd>${L.unitMeans}</dd><dt>Bills for</dt><dd>${L.meters}</dd><dt>Does not count</dt><dd>${L.ignores}</dd><dt>Watch for</dt><dd>${L.catch}</dd>
+    <dt>Price</dt><dd>${rate$(L.rate)} per ${L.unit.replace(/s$/,'')} each month. Over the commitment: ${rate$(L.rate*CONTENT.overage)}.</dd>
+    <dt>Last month</dt><dd>${sw}${L.history.at(-1).toLocaleString('en-US')} ${L.unit}</dd>`;
+  document.getElementById('specPull').style.display = state.phase==='read' ? '' : 'none';
+  document.getElementById('spec').classList.add('on'); document.getElementById(state.phase==='read'?'specPull':'specClose').focus(); }
+function closeSpec(){ state.focus=state.lever; drawChart(state.month); document.getElementById('spec').classList.remove('on'); lastFocus?.focus(); SPEC=null; }
+document.getElementById('specClose').addEventListener('click', closeSpec);
+document.getElementById('specPull').addEventListener('click', ()=>{ pull(SPEC); closeSpec(); });
+function pull(v){ if(state.phase!=='read') return;
+  state.lever=v.L.id; LEVERS.forEach(o=>{ o.target = o===v ? Math.PI*.62 : 0; o.knob.material = o===v ? M.grad : M.brass; KNOB.ring.material = M.grad; o.lbl.el.setAttribute('aria-pressed', o===v); });
+  commitEl.querySelectorAll('button,input').forEach(b=>b.disabled=false); state.focus=v.L.id;
+  document.getElementById('stLever').textContent=v.L.name;
+  if(!quiet) audio.play('lever-pull', { gain:.6 }); quiet=true; clearCommit(); quiet=false; toast(`${v.L.name} lever pulled`, v.x, LEV_Y+1.35, .3);
+  document.getElementById('signsub').textContent='Set the commitment, then click Lock commitment.'; }
+function openClip(){ lastFocus=clipBtn.el; audio.play('clipboard'); document.getElementById('clipBody').innerHTML=`<ul>`+CONTENT.plans.map(p=>`<li><span class="mo" style="display:inline;margin:0 8px 0 0;font-size:19px">${monthsOf(p)}</span><b>${p.title}</b><span>${p.note}</span></li>`).join('')+`</ul>`;
+  document.getElementById('clip').classList.add('on'); document.getElementById('clipClose').focus(); }
+document.getElementById('clipClose').addEventListener('click', ()=>{ document.getElementById('clip').classList.remove('on'); lastFocus?.focus();
+  if(state.phase==='read'&&!state.lever) document.getElementById('signsub').textContent=`Click ${leverNames.join(', ').replace(/, ([^,]*)$/, ' or $1')} to read each lever.`; });
+addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(SPEC) closeSpec(); document.getElementById('clip').classList.remove('on'); document.getElementById('confirm').classList.remove('on'); });
+
+// lock: confirm, then reveal
+document.getElementById('lock').addEventListener('click', ()=>{ if(state.phase!=='read'||!state.lever||state.commit==null) return; const L=leverOf(state.lever);
+  document.getElementById('cfTitle').textContent=`${L.name} at ${state.commit.toLocaleString('en-US')} ${L.unit}`;
+  document.getElementById('cfBody').innerHTML=`<tr><td>Each month</td><td><b>${fmt$(state.commit*L.rate)}</b></td></tr><tr><td>Each ${L.unit.replace(/s$/,'')} over ${state.commit.toLocaleString('en-US')}</td><td><b>${rate$(L.rate*CONTENT.overage)}</b></td></tr>`;
+  document.getElementById('confirm').classList.add('on'); document.getElementById('cfYes').focus(); });
+document.getElementById('cfNo').addEventListener('click', ()=>{ document.getElementById('confirm').classList.remove('on'); document.getElementById('lock').focus(); });
+document.getElementById('cfYes').addEventListener('click', ()=>{ document.getElementById('confirm').classList.remove('on'); audio.play('lock', { gain:.8 }); reveal(); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  INTERACTION — click a lever, drag the knob
+═══════════════════════════════════════════════════════════════════════════*/
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let drag=null, hover=null;
+function pick(e){ ptr.set((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1); ray.setFromCamera(ptr,camera); return ray.intersectObjects(pickables,false)[0]?.object||null; }
+function knobCentre(){ const v=KNOB.g.position.clone().project(camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]; }
+const ptrAngle=(e,c)=>Math.atan2(e.clientY-c[1], e.clientX-c[0]);
+renderer.domElement.addEventListener('pointermove', e=>{
+  if(drag){ let d=ptrAngle(e,drag.c)-drag.last; if(d>Math.PI) d-=Math.PI*2; if(d<-Math.PI) d+=Math.PI*2; drag.last=ptrAngle(e,drag.c); const L=leverOf(state.lever);
+    drag.acc += d/(Math.PI*1.5)*(L.range[1]-L.range[0]); if(Math.abs(drag.acc)>=L.step){ setCommit(commitBase()+Math.trunc(drag.acc/L.step)*L.step); drag.acc%=L.step; } return; }
+  const o=pick(e); if(o!==hover){ hover=o; renderer.domElement.style.cursor = o ? (o.userData.knob ? (state.lever&&state.phase==='read'?'grab':'default') : 'pointer') : 'default'; }
+});
+renderer.domElement.addEventListener('pointerdown', e=>{ const o=pick(e); if(!o) return;
+  if(o.userData.knob){ if(!state.lever||state.phase!=='read') return; const c=knobCentre(); drag={ c, last:ptrAngle(e,c), acc:0 }; renderer.domElement.style.cursor='grabbing'; renderer.domElement.setPointerCapture(e.pointerId); }
+  else if(o.userData.clip) openClip();
+  else if(state.phase==='read') openSpec(LEVERS[o.userData.lever]); });
+function release(){ if(!drag) return; drag=null; renderer.domElement.style.cursor='grab'; }
+renderer.domElement.addEventListener('pointerup', release); renderer.domElement.addEventListener('pointercancel', release);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  REVEAL — the rest of the term runs, one month at a time
+═══════════════════════════════════════════════════════════════════════════*/
+let anim=null;   // { from, to, t0, dur }
+function reveal(){ if(state.phase!=='read'||!state.lever||state.commit==null) return; state.phase='reveal'; save();
+  const L=leverOf(state.lever);
+  commitEl.querySelectorAll('button,input').forEach(b=>b.disabled=true); commitEl.classList.add('locked'); document.getElementById('lock').disabled=true;
+  LEVERS.forEach(o=>o.lbl.el.disabled=true); clipBtn.el.disabled=false;
+  document.getElementById('signsub').textContent=`The next ${TERM} months are running.`;
+  document.getElementById('sr').textContent=`Locked. The next ${TERM} months are running.`;
+  drawChart(state.month); state.billed=0; PRINTER.lines=[];
+  let i=0; const step=()=>{ if(i>=L.future.length){ setTimeout(finish, 1400); return; }
+    const m=CONTENT.known+1+i, u=L.future[i], c=monthCost(L,state.commit,u);
+    anim={ from:m-1, to:m, t0:performance.now(), dur:1500 }; audio.play('pen', { gain:.4 });
+    D.month.target=angFor(1,12,m); D.usage.target=angFor(0,200,u/state.commit*100); D.over.target=angFor(0,40000,c.over);
+    setTimeout(()=>{ state.billed+=c.base+c.over; setDrums(state.billed); state.month=m;
+      audio.play('counter', { gain:.6 }); setTimeout(()=>audio.play('printer', { gain:.45 }), 250);
+      if(c.over>0) audio.play('overage', { gain:.8 });
+      const plan=planAt(m);
+      PRINTER.lines.push({ a:`Month ${m} · ${u.toLocaleString('en-US')} ${L.unit}`, b:fmt$(c.base+c.over), c:c.over?`overage ${fmt$(c.over)}${plan?' · '+plan.title:''}`:(plan?plan.title:'no overage'), over:c.over>0 }); printTape();
+      if(c.over>0){ toast(`Month ${m}: ${fmt$(c.base+c.over)}, with ${fmt$(c.over)} overage`, METER.x, METER.y-.62, .4, 'bad'); redLamp.userData.pulse=1; }
+      else toast(`Month ${m}: ${fmt$(c.base)}, no overage`, METER.x, METER.y-.62, .4, 'ok');
+      i++; setTimeout(step, 900); }, 1500); };
+  step(); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SCORE, DEBRIEF, SCORM
+═══════════════════════════════════════════════════════════════════════════*/
+const lms=connectScorm();
+function save(){ if(!lms.connected) return; lms.save(JSON.stringify({ v:1, contentVersion:CONTENT.version, lever:state.lever, commit:state.commit })); }
+function finish(){ if(state.finished) return; state.finished=true; state.phase='done'; audio.play('invoice', { gain:.7 });
+  const L=leverOf(state.lever), yours=bill(L,state.commit), best=BEST[L.id], rank=RANKED.indexOf(L);
+  const leverScore=[50,25,0][rank], commitScore=Math.round(50*THREE.MathUtils.clamp(1-((yours-best.bill)/best.bill)*4, 0, 1));
+  const score=leverScore+commitScore; lms.finish({ score, max:100, passed:score>=70 });
+  const overM=L.future.map((u,i)=>({m:CONTENT.known+1+i,u,...monthCost(L,state.commit,u)})); const spike=overM.reduce((a,b)=>b.over>a.over?b:a, overM[0]);
+  const spikePlan=planAt(spike.m);
+  const n=v=>v.toLocaleString('en-US'), overMonths=overM.filter(r=>r.over>0), winner=RANKED[0];
+  const underM=overM.filter(r=>r.u<state.commit), unusedUnits=underM.reduce((a,r)=>a+(state.commit-r.u),0), unusedNote=unusedUnits>0?(underM.length===1?` In month ${underM[0].m} you paid for ${n(unusedUnits)} ${L.unit} that you never used: <b>${fmt$(unusedUnits*L.rate)}</b>.`:` In the ${underM.length} months it stayed under, you paid for about ${n(Math.round(unusedUnits/underM.length))} ${L.unit} a month that you never used: <b>${fmt$(unusedUnits*L.rate)}</b> in all.`):'';
+  const sw=K=>`<span style="display:inline-block;width:11px;height:11px;background:${K.ink};border:1px solid #000;vertical-align:-1px;margin-right:5px"></span>`;
+  const leverNote=['lowest bill of the three','second-lowest bill','highest bill of the three'][rank];
+  document.getElementById('dbScore').textContent = `Results · ${score} of 100`;
+  document.getElementById('dbTitle').textContent = `${['Best lever','Second-best lever','Worst lever'][rank]}, ${commitScore>=45?'close commitment':commitScore>=25?'commitment off':'commitment far off'}`;
+  document.getElementById('dbSummary').innerHTML=`<tr><th></th><th>You</th><th>Best</th><th>Points</th></tr>`
+    +`<tr><td>Lever</td><td>${sw(L)}${L.name}<div class="needs">${leverNote}</div></td><td>${sw(winner)}${winner.name}</td><td>${leverScore} of 50</td></tr>`
+    +`<tr><td>Commitment</td><td>${n(state.commit)} ${L.unit}</td><td>${n(best.commit)} ${L.unit}<div class="needs">best for ${L.name}</div></td><td>${commitScore} of 50</td></tr>`
+    +`<tr><td>Bill, 5 months</td><td><b>${fmt$(yours)}</b></td><td>${fmt$(BEST[winner.id].bill)}<div class="needs">${winner.name} at ${n(BEST[winner.id].commit)} ${winner.unit}</div></td><td></td></tr>`;
+  document.getElementById('dbLook').innerHTML=`<b>On the chart:</b> the dashed line is your commitment. `
+    +(overMonths.length===1?`${L.name} went over it in month ${spike.m}${spikePlan?` (${spikePlan.title})`:''}: <b>${fmt$(spike.over)}</b> overage.`+unusedNote
+     :overMonths.length?`${L.name} went over it in months ${overMonths.map(r=>r.m).join(', ')}. Largest: month ${spike.m}${spikePlan?` (${spikePlan.title})`:''}, <b>${fmt$(spike.over)}</b> overage.`+unusedNote
+     :`${L.name} stayed under it every month. The bill was only the commitment.`+unusedNote);
+  document.getElementById('dbMonths').innerHTML=`<tr><th>Month</th><th>Used (${L.unit})</th><th>Over by</th><th>Billed</th><th>Plan</th></tr>`+overM.map(r=>{ const p=planAt(r.m);
+    return `<tr><td>${r.m}</td><td>${n(r.u)}</td><td class="${r.over?'bad':'ok'}">${r.over?n(r.u-state.commit):'—'}</td><td>${fmt$(r.base+r.over)}</td><td>${p?p.title:''}</td></tr>`; }).join('');
+  document.getElementById('dbLevers').innerHTML=`<tr><th>Lever</th><th>Best commitment</th><th>Bill, 5 months</th></tr>`+RANKED.map(K=>{ const b=BEST[K.id];
+    return `<tr class="${K===L?'you':''}"><td>${sw(K)}${K.name}${K===L?' <span class="amber">(yours)</span>':''}</td><td>${n(b.commit)} ${K.unit}</td><td>${fmt$(b.bill)}</td></tr>`; }).join('');
+  document.getElementById('dbSay').innerHTML=`<b>${L.name}.</b> ${L.say}`;
+  document.getElementById('dbSayMore').innerHTML=CONTENT.levers.filter(K=>K!==L).map(K=>`<b>${K.name}.</b> ${K.say}`).join('<br><br>');
+  document.getElementById('signsub').textContent='Done. Your results are on the right.';
+  document.getElementById('lock').hidden=true; const db=document.getElementById('debrief'); db.classList.add('on'); db.scrollTop=0; db.focus({preventScroll:true}); }
+document.getElementById('dbHide').addEventListener('click', ()=>{ document.getElementById('debrief').classList.remove('on'); const b=document.getElementById('dbShow'); b.hidden=false; b.focus(); });
+document.getElementById('dbShow').addEventListener('click', ()=>{ document.getElementById('debrief').classList.add('on'); document.getElementById('dbShow').hidden=true; document.getElementById('dbHide').focus(); });
+document.getElementById('startOver').addEventListener('click', ()=>{ lms.save(''); location.reload(); });
+(function restore(){ const raw=lms.resumeData(); if(!raw) return; try{ const s=JSON.parse(raw); if(s.v!==1||s.contentVersion!==CONTENT.version||!s.lever) return;
+  document.getElementById('intro').classList.remove('on'); const v=LEVERS.find(o=>o.L.id===s.lever); quiet=true; pull(v); quiet=true; setCommit(s.commit); quiet=false; LEVERS.forEach(o=>{ o.angle=o.target; }); reveal(); }catch(_){} })();
+document.getElementById('start').addEventListener('click', ()=>{ document.getElementById('intro').classList.remove('on'); clipBtn.el.focus(); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  FRAME
+═══════════════════════════════════════════════════════════════════════════*/
+const clock=new THREE.Clock();
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime, k=Math.min(1,dt*6);
+  for(const v of LEVERS){ v.angle+=(v.target-v.angle)*Math.min(1,dt*8); v.arm.rotation.x=v.angle; }
+  KNOB.g.rotation.z += (KNOB.angle-KNOB.g.rotation.z)*Math.min(1,dt*10);
+  for(const d of Object.values(D)){ d.angle+=(d.target-d.angle)*Math.min(1,dt*2.5); d.needle.rotation.z=d.angle+Math.sin(t*9)*.003; }
+  METER.bump=Math.max(0,METER.bump-dt*3); METER.face.position.z=METER.z+.01+.03*Math.sin(METER.bump*Math.PI);
+  if(anim){ const p=Math.min(1,(performance.now()-anim.t0)/anim.dur); const m=anim.from+(anim.to-anim.from)*p; drawChart(m); CH.pen(m-1); if(p>=1) anim=null; }
+  const tp=PRINTER.tape; const tg=tp.userData.target??0.001; tp.scale.y+=(tg-tp.scale.y)*Math.min(1,dt*3); tp.rotation.x=.06+Math.sin(t*1.3)*.02;
+  redLamp.userData.pulse=(redLamp.userData.pulse||0)*Math.max(0,1-dt*.7); redLamp.intensity=redLamp.userData.pulse*(4+Math.sin(t*5)*1.5);
+  renderer.render(scene,camera); projectLabels(); requestAnimationFrame(frame);
+}
+addEventListener('resize', ()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight); });
+drawChart(state.month); frame();
+window.__dbg={ audio, setDrums, METER, state, LEVERS, KNOB, D, camera, pull, setCommit, reveal, finish, BEST, RANKED, project:(x,y,z)=>{ const v=new THREE.Vector3(x,y,z).project(camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]; } };
+</script>
+</body>
+</html>

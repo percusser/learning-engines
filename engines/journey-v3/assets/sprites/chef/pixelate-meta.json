@@ -1,0 +1,9 @@
+{
+  "input": "/tmp/sprite-run/kitchen/chef-out/sheet-transparent.png",
+  "cell_size": 252,
+  "subject_height": 196,
+  "anchor_y": 0.9560889929742389,
+  "grid": 48,
+  "block": 4,
+  "palette": 24
+}

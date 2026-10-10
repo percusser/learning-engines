@@ -1,0 +1,9 @@
+{
+  "name": "counter",
+  "kind": "sfx",
+  "moment": "reveal: each month the bill drums roll to the new total",
+  "prompt": "Mechanical counter number drums rolling over quickly, a short run of metal wheel clicks",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:53.837Z"
+}

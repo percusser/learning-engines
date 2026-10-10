@@ -1,0 +1,9 @@
+{
+  "name": "strike",
+  "kind": "sfx",
+  "moment": "reveal, wrong: a loaded criterion is struck off your pan onto the table",
+  "prompt": "A heavy brass weight knocked off a metal scale pan, falling and clattering onto a wooden table top",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:47.988Z"
+}

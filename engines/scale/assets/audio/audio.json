@@ -1,0 +1,79 @@
+[
+  {
+    "name": "card-open",
+    "kind": "sfx",
+    "duration": 0.8,
+    "moment": "a weight's card opens (reading a criterion)",
+    "prompt": "A small solid brass weight lifted off a wooden rack and a thick paper card turned over on green felt, soft metal and paper"
+  },
+  {
+    "name": "sheet",
+    "kind": "sfx",
+    "duration": 1.0,
+    "moment": "the bake-off sheet opens (reading what is known)",
+    "prompt": "A sheet of heavy parchment paper picked up from a desk and held, crisp rustle"
+  },
+  {
+    "name": "place",
+    "kind": "sfx",
+    "duration": 1.2,
+    "moment": "a weight is placed on your pan (the per-placement commit, final)",
+    "prompt": "A heavy brass weight set down into a brass scale pan, bright metal clank, the pan chains rattling and the beam creaking as it tilts"
+  },
+  {
+    "name": "lock",
+    "kind": "sfx",
+    "duration": 1.5,
+    "moment": "Lock it confirmed: the scorecard is locked (the commit)",
+    "prompt": "A heavy iron embossing seal press pulled down onto thick paper: the lever creaking, a deep crunching press, then the lever springing back up"
+  },
+  {
+    "name": "strike",
+    "kind": "sfx",
+    "duration": 1.2,
+    "moment": "reveal, wrong: a loaded criterion is struck off your pan onto the table",
+    "prompt": "A heavy brass weight knocked off a metal scale pan, falling and clattering onto a wooden table top"
+  },
+  {
+    "name": "unroll",
+    "kind": "sfx",
+    "duration": 1.2,
+    "moment": "reveal: the bake-off sheet unrolls",
+    "prompt": "A roll of stiff parchment unrolled across a wooden desk, dry paper crackle"
+  },
+  {
+    "name": "take-us",
+    "kind": "sfx",
+    "duration": 1.0,
+    "moment": "reveal, right: a criterion lands on your pan (you take it)",
+    "prompt": "A brass weight dropped into a brass balance pan with a clear ringing clink, the pan swinging on its chains"
+  },
+  {
+    "name": "take-them",
+    "kind": "sfx",
+    "duration": 1.0,
+    "moment": "reveal, wrong: a criterion lands on their pan (they take it)",
+    "prompt": "A heavy iron weight dropped onto a wooden board with a dull dead thud, no ring"
+  },
+  {
+    "name": "take-even",
+    "kind": "sfx",
+    "duration": 0.7,
+    "moment": "reveal: a split criterion is set on the rail at the fulcrum",
+    "prompt": "A small brass weight set gently down on a brass rail, a light soft tap"
+  },
+  {
+    "name": "result-won",
+    "kind": "sfx",
+    "duration": 2.0,
+    "moment": "end: the beam settles your way (you take the bake-off)",
+    "prompt": "A large brass balance scale beam swinging down and settling, a long warm metallic ring fading slowly"
+  },
+  {
+    "name": "result-lost",
+    "kind": "sfx",
+    "duration": 1.5,
+    "moment": "end: the beam drops their way or sits level (you do not take it)",
+    "prompt": "A heavy brass scale beam dropping hard onto its iron stop, a flat heavy clunk and a short rattle of chains"
+  }
+]

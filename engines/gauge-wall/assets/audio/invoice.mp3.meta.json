@@ -1,0 +1,9 @@
+{
+  "name": "invoice",
+  "kind": "sfx",
+  "moment": "end of term: the invoice is torn off and the debrief opens",
+  "prompt": "A long paper receipt torn off a printer's serrated edge, one quick sharp paper rip",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:01.036Z"
+}

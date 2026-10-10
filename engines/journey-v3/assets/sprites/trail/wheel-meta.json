@@ -1,0 +1,9 @@
+{
+  "input": "/tmp/sprite-run/trail/wheel2-out/sheet-transparent.png",
+  "cell_size": 264,
+  "subject_height": 224,
+  "anchor_y": 0.9242424242424242,
+  "grid": 56,
+  "block": 4,
+  "palette": 16
+}

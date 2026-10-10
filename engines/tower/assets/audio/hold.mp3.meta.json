@@ -1,0 +1,9 @@
+{
+  "name": "hold",
+  "kind": "sfx",
+  "moment": "REVEAL right: the hand tests a block, the peg carries it, it stays",
+  "prompt": "A heavy wooden block pressed down firmly by a flat hand onto a stack of solid hardwood blocks, a deep steady wooden creak and thud, the stack settles and holds",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:40.717Z"
+}

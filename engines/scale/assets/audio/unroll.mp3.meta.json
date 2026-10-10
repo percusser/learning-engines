@@ -1,0 +1,9 @@
+{
+  "name": "unroll",
+  "kind": "sfx",
+  "moment": "reveal: the bake-off sheet unrolls",
+  "prompt": "A roll of stiff parchment unrolled across a wooden desk, dry paper crackle",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:53.582Z"
+}

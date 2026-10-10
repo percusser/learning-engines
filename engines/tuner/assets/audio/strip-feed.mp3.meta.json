@@ -1,0 +1,9 @@
+{
+  "name": "strip-feed",
+  "kind": "sfx",
+  "moment": "the next transcript line feeds out of the slot",
+  "prompt": "Teleprinter paper tape feeding out of a machine slot, short fast mechanical ratchet and paper sliding",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:49:44.822Z"
+}

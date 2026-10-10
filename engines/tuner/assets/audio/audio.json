@@ -1,0 +1,12 @@
+[
+  {"name":"tape-start","kind":"sfx","duration":1.5,"moment":"Start pressed: the recording begins","prompt":"Reel-to-reel tape machine starting: the mechanical clunk of the play key, then the motor and reels spinning up and running steadily"},
+  {"name":"station","kind":"sfx","duration":0.5,"moment":"the needle settles on a station (soft, quiet, neutral: not a right/wrong signal)","prompt":"One tiny soft click of a small plastic switch, very quiet and short, clean and dry, no tone, no hum, no static, no ringing","influence":0.9},
+  {"name":"file-open","kind":"sfx","duration":1,"moment":"a station file is opened (read the evidence)","prompt":"A single sheet of paper slid out of a manila card folder onto a desk, crisp paper rustle, close up"},
+  {"name":"reframe","kind":"sfx","duration":0.5,"influence":0.8,"moment":"a reply option is picked","prompt":"One firm click of a vintage bakelite push-button switch being pressed"},
+  {"name":"strip-feed","kind":"sfx","duration":1.2,"moment":"the next transcript line feeds out of the slot","prompt":"Teleprinter paper tape feeding out of a machine slot, short fast mechanical ratchet and paper sliding"},
+  {"name":"punch","kind":"sfx","duration":1.2,"moment":"Submit confirmed: the tag is punched and hung (the commit)","prompt":"A heavy steel hand ticket punch biting through thick card stock with a sharp metallic chunk, then the card tag dropped onto a metal hook"},
+  {"name":"lock-right","kind":"sfx","duration":1,"moment":"reveal, source named right: the magic eye holds open","prompt":"Short soft pleasant two-note bell chime, rising, gentle and bright, clean, no hum, no buzz"},
+  {"name":"lock-wrong","kind":"sfx","duration":1.5,"moment":"reveal, source named wrong: the magic eye flutters shut","prompt":"Old tube radio losing its station: a harsh crackle of static and a wavering detuned whistle that drifts off and fades"},
+  {"name":"counter","kind":"sfx","duration":0.8,"moment":"the unanswered-pitches counter clicks up (the counter face bumps at the same moment)","prompt":"A mechanical tally counter number wheel clicking over by one, heavy metal ratchet clack"},
+  {"name":"hidden-lit","kind":"sfx","duration":2,"moment":"end of the tape: the competitor in the account lights up on the dial","prompt":"Gentle warm three-note rising chime with soft sparkle, calm reveal, clean and bright, no hum, no buzz, no drone"}
+]

@@ -1,0 +1,9 @@
+{
+  "name": "lock",
+  "kind": "sfx",
+  "moment": "COMMIT: Lock it confirmed, the tower goes into the meeting (ducks the bed)",
+  "prompt": "A heavy brass latch on a wooden case snapped shut, solid metallic clunk",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:08.049Z"
+}

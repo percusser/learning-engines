@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Tower</title>
+<link rel="icon" href="data:,">
+<style>
+  /* Fonts ship in the package (SIL OFL). No network at play time. */
+  @font-face{font-family:"Alegreya SC";src:url(./assets/fonts/Alegreya-SC_400.woff2) format("woff2");font-weight:400;font-display:block}
+  @font-face{font-family:"Alegreya SC";src:url(./assets/fonts/Alegreya-SC_700.woff2) format("woff2");font-weight:700;font-display:block}
+  @font-face{font-family:"Alegreya";src:url(./assets/fonts/Alegreya_var.woff2) format("woff2");font-weight:400 700;font-display:block}
+  /* --cream, --cream-bright, --plate-*, --gold-*, --accent*, --fail*, --ok: the theme pack's palette
+     (engines/tower/index.html sets these from CONTENT.theme at load; content-packs/README.md#theme).
+     --pale/--walnut/--ui/--wr/--pan are engine chrome, not part of the pack's look. */
+  :root{ --cream:#EFE3CC; --cream-bright:#F6EEDC; --plate-hi:#2b2018; --plate-lo:#151009; --plate-border:#4d3a28;
+    --gold-hi:#d9b56a; --gold-lo:#9d7330; --gold-text:#E3BF74; --accent:#3E7FC8; --accent-bright:#8FBEEA;
+    --fail:#B8302A; --fail-bright:#E0533F; --ok:#6FD08C;
+    --pale:#D9C49A; --walnut:#3A2214; --ui:1; --wr:1; --pan:0px }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0b0907;color:var(--cream);
+    font-family:"Alegreya",Georgia,serif;font-weight:400;-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .sc{font-family:"Alegreya SC",Georgia,serif;letter-spacing:.05em}
+  b{font-weight:700}
+
+  /* projected world labels: every label sits on a dark plate */
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  .lbl{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));
+    font-size:14px;line-height:1.2;color:var(--cream-bright);background:rgba(14,11,8,.93);padding:4px 9px;border:1px solid #4a3a2a;
+    box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .lbl.small{font-size:15px;white-space:nowrap}
+  /* a quote peg's label: hover reads it, click pins it, drag takes the peg */
+  .lbl.peg{white-space:nowrap;font-size:15px;padding:3px 8px;pointer-events:auto;cursor:grab;touch-action:none;border-color:var(--accent)}
+  .lbl.peg:hover,.lbl.peg.pin{background:#1d2a3a;border-color:var(--accent-bright)}
+  .lbl.peg em{font-style:normal;color:#B9A98D;letter-spacing:.04em}
+  .lbl.peg i{font-style:normal;color:var(--gold-text)}
+  .lbl.peg.used{border-color:#5a5048;color:#9a9086;cursor:pointer}
+  .lbl.peg.used i{color:#9a9086}
+  body.narrow .lbl.peg .who{display:none}
+  /* the level names down the left side of the tower; the next empty slot is marked */
+  .lbl.lvl{transform:translate(-100%,-50%) scale(var(--ui));transform-origin:right center;white-space:nowrap;font-size:16px;
+    padding:2px 10px;color:#9d8f7a;background:rgba(14,11,8,.82);border-color:#3a2e22}
+  .lbl.lvl u{text-decoration:none;font-family:"Alegreya SC";font-weight:700;margin-right:4px}
+  .lbl.lvl span{color:var(--cream-bright)}
+  .lbl.lvl i{font-style:normal;color:var(--accent-bright);margin-left:6px}
+  .lbl.lvl i.none{color:#C9866F}
+  .lbl.lvl.placed{color:#D9C49A;border-color:#4a3a2a}
+  .lbl.lvl.next{color:#2a1d08;background:var(--gold-text);border-color:#FFE3A6;font-weight:700;box-shadow:0 0 14px rgba(227,191,116,.55)}
+  .lbl.lvl.next::after{content:"  \25B6";font-size:12px}
+  /* the link between a block and the one under it */
+  /* with the results docked the table is narrower: the tower and tray labels keep only the essentials */
+  body.debriefing .lbl.lvl .g, body.debriefing .lbl.peg .who, body.debriefing .lbl.peg i{display:none}
+  .lbl.link{transform:translate(0,-50%) scale(var(--ui));transform-origin:left center;white-space:nowrap;font-size:16px;
+    padding:1px 8px;color:var(--gold-text);border-color:#6a5334;font-family:"Alegreya SC";letter-spacing:.05em}
+  .lbl.link.pending{opacity:.55;border-style:dashed}
+  /* the full claim under each block in the rack, and the quote stuck in it */
+  .lbl.claim{pointer-events:auto;cursor:grab;touch-action:none;width:calc(290px*var(--wr)/var(--ui));font-size:16px;line-height:1.25;padding:5px 10px;transform:translate(-50%,0) scale(var(--ui));transform-origin:top center}
+  .lbl.claim b{display:block;font-family:"Alegreya SC";font-weight:400;font-size:13px;letter-spacing:.14em;color:#B08A54}
+  .lbl.claim i{display:block;font-style:normal;margin-top:3px;color:var(--accent-bright)}
+  .lbl.claim i.none{color:#8d7c63}
+  .lbl.claim.target{border-color:var(--accent-bright);background:#1d2a3a;box-shadow:0 0 16px rgba(62,127,200,.7)}
+  .lbl.pulled{white-space:nowrap;background:#5c1310;border-color:var(--fail-bright);color:#FFD9D2;font-family:"Alegreya SC",Georgia,serif;
+    letter-spacing:.16em;font-size:12px;box-shadow:0 0 22px rgba(200,50,35,.8),0 2px 6px rgba(0,0,0,.6)}
+  #sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+  /* pushback plate: what the room says out loud, docked under the sign */
+  #say{position:fixed;z-index:11;left:50%;bottom:30px;transform:translateX(-50%) scale(var(--ui));transform-origin:bottom center;
+    /* never let the pushback plate reach under the bench plate on the left or the lock on the right */
+    width:max(240px,min(486px,54vw,100vw - 68px - 804px*var(--ui)));background:linear-gradient(180deg,#2a1613,#140b09);border:2px solid #8a2f26;padding:11px 16px;
+    box-shadow:0 12px 30px rgba(0,0,0,.8);font-size:17px;line-height:1.4;color:#F6E2DC;text-align:center;
+    opacity:0;pointer-events:none;transition:opacity .3s}
+  #say.on{opacity:1}
+  #say.plain{border-color:#6a5334;background:linear-gradient(180deg,#26200f,#120e07);color:#F0E6CE}
+  #say.plain em{color:var(--gold-text)}
+  #say.ok{border-color:#3d7a4e;background:linear-gradient(180deg,#16241a,#0a140d);color:#DFF2E2}
+  #say.ok em{color:var(--ok)}
+  #say em{display:block;font-style:normal;font-family:"Alegreya SC";font-size:11px;letter-spacing:.2em;color:var(--fail-bright);margin-bottom:5px}
+
+  /* diegetic HUD */
+  .plate{position:fixed;z-index:10;padding:10px 16px;
+    background:linear-gradient(180deg,var(--plate-hi),var(--plate-lo));border:2px solid var(--plate-border);
+    box-shadow:inset 0 0 0 3px #0c0907,inset 0 0 0 4px #5d472f,0 6px 18px rgba(0,0,0,.6);color:var(--cream)}
+  .plate::before,.plate::after{content:"";position:absolute;top:6px;width:6px;height:6px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#9a8a70,#2b2419);box-shadow:0 1px 0 #000}
+  .plate::before{left:6px}.plate::after{right:6px}
+  #sign{left:50%;transform:translateX(-50%) scale(var(--ui));transform-origin:top center;top:14px;font-size:19px;line-height:1.05;text-align:center;max-width:min(700px,100vw - 700px*var(--ui))}
+  /* the debrief docks on the right: recentre the sign in the space that is left */
+  /* centred in what is left: right of the chain plate, left of the panel */
+  body.debriefing #sign{left:calc((100vw - var(--pan))/2);max-width:min(700px,100vw - var(--pan) - 36px)}
+  #ask{left:18px;top:14px;width:270px;transform:scale(var(--ui));transform-origin:top left;padding:12px 18px 14px}
+  #ask .eye{font-family:"Alegreya SC";font-size:13px;letter-spacing:.18em;color:#B08A54}
+  #ask q{display:block;quotes:none;font-size:19px;line-height:1.3;margin-top:6px;color:#F0E6CE}
+  #ask p{font-size:16px;line-height:1.4;color:#C7B99C;margin-top:10px}
+  body.debriefing #ask, body.debriefing #nbBtn{display:none}
+  #nbBtn{right:18px;bottom:140px;cursor:pointer;font-size:14px;padding:7px 18px;transform:scale(var(--ui));transform-origin:bottom right}
+  #nbBtn:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #nbList{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:0 26px}
+  #nbList .q{margin:12px 0 0}
+  #nbList .q b{display:block;font-family:"Alegreya SC";letter-spacing:.06em;font-size:15px;color:#B08A54;font-weight:400}
+  #nbList .q b i{font-style:normal;color:var(--gold-text);margin-right:8px}
+  #nbList .q p{margin:4px 0 0;padding:9px 13px;background:var(--cream);color:#241A10;font-size:17px;line-height:1.4}
+  #sign small{display:block;font-size:17px;letter-spacing:.02em;opacity:.92;margin-top:5px;font-family:"Alegreya";line-height:1.35}
+  /* the customer quote under the pointer, or the pinned one */
+  #quote{left:18px;bottom:18px;transform:scale(var(--ui));transform-origin:bottom left;width:400px;padding:12px 18px 14px}
+  #quote .eye{font-family:"Alegreya SC";font-size:13px;letter-spacing:.18em;color:#B08A54;display:flex;justify-content:space-between}
+  #quote .eye b{color:var(--gold-text);font-weight:400}
+  #quote h3{font-family:"Alegreya SC";font-weight:700;font-size:21px;line-height:1.1;margin:4px 0 0;letter-spacing:.03em}
+  #quote .meta{font-size:16px;color:#B9A98D;margin-top:2px}
+  #quote blockquote{background:var(--cream);color:#241A10;padding:10px 14px;font-size:18px;line-height:1.4;margin:10px 0 0}
+  #quote .use{font-size:17px;line-height:1.35;color:#D9C49A;margin-top:9px}
+  #quote .help{font-size:17px;line-height:1.4;color:#C7B99C;margin-top:6px}
+  /* the plain keyboard list: out of sight until a key moves focus into it */
+  #keys{left:18px;top:18px;width:420px;max-height:calc(100vh - 36px);overflow:auto;z-index:15}
+  #keys:not(:has(:focus-visible)){position:fixed;left:-9999px;top:0}
+  #keys h2{font-family:"Alegreya SC";font-size:13px;letter-spacing:.18em;color:#B08A54;margin:8px 0 2px}
+  #keys button{display:block;width:100%;text-align:left;font-family:"Alegreya",Georgia,serif;font-size:17px;line-height:1.25;
+    padding:5px 9px;margin-top:4px;border:1px solid var(--plate-border);background:#241b12;color:#E8DCC4;cursor:pointer;border-radius:3px}
+  #keys button[aria-pressed="true"]{border-color:var(--gold-text);background:#3d2e11;color:#F6E3BC}
+  #keys button[aria-disabled="true"]{opacity:.6}
+  #keys button:focus-visible{outline:3px solid #7FD4FF;outline-offset:1px}
+  #keys #kPlace{font-family:"Alegreya SC";font-weight:700;background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));color:#2a1d08;margin-top:10px;text-align:center}
+  #lock{position:fixed;right:18px;bottom:18px;z-index:10;cursor:pointer;transform-origin:bottom right;
+    width:212px;height:64px;border:0;border-radius:6px;padding:0 10px;font-family:"Alegreya SC",Georgia,serif;font-weight:700;letter-spacing:.05em;
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #5f4415,0 8px 0 #2b1f0a,0 12px 20px rgba(0,0,0,.6);
+    color:#2a1d08;font-size:18px;transition:transform .08s,box-shadow .08s;transform:scale(var(--ui))}
+  #lock:active{transform:scale(var(--ui)) translateY(6px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 #5f4415,0 2px 0 #2b1f0a}
+  #lock:disabled{filter:saturate(.3) brightness(.6);cursor:default}
+  #lock:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #sound{right:18px;bottom:96px;cursor:pointer;font-size:14px;padding:7px 18px;transform:scale(var(--ui));transform-origin:bottom right}
+  #sound[aria-pressed=false]{opacity:.7}
+  #sound:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  body.debriefing #sound{right:calc(min(530px,94vw) + 18px);bottom:18px}
+
+
+  /* overlays */
+  /* visibility:hidden keeps a closed overlay out of the tab order; it still fades */
+  .ov{position:fixed;inset:0;z-index:20;display:flex;align-items:safe center;justify-content:center;overflow:auto;padding:16px 0;
+    background:radial-gradient(ellipse at center,rgba(12,9,6,.74),rgba(0,0,0,.93));opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity .35s,visibility 0s .35s}
+  .ov.on{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .35s,visibility 0s}
+  .card{width:min(700px,92vw);padding:32px 38px;background:#1c1611;border:2px solid #40311f;
+    box-shadow:inset 0 0 0 4px #0d0a07,inset 0 0 0 5px #5d472f,0 30px 60px #000;color:var(--cream)}
+  .card h1{font-family:"Alegreya SC",Georgia,serif;font-weight:700;font-size:34px;line-height:1;margin-bottom:6px;letter-spacing:.02em}
+  .card h1 small{display:block;font-family:"Alegreya SC";font-weight:400;font-size:12px;letter-spacing:.3em;opacity:.55;margin-bottom:10px}
+  .card p{font-size:17px;line-height:1.45;margin:12px 0;color:#E6DAC2}
+  .card ol,.card ul{margin:10px 0 4px 22px;font-size:17px;line-height:1.5;color:#E6DAC2}
+  .card b{color:var(--gold-text)}
+  .card h2{font-family:"Alegreya SC";font-weight:700;font-size:14px;letter-spacing:.16em;color:#B08A54;margin:18px 0 0}
+  .card p.sub{font-size:19px;color:#F0E6CE;margin:4px 0 0}
+  .card .rule{border-top:1px dashed #4a3d2c;margin:18px 0}
+  .card button{font-family:"Alegreya SC",Georgia,serif;font-weight:700;letter-spacing:.05em;font-size:18px;padding:12px 26px;cursor:pointer;border:0;color:#2a1d08;
+    background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 #2b1f0a}
+  .card button:active{transform:translateY(4px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 1px 0 #2b1f0a}
+  .card button.quiet{background:#3a3128;color:#eee;box-shadow:none}
+  .card button:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  .needs{font-size:17px;color:#C7B99C;line-height:1.45}
+  .quote{background:var(--cream);color:#241A10;padding:18px 22px;font-size:19px;line-height:1.45;box-shadow:inset 0 0 0 1px #bda981;margin:14px 0}
+  .quote cite{display:block;font-style:normal;font-family:"Alegreya SC";font-size:12.5px;letter-spacing:.14em;color:#6d5533;margin-top:12px}
+  table.dbf{width:100%;border-collapse:collapse;font-size:17px;margin:8px 0}
+  table.dbf th{text-align:left;font-family:"Alegreya SC";font-weight:400;letter-spacing:.14em;font-size:13px;opacity:.6;padding:4px 6px;border-bottom:1px solid #40311f}
+  table.dbf td{padding:6px;border-bottom:1px solid #2a2118;vertical-align:top;line-height:1.35}
+  .stood{color:var(--ok)}.fell{color:var(--fail-bright)}.amber{color:var(--gold-text)}
+  table.dbf td.tight{white-space:nowrap;width:1%}
+  #debrief{position:fixed;top:0;right:0;bottom:0;z-index:20;width:min(530px,94vw);overflow:auto;padding:24px 26px;
+    transform:translateX(105%);visibility:hidden;transition:transform .45s,visibility 0s .45s;border-width:0 0 0 2px}
+  #debrief.on{transform:none;visibility:visible;transition:transform .45s,visibility 0s}
+  #debrief:focus{outline:none}
+  #debrief:focus-visible{outline:3px solid #7FD4FF;outline-offset:-3px}
+  #debrief h1{font-size:26px}
+  #dbHide{float:right;margin:0 0 8px 14px}
+  #debrief h2{font-family:"Alegreya SC";font-size:12px;letter-spacing:.2em;opacity:.7;margin-top:20px;margin-bottom:2px}
+  #debrief p{font-size:17px;margin:8px 0}
+  #debrief button{font-size:15px;padding:9px 16px}
+  .rung{margin:10px 0;padding:9px 12px;border-left:4px solid var(--plate-border);background:rgba(201,154,75,.07);font-size:17px;line-height:1.4}
+  .rung.fell{border-left-color:var(--fail);color:inherit}
+  .rung.stood{border-left-color:var(--ok);color:inherit}
+  .rung h4{font-family:"Alegreya SC";font-weight:700;font-size:17px;letter-spacing:.03em;margin-bottom:3px}
+  .rung .said{color:#F0CFC7;margin:5px 0}
+  .rung .held{color:#C7B99C}
+  #dbShow{position:fixed;right:18px;bottom:18px;z-index:21;transform:scale(var(--ui));transform-origin:bottom right;cursor:pointer;
+    width:212px;height:64px;border:0;border-radius:6px;background:linear-gradient(180deg,var(--gold-hi),var(--gold-lo));color:#2a1d08;
+    font-family:"Alegreya SC",Georgia,serif;font-weight:700;font-size:18px;letter-spacing:.05em;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #5f4415,0 8px 0 #2b1f0a,0 12px 20px rgba(0,0,0,.6)}
+  #err{position:fixed;left:0;right:0;bottom:0;z-index:99;background:#400;color:#fdd;font:12px monospace;padding:8px;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div class="plate sc" id="sign">The Tower<small id="signsub"></small></div>
+<div id="sr" role="status" aria-live="polite"></div>
+<div id="say"></div>
+<div class="plate" id="ask"><div class="eye">THE COO ASKS</div><q id="askQ"></q><p id="askHelp"></p></div>
+<div class="plate" id="quote" aria-live="off"></div>
+
+<section class="plate" id="keys" aria-label="Keyboard controls">
+  <h2>Customer quotes</h2><div id="kQuotes"></div>
+  <h2 id="kClaimsHd">Claims</h2><div id="kClaims"></div>
+  <button type="button" id="kPlace">Place on tower</button>
+</section>
+<button id="lock" disabled>Start meeting</button>
+<button id="sound" class="plate sc" type="button">Sound on</button>
+<button id="nbBtn" class="plate sc" type="button">Notebook</button>
+
+<div class="ov" id="notebook"><div class="card" style="width:min(1080px,94vw)" role="dialog" aria-labelledby="nbTitle">
+  <h1><span id="nbTitle">Your notebook</span></h1>
+  <p class="sub">What the bank told you. Read all eight, then decide the story.</p>
+  <div id="nbList"></div>
+  <div class="rule"></div>
+  <button id="nbGo">Start building</button>
+</div></div>
+
+<div class="ov on" id="intro"><div class="card">
+  <h1>The Tower</h1>
+  <p class="sub" id="inSub"></p>
+  <h2>The situation</h2>
+  <p id="inSituation"></p>
+  <h2>Your goal</h2>
+  <p id="inGoal"></p>
+  <div class="rule"></div>
+  <button id="start">Start</button>
+</div></div>
+
+<div class="ov" id="confirm"><div class="card" style="width:min(560px,92vw)" role="dialog" aria-labelledby="cfTitle">
+  <h1><span id="cfTitle">Start the meeting?</span></h1>
+  <p id="cfBody"></p>
+  <p>You can't change your case after this.</p>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px"><button id="cfYes">Start meeting</button><button id="cfNo" class="quiet">Back</button></div>
+</div></div>
+
+<aside id="debrief" class="card" aria-label="Debrief" tabindex="-1">
+  <button id="dbHide" class="quiet">Hide results</button>
+  <h1><small>Results</small><span id="dbTitle"></span></h1>
+  <table class="dbf" id="dbScore"></table>
+  <h2>Level by level</h2>
+  <table class="dbf" id="dbTable"></table>
+  <h2>Details</h2>
+  <div id="dbRungs"></div>
+  <div class="rule"></div>
+  <button id="startOver" class="quiet">Start over</button>
+</aside>
+<button id="dbShow" hidden>Show results</button>
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/",
+  "scorm": "./scorm.js"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { connectScorm } from 'scorm';
+import { createAudio } from './assets/audio/audio.js';
+import { planFall, GRAV } from './collapse.js';
+import defaultContent from './content.js';
+import { validatePack } from './validate-pack.mjs';
+
+window.addEventListener('error', e=>{ const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.error?.stack || e.message); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CONTENT PACK — the only place a product, a vendor or a person appears.
+  Engine, HUD and mechanics are generic. Default lives in ./content.js;
+  content-packs/tower/*.json swap in via window.__ENGINE_CONTENT__.
+═══════════════════════════════════════════════════════════════════════════*/
+const CONTENT = window.__ENGINE_CONTENT__ ?? defaultContent;
+{
+  const problems = validatePack(CONTENT);
+  if (problems.length) {
+    document.body.innerHTML = `<div style="padding:40px;font:16px/1.5 system-ui;color:#eee;background:#300;height:100%">
+      <h1>Content pack failed validation</h1><ul>${problems.map(p=>`<li>${p}</li>`).join('')}</ul></div>`;
+    throw new Error('Invalid content pack:\n' + problems.join('\n'));
+  }
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  THEME — the look (wood, brass, ink, the evidence peg and pushback colors),
+  separate from the pack's facts. Same lookup shape as
+  layers/theme/registry.ts's createThemeRegistry (that file is imported by
+  relative path elsewhere; here it's inlined since a .ts import doesn't run
+  in a plain browser module). No `theme` on the pack means the engine renders
+  pixel-identical to before this seam existed.
+═══════════════════════════════════════════════════════════════════════════*/
+const THEME_PACKS = {
+  default: {
+    colors: {
+      '--cream':'#EFE3CC', '--cream-bright':'#F6EEDC',
+      '--plate-hi':'#2b2018', '--plate-lo':'#151009', '--plate-border':'#4d3a28',
+      '--gold-hi':'#d9b56a', '--gold-lo':'#9d7330', '--gold-text':'#E3BF74',
+      '--accent':'#3E7FC8', '--accent-bright':'#8FBEEA',
+      '--fail':'#B8302A', '--fail-bright':'#E0533F', '--ok':'#6FD08C',
+    },
+  },
+};
+function getTheme(packId){
+  const requestedPack = packId || 'default';
+  const theme = THEME_PACKS[requestedPack];
+  if (theme) return { theme, requestedPack, activePack:requestedPack };
+  console.warn(`[tower] pack "${requestedPack}" not available, using "default"`);
+  return { theme:THEME_PACKS.default, requestedPack, activePack:'default' };
+}
+const { theme: LOOK } = getTheme(CONTENT.theme?.pack);
+const COLOR = { ...LOOK.colors, ...(CONTENT.theme?.colors || {}) };
+for (const k of Object.keys(THEME_PACKS.default.colors)) document.documentElement.style.setProperty(k, COLOR[k]);
+// THREE.js materials read colors, not CSS: pull the same roles in as hex numbers.
+const THEME_HEX = Object.fromEntries(Object.entries(COLOR).map(([k,v])=>[k, parseInt(v.replace('#',''),16)]));
+
+const LEVELS = CONTENT.levels.length;
+const evOf = id=>CONTENT.evidence.find(e=>e.id===id);
+const blOf = id=>CONTENT.blocks.find(b=>b.id===id);
+const forLevel = i=>CONTENT.blocks.filter(b=>b.level===i);
+const NUM = ['no','one','two','three','four','five'];
+const holds = (b,pegId)=>!!pegId && b.supports.includes(pegId);
+// a link is only a link if it also comes out of the block underneath it
+const chains = (b,belowId)=> b.level===0 || (!!belowId && b.follows.includes(belowId));
+// why a block comes out: '' it stays, 'peg' the quote does not carry the claim, 'link' it does not follow from the one below
+const fault = (i,picks)=>{ const b=blOf(picks[i].block);
+  if(!holds(b,picks[i].peg)) return 'peg';
+  return chains(b, i>0 ? picks[i-1].block : null) ? '' : 'link'; };
+const followList = b => b.follows.map(id=>`“${blOf(id).claim}”`).join(' or ');
+// which quote would have backed a claim, and whether you had already used it on another level
+function backedBy(b, i){
+  if(!b.supports.length) return `No customer quote backs this claim. ${b.hold}`;
+  const codes = b.supports.map(id=>evOf(id).code).join(' or ');
+  const free = b.supports.filter(id=>!state.picks.some((q,j)=>j!==i && q.peg===id));
+  if(!free.length){ const j = state.picks.findIndex(q=>q.peg===b.supports[0]);
+    return `Only quote ${codes} backs it, and you used that quote on level ${j+1}.`; }
+  return `Quote ${codes} backs it. ${b.hold}`; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STATE — phase: build -> reveal -> done
+═══════════════════════════════════════════════════════════════════════════*/
+// att: which quote is stuck in which claim in the rack. kQuote/kClaim: the keyboard list's choices. pinned/hoverQ: the quote panel.
+const state = { phase:'build', level:0, picks:[], att:{}, kQuote:null, kClaim:null, pinned:null, hoverQ:null, busy:false, finished:false, firstFail:-1 };
+
+/* SOUND — assets/audio/audio.json lists each sound and the moment it fires on */
+const audio = createAudio({ storageKey:'tower.muted',
+  sfx:{ 'note-open':'./assets/audio/note-open.mp3', 'block-pick':'./assets/audio/block-pick.mp3', 'peg-in':'./assets/audio/peg-in.mp3',
+        'block-set':'./assets/audio/block-set.mp3', lock:'./assets/audio/lock.mp3', hold:'./assets/audio/hold.mp3',
+        pull:'./assets/audio/pull.mp3', collapse:'./assets/audio/collapse.mp3', debrief:'./assets/audio/debrief.mp3' } });
+audio.mountToggle(document.getElementById('sound'));
+
+/*═══════════════════════════════════════════════════════════════════════════
+  RENDERER, ENVIRONMENT, LIGHT
+═══════════════════════════════════════════════════════════════════════════*/
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.02;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0907);
+scene.fog = new THREE.Fog(0x0b0907, 22, 40);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .60;
+
+const CAM_AT = new THREE.Vector3(0, 0.5, 1.0);
+let panK = 0;   // 0: the world has the whole window. 1: it sits clear of the docked debrief panel.
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, .1, 80);
+camera.position.set(0, 18.0, 17.2);
+camera.lookAt(CAM_AT);
+// The table has to fit on any window: pick the fov that shows the whole working
+// width and the whole working depth, and scale the HTML layer with it.
+function fitCamera(){
+  const dist=camera.position.distanceTo(CAM_AT), needH=10.0, aspect=innerWidth/innerHeight;
+  // when the debrief docks on the right the world has to fit in what is left of the window,
+  // so widen the frustum by that much and push it right: the table slides clear of the panel.
+  const pan = Math.min(panK * document.getElementById('debrief').offsetWidth, innerWidth*.6);
+  document.documentElement.style.setProperty('--pan', pan+'px');
+  const free = innerWidth - pan, needW = 16.6*innerWidth/free;
+  const fovH=2*Math.atan(needH/2/dist), fovW=2*Math.atan(needW/2/dist/aspect);
+  camera.fov=THREE.MathUtils.radToDeg(Math.max(fovH,fovW)); camera.aspect=aspect;
+  if(pan) camera.setViewOffset(innerWidth, innerHeight, pan/2, 0, innerWidth, innerHeight); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+  const ref=2*Math.tan(THREE.MathUtils.degToRad(34)/2)*dist, cur=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*dist;
+  // the HUD plates compete for width as well as height, so both drive the scale
+  const room=Math.min(innerHeight/900, innerWidth/1300);
+  const ui=Math.max(.55, Math.min(1, room*(ref/cur)));
+  document.documentElement.style.setProperty('--ui', ui.toFixed(3));
+  // how big the table draws against 1440x900: the claim labels keep to their block's width, and when the
+  // labels are big for the table the tray labels drop the name so the two columns never touch
+  const wr = (innerHeight/cur)/(900/ref)/1.405;   // 1.405: the same ratio at 1440x900, so wr is 1 there
+  document.documentElement.style.setProperty('--wr', wr.toFixed(3));
+  document.body.classList.toggle('narrow', ui/wr > 1.1);
+}
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0x4a4034, .85));
+function pendant(x,z,i=78){
+  const L=new THREE.SpotLight(0xffe0b4, i, 30, Math.PI/3.2, .65, 1.5);
+  L.position.set(x,7.4,z); L.target.position.set(x,0,z); L.castShadow=true;
+  L.shadow.mapSize.set(2048,2048); L.shadow.bias=-0.0006; L.shadow.normalBias=.02;
+  scene.add(L, L.target);
+  const g=new THREE.Group(); g.position.set(x,7.4,z);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.16,.42,.4,20,1,true), new THREE.MeshStandardMaterial({color:0x241c14, metalness:.7, roughness:.5, side:THREE.DoubleSide})));
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.1,16,12), new THREE.MeshBasicMaterial({color:0xffe4bb})); bulb.position.y=-.2; g.add(bulb);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.014,.014,2.4,6), new THREE.MeshStandardMaterial({color:0x151210, metalness:.9, roughness:.4})).translateY(1.4));
+  scene.add(g); return L;
+}
+pendant(-3.6, -1.0); pendant(3.2, 0.6);
+const fill = new THREE.DirectionalLight(0xbccbe0, .45); fill.position.set(-6, 9, 12); scene.add(fill);
+const fill2 = new THREE.DirectionalLight(0xffe6c4, .30); fill2.position.set(7, 7, -4); scene.add(fill2);
+const failLamp = new THREE.PointLight(THEME_HEX['--fail-bright'], 0, 9, 2); failLamp.position.set(0, 3.4, 2.0); scene.add(failLamp);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MATERIALS — textures generated at authoring time, bundled as jpg
+═══════════════════════════════════════════════════════════════════════════*/
+const tl = new THREE.TextureLoader();
+function tex(name, rx=1, ry=1){ const t=tl.load(`./assets/tex/${name}.jpg`); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t; }
+const M = {
+  walnut: new THREE.MeshStandardMaterial({ map:tex('walnut',2.4,1.6), roughness:.34, metalness:.12, color:0xC9A98A }),
+  walnutDark: new THREE.MeshStandardMaterial({ map:tex('walnut',1,1), roughness:.5, metalness:.1, color:0x8a7360 }),
+  floor: new THREE.MeshStandardMaterial({ map:tex('floor',6,6), roughness:.62, metalness:.1, color:0x6b6156 }),
+  maple: new THREE.MeshStandardMaterial({ map:tex('maple',1,1), roughness:.72, metalness:.02, color:0xE9DCC0 }),
+  brass: new THREE.MeshStandardMaterial({ map:tex('brass',1,1), roughness:.34, metalness:.95, color:0xE2B96C }),
+  blue: new THREE.MeshStandardMaterial({ color:THEME_HEX['--accent'], roughness:.35, metalness:.25,
+    emissive:new THREE.Color(THEME_HEX['--accent']).multiplyScalar(.22), emissiveIntensity:1 }),
+  hole: new THREE.MeshStandardMaterial({ color:0x2a1d12, roughness:.9, metalness:0 }),
+  skin: new THREE.MeshStandardMaterial({ color:0xC69A76, roughness:.68, metalness:0 }),
+  cuff: new THREE.MeshStandardMaterial({ color:0x1d2330, roughness:.72, metalness:.1 }),
+  linen:new THREE.MeshStandardMaterial({ color:0xF0EAE0, roughness:.75, metalness:0 }),
+};
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h;
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; t.canvas=c;
+  t.redraw=()=>{ draw(c.getContext('2d'),w,h); t.needsUpdate=true; }; t.redraw(); return t; }
+const FSC='"Alegreya SC",Georgia,serif', FSER='"Alegreya",Georgia,serif';
+const REDRAW = [];   // canvas textures to repaint once the bundled fonts are ready
+
+const mapleImg = new Image(); mapleImg.src = './assets/tex/maple.jpg';
+function wrap(g, text, maxW){ const words=text.split(' '); const lines=[]; let line='';
+  for(const w of words){ const t=line?line+' '+w:w; if(g.measureText(t).width>maxW && line){ lines.push(line); line=w; } else line=t; }
+  if(line) lines.push(line); return lines; }
+
+/** Top face of a block: the wood, a printed label, the short claim in small caps. */
+function blockFace(gist, levelName){
+  const t = canvasTex(1024, 452, (g,w,h)=>{
+    g.fillStyle='#E9DCC0'; g.fillRect(0,0,w,h);
+    if(mapleImg.complete && mapleImg.naturalWidth) g.drawImage(mapleImg,0,0,w,h);
+    g.fillStyle='rgba(247,240,224,.94)'; g.fillRect(40,44,w-80,h-88);
+    g.strokeStyle='rgba(120,92,55,.6)'; g.lineWidth=4; g.strokeRect(40,44,w-80,h-88);
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillStyle='#6B4A1E'; g.font=`400 54px ${FSC}`; g.fillText(levelName.toUpperCase(), w/2, 108);
+    g.fillStyle='#20170E'; g.font=`700 116px ${FSC}`;
+    let lines=wrap(g, gist, w-140);
+    if(lines.length>2){ g.font=`700 92px ${FSC}`; lines=wrap(g, gist, w-140); }
+    const lh = lines.length>2 ? 100 : 122;
+    const y0 = h/2 + 46 - (lines.length-1)*(lh/2);
+    lines.forEach((l,i)=>g.fillText(l, w/2, y0 + i*lh));
+  });
+  REDRAW.push(t); return t;
+}
+function tagFace(code){
+  const t = canvasTex(256, 156, (g,w,h)=>{
+    g.fillStyle='#F2E7CE'; g.fillRect(0,0,w,h);
+    g.strokeStyle=COLOR['--accent']; g.lineWidth=10; g.strokeRect(8,8,w-16,h-16);
+    g.fillStyle='#1B3A5C'; g.font=`700 84px ${FSC}`; g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(code, w/2, h/2+6);
+  });
+  REDRAW.push(t); return t;
+}
+document.fonts.ready.then(()=>REDRAW.forEach(t=>t.redraw()));
+mapleImg.onload = ()=>REDRAW.forEach(t=>t.redraw());
+
+/*═══════════════════════════════════════════════════════════════════════════
+  ROOM AND TABLE
+═══════════════════════════════════════════════════════════════════════════*/
+const TABLE_W=15, TABLE_D=10, FLOOR_Y=-1.6;
+function box(w,h,d,m,x,y,z,parent=scene){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.set(x,y,z); b.castShadow=b.receiveShadow=true; parent.add(b); return b; }
+const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(46,40), M.floor); floorMesh.rotation.x=-Math.PI/2; floorMesh.position.set(0,FLOOR_Y,0); floorMesh.receiveShadow=true; scene.add(floorMesh);
+box(TABLE_W, .22, TABLE_D, M.walnut, 0, -.11, 0);                       // table top
+box(TABLE_W+.24, .1, TABLE_D+.24, M.walnutDark, 0, -.27, 0);            // apron
+for(const sx of [-1,1]) for(const sz of [-1,1]) box(.44,1.2,.44,M.walnutDark, sx*(TABLE_W/2-1.1), -.94, sz*(TABLE_D/2-1.1));
+// a brass rail down the front edge of the table, so the eye reads a boardroom
+const rail = new THREE.Mesh(new THREE.CylinderGeometry(.035,.035,TABLE_W-.6,12), M.brass);
+rail.rotation.z=Math.PI/2; rail.position.set(0,.02,TABLE_D/2-.22); rail.castShadow=true; scene.add(rail);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  GEOMETRY OF THE GAME — tower column, rack of candidates, evidence tray
+═══════════════════════════════════════════════════════════════════════════*/
+const BW=3.2, BH=.5, BD=1.5, STEP=.52;
+const TOWER = { x:-2.0, z:-1.2 };
+const RACK  = { z:2.9, xs:[-1.4,2.15,5.7] };
+const TRAY  = { cols:[3.3,6.5], rows:[-3.9,-2.35,-0.8,0.75] };  // columns far enough apart that two peg labels never touch
+const levelY = i => BH/2 + i*STEP;
+
+// tower footprint: a shallow inlay so the empty column still reads as a place
+// a routed bed: same wood, a shade down, and glossy enough to catch the same light as the table
+const routed = new THREE.MeshStandardMaterial({ map:tex('walnut',1,1), color:0x9C7F5E, roughness:.46, metalness:.10 });
+const inlay = new THREE.Mesh(new THREE.BoxGeometry(BW+.2, .02, BD+.2), routed);
+inlay.position.set(TOWER.x, .012, TOWER.z); scene.add(inlay);
+// rack: three routed beds in the table in front
+for(const x of RACK.xs){ const bed=new THREE.Mesh(new THREE.BoxGeometry(BW+.16,.02,BD+.16), routed);
+  bed.position.set(x,.012,RACK.z); scene.add(bed); }
+// evidence tray: walnut box with a brass lip
+const TRAY_BOX = { x0:TRAY.cols[0]-.85, x1:TRAY.cols[1]+.85, z0:TRAY.rows[0]-.7, z1:TRAY.rows.at(-1)+.7, y:.21 };
+(function tray(){
+  const {x0,x1,z0,z1} = TRAY_BOX;
+  const w=x1-x0, d=z1-z0, cx=(x0+x1)/2, cz=(z0+z1)/2;
+  box(w, .1, d, M.walnutDark, cx, .05, cz);
+  for(const [bw,bd,bx,bz] of [[w,.09,cx,z0],[w,.09,cx,z1],[.09,d,x0,cz],[.09,d,x1,cz]]) box(bw,.2,bd,M.walnutDark,bx,.1,bz);
+  const lip=new THREE.Mesh(new THREE.BoxGeometry(w+.04,.03,d+.04), M.brass); lip.position.set(cx,.21,cz); lip.castShadow=true; scene.add(lip);
+})();
+
+const pickables = [];
+/** A blue evidence peg with its code tag, parented wherever it stands. */
+function makePeg(code){
+  const g = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(.052,.052,.62,14), M.blue); shaft.position.y=.31; shaft.castShadow=true; g.add(shaft);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(.075,16,12), M.blue); cap.position.y=.63; cap.castShadow=true; g.add(cap);
+  const tag = new THREE.Mesh(new THREE.PlaneGeometry(.4,.244), new THREE.MeshStandardMaterial({ map:tagFace(code), roughness:.85, side:THREE.DoubleSide }));
+  tag.rotation.x=-Math.PI/2; tag.position.set(.24,.5,.12); tag.rotation.z=-.18; tag.castShadow=true; g.add(tag);
+  return g;
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  EVIDENCE TRAY — one peg per note, with a projected label
+═══════════════════════════════════════════════════════════════════════════*/
+const PEGS = CONTENT.evidence.map((e,i)=>{
+  const x = TRAY.cols[i % 2], z = TRAY.rows[Math.floor(i/2)];
+  const g = makePeg(e.code); g.position.set(x,.1,z); scene.add(g);
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.9,10), new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.set(x,.5,z); hit.userData.peg=e.id; scene.add(hit); pickables.push(hit);
+  return { e, x, z, g, hit };
+});
+
+/*═══════════════════════════════════════════════════════════════════════════
+  BLOCKS
+═══════════════════════════════════════════════════════════════════════════*/
+function makeBlock(b){
+  const side = M.maple.clone(), top = new THREE.MeshStandardMaterial({ map:blockFace(b.gist, CONTENT.levels[b.level].name), roughness:.7, metalness:.02 });
+  const m = new THREE.Mesh(new THREE.BoxGeometry(BW,BH,BD), [side,side,top,side,side,side]);
+  m.castShadow = m.receiveShadow = true; m.rotation.order = 'YXZ'; scene.add(m);
+  const hole = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.03,14), M.hole);
+  hole.rotation.x=Math.PI/2; hole.position.set(.95,0,BD/2+.005); m.add(hole);
+  const hit = new THREE.Mesh(new THREE.BoxGeometry(BW,BH+.5,BD), new THREE.MeshBasicMaterial({visible:false}));
+  hit.userData.block=b.id; m.add(hit); pickables.push(hit);
+  return { b, m, side, top, hit };
+}
+const BLOCKS = Object.fromEntries(CONTENT.blocks.map(b=>[b.id, makeBlock(b)]));
+function layoutRack(){
+  CONTENT.blocks.forEach(b=>{ const o=BLOCKS[b.id]; if(o.placed) return;
+    const i = forLevel(b.level).indexOf(b);
+    o.m.visible = b.level===state.level;
+    o.m.position.set(RACK.xs[i], levelY(0), RACK.z); o.m.rotation.set(0,0,0);
+  });
+}
+layoutRack();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  THE HAND — flat, enters from the right, pulls what it does not believe
+═══════════════════════════════════════════════════════════════════════════*/
+const HAND = (()=>{
+  const g = new THREE.Group();
+  const palm = box(1.05,.1,.66,M.skin,0,0,0,g);
+  for(let i=0;i<4;i++){ const f=box(.62-Math.abs(i-1.2)*.06,.08,.115,M.skin,-.82,-.005,-.24+i*.16,g); f.rotation.y=(i-1.5)*.045; }
+  const thumb = box(.42,.082,.12,M.skin,-.4,0,.38,g); thumb.rotation.y=.55;
+  box(.5,.2,.7,M.cuff,.72,0,0,g);
+  box(.09,.19,.66,M.linen,.46,0,0,g);
+  g.position.set(11,3.0,TOWER.z); g.visible=false; scene.add(g);
+  return g;
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  LABELS — HTML on dark plates, projected into the world
+═══════════════════════════════════════════════════════════════════════════*/
+const labelsEl = document.getElementById('labels'), LABELS = [];
+function label(html, x, y, z, cls='', onClick=null){
+  const el=document.createElement(onClick?'button':'div'); el.className='lbl '+cls; el.innerHTML=html; labelsEl.appendChild(el);
+  if(onClick){ el.type='button'; el.addEventListener('click', onClick); }
+  const L={ el, p:new THREE.Vector3(x,y,z) }; LABELS.push(L); return L;
+}
+label('Customer quotes', (TRAY.cols[0]+TRAY.cols[1])/2, .3, TRAY.rows[0]-.9, 'small sc');
+// the red plate that rides the block being pulled: the pull has to read from this camera
+const pullLbl = label('PULLED', 0, 0, 0, 'pulled'); pullLbl.el.hidden = true;
+// the five level names down the left of the tower, and the link between each block and the one below
+const LVL = CONTENT.levels.map((lv,i)=>label('', TOWER.x-BW/2-.12, levelY(i), TOWER.z+BD/2, 'lvl'));
+const LINK = CONTENT.levels.map((lv,i)=>i && label(`${i} causes ${i+1}`, TOWER.x+BW/2+.12, levelY(i)-STEP/2, TOWER.z+BD/2, 'link'));
+// the full claim under each block in the rack; it rides the block while you drag it
+const CLAIM = RACK.xs.map(()=>label('', 0, 0, 0, 'claim'));
+// the label is part of the claim: drag it to move the block, drop a quote on it to attach
+const claimAtLabel = el=>{ const k=CLAIM.findIndex(L=>L.el===el?.closest?.('.lbl.claim')); const b=k>=0 && state.level<LEVELS && forLevel(state.level)[k]; return b && !BLOCKS[b.id].placed ? b.id : null; };
+CLAIM.forEach(L=>L.el.addEventListener('pointerdown', e=>{ const id=claimAtLabel(e.target); if(id) press(e, { kind:'block', blockId:id }); }));
+// the tray labels: hover reads the quote, click pins it, drag takes the peg
+PEGS.forEach(p=>{ p.lbl = label('', p.x, .14, p.z+.62, 'peg sc');
+  p.lbl.el.addEventListener('pointerenter', ()=>{ state.hoverQ=p.e.id; renderQuote(); });
+  p.lbl.el.addEventListener('pointerleave', ()=>{ if(state.hoverQ===p.e.id){ state.hoverQ=null; renderQuote(); } });
+  p.lbl.el.addEventListener('pointerdown', e=>press(e, { kind:'peg', pegId:p.e.id, from:onBlock(p.e.id) })); });
+
+const _v = new THREE.Vector3();
+function projectLabels(){ for(const L of LABELS){ _v.copy(L.p).project(camera);
+  L.el.style.left=((_v.x+1)/2*innerWidth)+'px'; L.el.style.top=((1-_v.y)/2*innerHeight)+'px'; } }
+let sayTimer=null;
+function say(html, eyebrow, kind){ const el=document.getElementById('say');
+  el.innerHTML=`<em>${eyebrow}</em>${html}`; el.className=kind||''; el.classList.add('on');
+  announce(eyebrow+'. '+el.lastChild.textContent);
+  clearTimeout(sayTimer); sayTimer=setTimeout(()=>el.classList.remove('on'), kind==='pull'?3800:2500); }
+const announce = t=>{ document.getElementById('sr').textContent = t; };
+
+/*═══════════════════════════════════════════════════════════════════════════
+  QUOTES ON CLAIMS — which quote is stuck in which block in the rack
+═══════════════════════════════════════════════════════════════════════════*/
+const $ = id=>document.getElementById(id);
+const usedOn = pegId=>state.picks.findIndex(p=>p.peg===pegId);
+const onBlock = pegId=>Object.keys(state.att).find(b=>state.att[b]===pegId) || null;
+const claimLetter = id=>'ABC'[forLevel(blOf(id).level).findIndex(b=>b.id===id)];
+M.grey = new THREE.MeshStandardMaterial({ color:0x77716a, roughness:.6, metalness:.1 });
+
+function pegOnto(o, evId){
+  const g = makePeg(evOf(evId).code);
+  g.rotation.x = Math.PI/2 - .3; g.position.set(.95, .02, BD/2 - .06); g.scale.setScalar(.9);
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(.3,.3,.9,10), new THREE.MeshBasicMaterial({visible:false}));
+  hit.position.y=.45; hit.userData = { qpeg:evId, block:o.b.id }; g.add(hit); pickables.push(hit);
+  o.m.add(g); o.peg = g; o.pegHit = hit;
+}
+function unpeg(o){ if(!o.peg) return; o.m.remove(o.peg); pickables.splice(pickables.indexOf(o.pegHit),1); o.peg = o.pegHit = null; }
+function setAttach(blockId, pegId){ const o=BLOCKS[blockId]; unpeg(o);
+  if(pegId){ state.att[blockId]=pegId; pegOnto(o,pegId); } else delete state.att[blockId]; }
+/** Move a quote from a claim (or the tray, null) to a claim (or the tray). A quote dropped on a claim that
+ *  already has one swaps them: the old one goes where the new one came from. */
+function moveQuote(pegId, from, to){
+  if(from===to){ if(to) setAttach(to, pegId); sync(); return; }
+  const old = to ? state.att[to] : null;
+  if(from) setAttach(from, old || null);
+  if(to){ setAttach(to, pegId); audio.play('peg-in', { gain:.6 }); announce(`Quote ${evOf(pegId).code} is on claim ${claimLetter(to)}.`); }
+  else { audio.play('peg-in', { gain:.25, rate:.85 }); announce(`Quote ${evOf(pegId).code} is back in the tray.`); }
+  sync();
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  THE QUOTE PANEL — whatever quote is under the pointer, else the pinned one
+═══════════════════════════════════════════════════════════════════════════*/
+const esc = t=>t.replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function renderQuote(){
+  const el=$('quote'); el.hidden = state.phase!=='build';
+  const id = state.hoverQ || state.pinned, e = id && evOf(id);
+  if(!e){ el.innerHTML = `<div class="eye"><span>Customer quote</span></div>`
+    + `<p class="help">Hover a quote peg in the tray to read it here. Click a peg to keep it here.</p>`; return; }
+  const j=usedOn(id), on=onBlock(id);
+  const use = j>=0 ? `Used on level ${j+1}, ${CONTENT.levels[j].name.toLowerCase()}. Each quote backs one level.`
+    : on ? `On claim ${claimLetter(on)}: “${esc(blOf(on).claim)}”. Drag it back to the tray to take it off.`
+    : state.level<LEVELS ? 'Drag it onto the claim it backs.' : '';
+  el.innerHTML = `<div class="eye"><span>Customer quote ${e.code}</span>${state.pinned===id?'<b>Pinned</b>':''}</div>`
+    + `<h3>${esc(e.who)}</h3><div class="meta">${esc(e.where)}, ${esc(e.when)}</div>`
+    + `<blockquote>“${esc(e.quote)}”</blockquote>` + (use ? `<div class="use">${use}</div>` : '');
+}
+function togglePin(id){ state.pinned = state.pinned===id ? null : id;
+  if(state.pinned) audio.play('note-open', { gain:.3 }); sync(); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SYNC — tower labels, rack labels, tray labels, the keyboard list, the sign
+═══════════════════════════════════════════════════════════════════════════*/
+const TWEENS=[];
+const ease = p => p<.5 ? 2*p*p : 1-Math.pow(-2*p+2,2)/2;
+function tween(dur, fn){ return new Promise(res=>TWEENS.push({ t:0, dur, fn, res })); }
+const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+// the next empty slot: a faint outline where the block goes
+const GHOST = (()=>{ const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.BoxGeometry(BW,BH,BD), new THREE.MeshBasicMaterial({ color:THEME_HEX['--gold-text'], transparent:true, opacity:.12, depthWrite:false })));
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(BW,BH,BD)), new THREE.LineBasicMaterial({ color:THEME_HEX['--gold-hi'], transparent:true })));
+  scene.add(g); return g; })();
+
+const QBTN = CONTENT.evidence.map(e=>{ const b=document.createElement('button'); b.type='button';
+  b.addEventListener('click', ()=>keyQuote(e.id)); $('kQuotes').appendChild(b); return b; });
+const CBTN = RACK.xs.map((_,k)=>{ const b=document.createElement('button'); b.type='button';
+  b.addEventListener('click', ()=>keyClaim(k)); $('kClaims').appendChild(b); return b; });
+
+function sync(){
+  const building = state.phase==='build', lv = state.level, done = lv>=LEVELS, rack = done ? [] : forLevel(lv);
+  // tower
+  LVL.forEach((L,i)=>{ const p=state.picks[i], e=p?.peg && evOf(p.peg);
+    L.el.className = 'lbl lvl ' + (p ? 'placed' : building && i===lv ? 'next' : '');
+    L.el.innerHTML = `<u>${i+1}</u>${CONTENT.levels[i].name}`
+      + (p ? `<span class="g"> · <span>${blOf(p.block).gist}</span></span><i class="${e?'':'none'}">${e?e.code:'no quote'}</i>` : ''); });
+  LINK.forEach((L,i)=>{ if(!L) return; L.el.hidden = !building || i>lv;
+    L.el.classList.toggle('pending', i===lv); });
+  GHOST.visible = building && !done; GHOST.position.set(TOWER.x, levelY(Math.min(lv,LEVELS-1)), TOWER.z);
+  // rack
+  CLAIM.forEach((L,k)=>{ const b=rack[k], o=b&&BLOCKS[b.id]; L.el.hidden = !building || !b || o.placed; if(!b) return;
+    const e = state.att[b.id] && evOf(state.att[b.id]);
+    L.el.innerHTML = `<b>Level ${lv+1} · claim ${'ABC'[k]}</b>${b.claim}<i class="${e?'':'none'}">${e?`Quote ${e.code} · ${e.short}`:'No quote yet'}</i>`; });
+  // tray
+  PEGS.forEach(p=>{ const j=usedOn(p.e.id), on=onBlock(p.e.id);
+    p.hit.visible = p.g.visible = !on && !(drag?.moved && drag.pegId===p.e.id);
+    p.g.traverse(m=>{ if(m.material===M.blue||m.material===M.grey) m.material = j>=0 ? M.grey : M.blue; });
+    p.lbl.el.className = 'lbl peg sc' + (j>=0?' used':'') + (state.pinned===p.e.id?' pin':'');
+    p.lbl.el.innerHTML = `${p.e.code} · <span class="who">${p.e.short} </span><em>${p.e.when}</em>`
+      + (j>=0 ? ` <i>· level ${j+1}</i>` : on ? ` <i>· claim ${claimLetter(on)}</i>` : ''); });
+  // keyboard list
+  $('keys').hidden = !building;
+  QBTN.forEach((el,k)=>{ const e=CONTENT.evidence[k], j=usedOn(e.id), on=onBlock(e.id);
+    el.textContent = `${e.code} · ${e.who}, ${e.when}` + (j>=0 ? ` (used on level ${j+1})` : on ? ` (on claim ${claimLetter(on)})` : '');
+    el.setAttribute('aria-pressed', String(state.kQuote===e.id)); el.setAttribute('aria-disabled', String(j>=0)); });
+  $('kClaimsHd').textContent = done ? 'All five levels placed' : `Claims for level ${lv+1}: ${CONTENT.levels[lv].name}`;
+  CBTN.forEach((el,k)=>{ const b=rack[k]; el.hidden=!b; if(!b) return; const e=state.att[b.id]&&evOf(state.att[b.id]);
+    el.textContent = `Claim ${'ABC'[k]}: ${b.claim} (${e?`quote ${e.code}`:'no quote'})`;
+    el.setAttribute('aria-pressed', String(state.kClaim===b.id)); });
+  $('kPlace').hidden = done; $('kPlace').setAttribute('aria-disabled', String(!state.kClaim));
+  // sign and lock
+  if(building) $('signsub').textContent = done ? 'All five levels are up. Click Start meeting.'
+    : `Level ${lv+1}, ${CONTENT.levels[lv].name.toLowerCase()}: ${CONTENT.levels[lv].hint.replace(/^./,c=>c.toLowerCase())} Drag a quote onto a claim, then the claim onto the tower.`;
+  $('lock').disabled = state.picks.length<LEVELS || !building;
+  renderQuote();
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  COMMIT — a claim goes on the tower, with its quote or without one
+═══════════════════════════════════════════════════════════════════════════*/
+async function placeBlock(blockId){
+  if(state.phase!=='build' || state.busy || state.level>=LEVELS) return;
+  const o = BLOCKS[blockId], i = state.level; if(!o || o.b.level!==i) return;
+  const pegId = state.att[blockId] || null;
+  for(const id of Object.keys(state.att)) if(id!==blockId) setAttach(id, null);   // the other claims' quotes go back
+  state.att = {}; state.kClaim = state.kQuote = null; state.busy = true;
+  o.placed = true; state.picks.push({ block:blockId, peg:pegId });
+  forLevel(i).forEach(b=>{ if(b.id!==blockId) BLOCKS[b.id].m.visible=false; });
+  CLAIM.forEach(L=>L.el.hidden=true);
+  const from = o.m.position.clone(), to = new THREE.Vector3(TOWER.x, levelY(i), TOWER.z);
+  const far = from.distanceTo(to) > 2, dur = far ? .7 : .3, ry0 = o.m.rotation.y;
+  await tween(dur, p=>{ const k=ease(p); o.m.position.lerpVectors(from,to,k); if(far) o.m.position.y += Math.sin(p*Math.PI)*1.05;
+    o.m.rotation.y = (1-k)*ry0; });
+  o.m.position.copy(to); o.m.rotation.set(0,0,0);
+  audio.play('block-set', { rate:1.04-i*.03 });
+  state.level++; state.busy = false;
+  layoutRack(); sync(); save();
+  announce(`Level ${i+1} placed: ${o.b.claim}, ${pegId ? `with quote ${evOf(pegId).code}` : 'with no quote'}.`);
+  if(state.level>=LEVELS) $('lock').focus({ preventScroll:true });
+}
+$('lock').addEventListener('click', ()=>{ if(state.phase!=='build'||state.picks.length<LEVELS) return;
+  const pegged = state.picks.filter(p=>p.peg).length, bare = LEVELS-pegged;
+  $('cfBody').innerHTML = bare===0 ? 'All 5 levels have a customer quote.'
+    : pegged===0 ? 'No level has a customer quote.' : `<b>${pegged} of 5</b> levels have a customer quote.`;
+  $('confirm').classList.add('on'); $('cfYes').focus(); });
+$('cfNo').addEventListener('click', ()=>{ $('confirm').classList.remove('on'); $('lock').focus(); });
+$('cfYes').addEventListener('click', ()=>{ $('confirm').classList.remove('on'); audio.play('lock'); reveal(); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  KEYBOARD LIST — Enter on a quote, Enter on a claim attaches; Place on tower places
+═══════════════════════════════════════════════════════════════════════════*/
+function keyQuote(id){ if(state.phase!=='build') return;
+  state.pinned = id; audio.play('note-open', { gain:.3 });
+  const e=evOf(id), j=usedOn(id);
+  if(j>=0){ state.kQuote=null; announce(`${e.code}, ${e.who}: “${e.quote}” Used on level ${j+1}.`); }
+  else { state.kQuote = state.kQuote===id ? null : id; announce(`${e.code}, ${e.who}, ${e.where}, ${e.when}: “${e.quote}”`); }
+  sync(); }
+function keyClaim(k){ if(state.phase!=='build' || state.level>=LEVELS) return; const b=forLevel(state.level)[k];
+  state.kClaim = b.id;
+  if(state.kQuote){ const q=state.kQuote; state.kQuote=null; moveQuote(q, onBlock(q), b.id); }
+  else { announce(`Claim ${'ABC'[k]} chosen.`); sync(); } }
+$('kPlace').addEventListener('click', ()=>{ if(state.kClaim) placeBlock(state.kClaim); else announce('Choose a claim first.'); });
+addEventListener('keydown', e=>{ if(e.key!=='Escape') return;
+  $('confirm').classList.remove('on'); $('notebook').classList.remove('on');
+  state.kQuote = state.kClaim = state.pinned = null; if(state.phase==='build') sync(); });
+addEventListener('keydown', e=>{ if(e.key!=='Tab') return;
+  const ov=[...document.querySelectorAll('.ov.on')].pop(); if(!ov) return;
+  const f=[...ov.querySelectorAll('button:not([disabled])')].filter(el=>el.offsetParent);
+  if(!f.length) return; const first=f[0], last=f[f.length-1];
+  if(!ov.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+  else if(e.shiftKey ? document.activeElement===first : document.activeElement===last){ e.preventDefault(); (e.shiftKey?last:first).focus(); } });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  DRAG — hover a peg to read it, click to pin, drag a quote onto a claim, drag a claim onto the tower
+═══════════════════════════════════════════════════════════════════════════*/
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(), _pl=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+function aim(e){ ptr.set((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1); ray.setFromCamera(ptr,camera); }
+function pick(e, list=pickables){ aim(e); return ray.intersectObjects(list,false).find(h=>shown(h.object))?.object || null; }
+function shown(o){ for(let n=o; n; n=n.parent) if(n.visible===false) return false; return true; }
+function onPlane(e, y){ aim(e); _pl.constant=-y; return ray.ray.intersectPlane(_pl, new THREE.Vector3()); }
+const rackHits = ()=>state.level<LEVELS ? forLevel(state.level).map(b=>BLOCKS[b.id].hit) : [];
+const overTower = p=>Math.hypot(p.x-TOWER.x, p.z-TOWER.z) < 2.1;
+const overTray = p=>p.x>TRAY_BOX.x0-.3 && p.x<TRAY_BOX.x1+.3 && p.z>TRAY_BOX.z0-.3 && p.z<TRAY_BOX.z1+.3;
+
+let drag = null;   // { kind:'peg'|'block', pegId, from, blockId, x0, y0, moved, locked }
+function press(e, d){
+  if(state.phase!=='build' || state.busy || e.button>0) return;
+  e.preventDefault();
+  drag = { ...d, x0:e.clientX, y0:e.clientY, moved:false, locked: d.kind==='peg' && usedOn(d.pegId)>=0 };
+}
+function lift(e){
+  drag.moved = true; document.body.style.cursor = 'grabbing';
+  if(drag.kind==='peg'){
+    if(drag.from) setAttach(drag.from, null);
+    drag.obj = makePeg(evOf(drag.pegId).code); drag.obj.scale.setScalar(1.15); scene.add(drag.obj);
+    state.pinned = drag.pegId; sync();
+  } else {
+    const o=BLOCKS[drag.blockId], p=onPlane(e, o.m.position.y);
+    drag.off = p ? o.m.position.clone().sub(p).setY(0) : new THREE.Vector3();
+    audio.play('block-pick', { gain:.35, rate:.95+Math.random()*.1 });
+  }
+}
+let target = null;
+function setTarget(t){ if(t===target) return;
+  if(target) CLAIM[forLevel(state.level).findIndex(b=>b.id===target)]?.el.classList.remove('target');
+  target = t;
+  if(t) CLAIM[forLevel(state.level).findIndex(b=>b.id===t)]?.el.classList.add('target'); }
+addEventListener('pointermove', e=>{
+  if(!drag){ hoverCanvas(e); return; }
+  if(!drag.moved){ if(drag.locked || Math.hypot(e.clientX-drag.x0, e.clientY-drag.y0) < 6) return; lift(e); }
+  if(drag.kind==='peg'){
+    const p = onPlane(e, .75); if(p) drag.obj.position.copy(p).setY(.45);
+    setTarget(pick(e, rackHits())?.userData.block || claimAtLabel(e.target));
+  } else {
+    const o=BLOCKS[drag.blockId], y=levelY(state.level)+.45, p=onPlane(e, y);
+    if(p){ o.m.position.copy(p).add(drag.off).setY(y); o.m.rotation.y = .04; }
+    drag.near = overTower(o.m.position);
+  }
+});
+addEventListener('pointerup', e=>{
+  if(!drag) return; const d=drag; drag=null; document.body.style.cursor='';
+  if(!d.moved){ if(d.kind==='peg') togglePin(d.pegId); return; }
+  if(d.kind==='peg'){
+    scene.remove(d.obj); const to = target; setTarget(null);
+    moveQuote(d.pegId, d.from, to);   // off a claim, a quote goes back to the tray
+  } else {
+    const o=BLOCKS[d.blockId];
+    if(d.near) placeBlock(d.blockId);
+    else { const from=o.m.position.clone(), to=new THREE.Vector3(RACK.xs[forLevel(state.level).indexOf(o.b)], levelY(0), RACK.z);
+      tween(.3, p=>{ o.m.position.lerpVectors(from,to,ease(p)); o.m.rotation.y=.04*(1-p); }); }
+  }
+});
+renderer.domElement.style.touchAction = 'none';
+renderer.domElement.addEventListener('pointerdown', e=>{ const o=pick(e); if(!o) return; const u=o.userData;
+  if(u.peg) press(e, { kind:'peg', pegId:u.peg, from:onBlock(u.peg) });
+  else if(u.qpeg) press(e, { kind:'peg', pegId:u.qpeg, from: BLOCKS[u.block].placed ? null : u.block });
+  else if(u.block && !BLOCKS[u.block].placed && blOf(u.block).level===state.level) press(e, { kind:'block', blockId:u.block }); });
+function hoverCanvas(e){
+  if(e.target!==renderer.domElement){ if(state.hoverQ && !e.target.closest?.('.lbl.peg')){ state.hoverQ=null; renderQuote(); } return; }
+  const o = state.phase==='build' ? pick(e) : null, u = o?.userData || {};
+  const q = u.peg || u.qpeg || null;
+  if(q!==state.hoverQ){ state.hoverQ=q; renderQuote(); }
+  renderer.domElement.style.cursor = q ? (usedOn(q)>=0 ? 'pointer' : 'grab')
+    : (u.block && !BLOCKS[u.block].placed && blOf(u.block).level===state.level) ? 'grab' : 'default';
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  REVEAL — the meeting. Bottom up: what holds stays, what does not comes out.
+═══════════════════════════════════════════════════════════════════════════*/
+async function moveHand(x,y,z,dur=.6){ const from=HAND.position.clone(), to=new THREE.Vector3(x,y,z);
+  await tween(dur, p=>HAND.position.lerpVectors(from,to,ease(p))); }
+
+/* THE COLLAPSE — the math lives in collapse.js; tools/check-collapse.mjs proves nothing overlaps */
+const PULLED_SPOT = { x:1.5, z:2.95, ry:-.08 };
+async function collapse(fall, onLanding){
+  if(!fall.length) return;
+  // the stack drops into the gap the pulled block left
+  const y0 = fall.map(o=>o.m.position.y), tDrop = Math.sqrt(2*STEP/GRAV);
+  await tween(tDrop, p=>{ const d=.5*GRAV*(p*tDrop)**2; fall.forEach((o,k)=>o.m.position.y=y0[k]-d); });
+  fall.forEach((o,k)=>o.m.position.y=y0[k]-STEP);
+  audio.play('block-set', { rate:.85 });
+  // pulled from the floor: the lowest block is now on the table and stays there
+  if(fall[0].m.position.y < BH) fall = fall.slice(1);
+  if(!fall.length) return;
+  await wait(200);
+  const P = new THREE.Vector3(TOWER.x-BW/2, fall[0].m.position.y-BH/2, TOWER.z);
+  const plan = planFall(P, fall.map(o=>o.m.position.clone().sub(P)), { BW, BH, STEP });
+  let landed = false;
+  await tween(plan.duration, p=>{ const t=p*plan.duration; fall.forEach((o,k)=>plan.pose(k, t, o.m));
+    if(!landed && t>=plan.firstLand){ landed=true; onLanding(); } });
+}
+
+async function reveal(){
+  if(state.phase!=='build') return; state.phase='reveal'; save();
+  $('lock').hidden=true;
+  state.pinned = state.hoverQ = null; sync();
+  CONTENT.blocks.forEach(b=>{ const o=BLOCKS[b.id]; if(!o.placed) o.m.visible=false; });
+  $('signsub').textContent=`${CONTENT.execShort} checks your case from the bottom up.`;
+
+  HAND.visible=true; await wait(700);
+
+  for(let i=0;i<LEVELS;i++){
+    const pick=state.picks[i], o=BLOCKS[pick.block], b=o.b, f=fault(i,state.picks);
+    const y = o.m.position.y, z = o.m.position.z, x = o.m.position.x;
+    await moveHand(1.9, 2.9, z, .55);
+    await moveHand(x + BW/2 + 1.4, y + .06, z, .5);
+    await moveHand(x + BW/2 + .46, y + .06, z, .3);
+    if(!f){
+      const holdGlow = new THREE.Color(THEME_HEX['--accent']).multiplyScalar(.28).getHex();
+      o.side.emissive.setHex(holdGlow); o.top.emissive.setHex(holdGlow); o.glow=1; audio.play('hold');
+      say(i===0 ? `Quote ${evOf(pick.peg).code} backs it.` : `Quote ${evOf(pick.peg).code} backs it, and it follows from level ${i}.`, `Level ${i+1} held`, 'ok');
+      await wait(1150);
+      await moveHand(x + BW/2 + 1.7, y + .06, z, .35);
+      await moveHand(1.9, 2.9, z, .4);
+      continue;
+    }
+    // the first block that fails is pulled; everything above it comes down, and the meeting is over
+    state.firstFail=i;
+    o.side.emissive.setHex(THEME_HEX['--fail']); o.top.emissive.setHex(THEME_HEX['--fail']); o.glow=1;
+    pullLbl.el.textContent = `PULLED · LEVEL ${i+1}`;
+    pullLbl.p.set(x, y+.15, z+BD/2+.30); pullLbl.el.hidden=false;
+    say(`“${f==='link' ? b.snap : b.pushback}”`, f==='link' ? `Level ${i+1} pulled: it does not follow from level ${i}` : `Level ${i+1} pulled: ${pick.peg ? 'the quote does not back it' : 'no quote'}`, 'pull');
+    failLamp.position.set(x, y+1.1, z+1.3); failLamp.userData = { pulse:1 };
+    await wait(1800);
+    // the hand drags the block out, right and toward you
+    const from=o.m.position.clone(); audio.play('pull');
+    const handAt = ()=>{ HAND.position.set(o.m.position.x + BW/2 + .46, o.m.position.y + .06, o.m.position.z);
+      pullLbl.p.set(o.m.position.x, o.m.position.y+.15, o.m.position.z+BD/2+.3); };
+    await tween(.7, p=>{ const k=ease(p); o.m.position.set(from.x + 2.8*k, from.y, from.z + 1.7*k); handAt(); });
+    // what rested on it comes down, while the hand sets the pulled block on the table
+    const fall = state.picks.slice(i+1).map(q=>BLOCKS[q.block]);
+    LVL.forEach(L=>L.el.hidden = true);   // fallen blocks land where the level names sit; the results list the case
+    const c0=o.m.position.clone(), c1=new THREE.Vector3(PULLED_SPOT.x, BH/2, PULLED_SPOT.z);
+    await Promise.all([
+      collapse(fall, ()=>audio.play('collapse')),
+      tween(.8, p=>{ const k=ease(p); o.m.position.lerpVectors(c0,c1,k); o.m.position.y += Math.sin(p*Math.PI)*.5;
+        o.m.rotation.set(0, PULLED_SPOT.ry*k, 0); handAt(); }).then(()=>audio.play('block-set', { rate:.95 })),
+    ]);
+    if(fall.length) say(fall.length===1 ? `Level ${LEVELS} fell with it.` : `Levels ${i+2} to ${LEVELS} fell with it.`, `Level ${i+1} pulled`, 'pull');
+    await wait(900);
+    await moveHand(HAND.position.x + 1.2, HAND.position.y + 1.2, HAND.position.z, .4);
+    break;
+  }
+  await moveHand(11, 3.0, TOWER.z, .8); HAND.visible=false;
+  await wait(600); finish();
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SCORE, DEBRIEF, SCORM
+═══════════════════════════════════════════════════════════════════════════*/
+const lms = connectScorm();
+function save(){ if(!lms.connected) return;
+  lms.save(JSON.stringify({ v:1, contentVersion:CONTENT.version, picks:state.picks, phase:state.phase })); }
+function finish(){
+  if(state.finished) return; state.finished=true; state.phase='done';
+  const standing = state.firstFail<0 ? LEVELS : state.firstFail;
+  const matched = state.picks.filter(p=>holds(blOf(p.block), p.peg)).length;
+  const firstFault = state.firstFail<0 ? '' : fault(state.firstFail, state.picks);
+  const standScore = Math.round(50*standing/LEVELS), evScore = Math.round(50*matched/LEVELS);
+  const score = standScore + evScore;
+  lms.finish({ score, max:100, passed: score>=70 });
+
+  const ff = state.firstFail, fellN = ff<0 ? 0 : LEVELS-ff-1;
+  $('dbTitle').textContent = ff<0 ? 'All five levels held' : `Level ${ff+1} was pulled`;
+  const row = (k,v,n)=>`<tr><td>${k}</td><td class="tight">${v}</td><td class="tight amber">${n}</td></tr>`;
+  $('dbScore').innerHTML = `<tr><th>Result</th><th></th><th>Points</th></tr>`
+    + row('Levels still standing', `${standing} of ${LEVELS}`, `${standScore} of 50`)
+    + row('Quotes that back their claim', `${matched} of ${LEVELS}`, `${evScore} of 50`)
+    + `<tr><td><b>Score</b></td><td class="tight">${score>=70?'<span class="stood">Pass</span>':'<span class="fell">Not yet</span>'}</td><td class="tight amber"><b>${score} of 100</b></td></tr>`
+    + `<tr><td colspan="3" class="needs">70 to pass.${ff>=0 && fellN ? ` ${fellN===1?'One level':NUM[fellN][0].toUpperCase()+NUM[fellN].slice(1)+' levels'} fell with level ${ff+1}.` : ''}</td></tr>`;
+  const why = (i,f)=> f==='link' ? `doesn't follow from level ${i}` : state.picks[i].peg ? "quote doesn't back it" : 'no quote';
+  $('dbTable').innerHTML = `<tr><th>Level</th><th>Your claim</th><th>Quote</th><th>Result</th></tr>` + state.picks.map((p,i)=>{
+    const b=blOf(p.block), e=p.peg&&evOf(p.peg), ok=holds(b,p.peg);
+    const res = ff<0 || i<ff ? '<span class="stood">Held</span>' : i===ff ? `<span class="fell">Pulled: ${why(i,firstFault)}</span>` : '<span class="fell">Fell</span>';
+    return `<tr><td class="tight">${i+1}</td><td>${b.claim}</td>`
+      + `<td class="tight">${e?`${e.code}<div class="${ok?'stood':'fell'}">${ok?'backs it':"doesn't"}</div>`:'<span class="fell">None</span>'}</td>`
+      + `<td>${res}</td></tr>`;
+  }).join('');
+  $('dbRungs').innerHTML = state.picks.map((p,i)=>{
+    const b=blOf(p.block), e=p.peg&&evOf(p.peg), f=fault(i,state.picks);
+    const fix = f==='link' ? `It would follow from: ${followList(b)}.` : backedBy(b, i);
+    let body;
+    if(ff<0 || i<ff) body = `<div class="said">Held.</div>`;
+    else if(i===ff) body = `<div class="said">${CONTENT.execShort} said: “${f==='link' ? b.snap : b.pushback}”</div><div class="held">${fix}</div>`;
+    else body = `<div class="said">Fell with level ${ff+1}, so it was not checked.</div>`
+      + (f ? `<div class="held">It would also have been pulled: ${why(i,f)}. ${fix}</div>` : `<div class="held">It would have held.</div>`);
+    return `<div class="rung ${ff<0||i<ff?'stood':'fell'}"><h4>${i+1} · ${b.claim}</h4>`
+      + `<div class="needs">Quote: ${e?`${e.code}, ${e.who}`:'none'}</div>${body}</div>`;
+  }).join('');
+  audio.play('debrief');
+  $('debrief').scrollTop=0; setDebrief(true); $('debrief').focus({preventScroll:true});
+}
+/** Dock or undock the debrief, and slide the table out from under it either way. */
+function setDebrief(on){
+  document.body.classList.toggle('debriefing', on);
+  $('signsub').textContent = on ? 'Meeting over. Your results are on the right.' : 'Meeting over.';
+  $('debrief').classList.toggle('on', on); $('dbShow').hidden = on;
+  const from=panK, to=on?1:0;
+  tween(.45, p=>{ panK = from + (to-from)*ease(p); fitCamera(); });
+}
+$('dbHide').addEventListener('click', ()=>{ setDebrief(false); $('dbShow').focus(); });
+$('dbShow').addEventListener('click', ()=>{ setDebrief(true); $('dbHide').focus(); });
+$('startOver').addEventListener('click', ()=>{ lms.save(''); location.reload(); });
+
+(function restore(){ const raw=lms.resumeData(); if(!raw) return;
+  try{ const s=JSON.parse(raw); if(s.v!==1||s.contentVersion!==CONTENT.version||!s.picks?.length) return;
+    $('intro').classList.remove('on');
+    for(const p of s.picks){ const o=BLOCKS[p.block]; o.placed=true; state.picks.push(p);
+      o.m.visible=true; o.m.position.set(TOWER.x, levelY(o.b.level), TOWER.z); if(p.peg) pegOnto(o,p.peg); }
+    state.level=state.picks.length; layoutRack(); sync();
+    if(s.phase!=='build') reveal();
+  }catch(_){}
+})();
+// a keyboard Start moves focus into the keyboard list; a mouse Start leaves the table as it is
+$('start').addEventListener('click', e=>{ $('intro').classList.remove('on'); openNotebook(true); if(e.detail===0) $('nbGo').focus(); });
+// the notebook lists every quote at once, so nothing has to be held in your head from hovering
+$('nbList').innerHTML = [...CONTENT.evidence].sort((a,b)=>a.code.localeCompare(b.code)).map(e=>
+  `<div class="q"><b><i>${e.code}</i>${e.who} · ${e.where} · ${e.when}</b><p>“${e.quote}”</p></div>`).join('');
+function openNotebook(first){ $('nbGo').textContent = first ? 'Start building' : 'Close'; $('notebook').classList.add('on'); $('notebook').scrollTop=0; }
+$('nbBtn').addEventListener('click', ()=>openNotebook(false));
+$('nbGo').addEventListener('click', ()=>{ $('notebook').classList.remove('on'); $('nbBtn').focus(); });
+$('inSub').textContent = CONTENT.subtitle;
+$('askQ').textContent = CONTENT.ask; $('askHelp').textContent = CONTENT.askHelp;
+$('inSituation').textContent = CONTENT.situation;
+$('inGoal').textContent = CONTENT.goal;
+
+/*═══════════════════════════════════════════════════════════════════════════
+  FRAME
+═══════════════════════════════════════════════════════════════════════════*/
+const clock=new THREE.Clock(), _claimAt=new THREE.Vector3(0,-BH/2,BD/2+.28);
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime;
+  for(let i=TWEENS.length-1;i>=0;i--){ const w=TWEENS[i]; w.t+=dt; const p=Math.min(1,w.t/w.dur); w.fn(p);
+    if(p>=1){ TWEENS.splice(i,1); w.res(); } }
+  CLAIM.forEach((L,k)=>{ const b=state.level<LEVELS && forLevel(state.level)[k]; if(b) L.p.copy(BLOCKS[b.id].m.position).add(_claimAt); });
+  const gp = drag?.near ? 1 : .5+.5*Math.sin(t*3.2);
+  GHOST.children[0].material.opacity = .08+.22*gp; GHOST.children[1].material.opacity = .45+.55*gp;
+  for(const o of Object.values(BLOCKS)){
+    if(o.glow>0){ o.glow=Math.max(0,o.glow-dt*.45); const k=o.glow*(.55+.45*Math.sin(t*7));
+      o.side.emissiveIntensity=k; o.top.emissiveIntensity=k*.8; }
+  }
+  const fp=(failLamp.userData?.pulse||0)*Math.max(0,1-dt*.55); if(failLamp.userData) failLamp.userData.pulse=fp;
+  failLamp.intensity = fp*(6+Math.sin(t*6)*2);
+  renderer.render(scene,camera); projectLabels(); requestAnimationFrame(frame);
+}
+addEventListener('resize', ()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight); });
+sync(); frame();
+window.__dbg = { audio, state, BLOCKS, PEGS, CONTENT, camera, reveal, finish, holds,
+  attach:(pegId, blockId)=>moveQuote(pegId, onBlock(pegId), blockId), placeBlock,
+  project:(x,y,z)=>{ const v=new THREE.Vector3(x,y,z).project(camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]; } };
+</script>
+</body>
+</html>

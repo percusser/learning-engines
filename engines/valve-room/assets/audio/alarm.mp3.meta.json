@@ -1,0 +1,9 @@
+{
+  "name": "alarm",
+  "kind": "sfx",
+  "moment": "reveal, wrong: an outlet you did not call went dark / shift logged off target or with something dark",
+  "prompt": "An old industrial alarm bell ringing in a concrete pump room for two seconds, loud electric clapper bell, then cut off",
+  "duration": 2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:47.760Z"
+}

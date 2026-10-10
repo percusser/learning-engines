@@ -1,0 +1,9 @@
+{
+  "name": "wheel",
+  "kind": "sfx",
+  "moment": "a stop is set on an inlet (wheel released or stop button pressed): the valve seats",
+  "prompt": "A brass hand wheel on an old iron gate valve turned a quarter turn, metal squeak of the stem, then the valve seating with a solid dull clunk",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:28.263Z"
+}

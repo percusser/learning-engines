@@ -1,0 +1,9 @@
+{
+  "name": "lever-pull",
+  "kind": "sfx",
+  "moment": "a contract lever is pulled (choosing what to meter)",
+  "prompt": "A heavy steel switchgear lever pulled down into its latch, metal grind then a solid clunk",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:45.130Z"
+}

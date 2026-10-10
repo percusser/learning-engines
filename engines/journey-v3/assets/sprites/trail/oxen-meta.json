@@ -1,0 +1,9 @@
+{
+  "input": "/tmp/sprite-run/trail/oxen-out/sheet-transparent.png",
+  "cell_size": 408,
+  "subject_height": 196,
+  "anchor_y": 0.9516316481392385,
+  "grid": 48,
+  "block": 4,
+  "palette": 24
+}

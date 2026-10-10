@@ -1,0 +1,9 @@
+{
+  "name": "spot",
+  "kind": "sfx",
+  "moment": "READ: a marked condition lights up under the crosshair for the first time (a discovery)",
+  "prompt": "A small metal flashlight switch clicked on, one crisp click",
+  "duration": 0.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:54.013Z"
+}

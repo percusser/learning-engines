@@ -1,0 +1,9 @@
+{
+  "name": "result-won",
+  "kind": "sfx",
+  "moment": "end: the beam settles your way (you take the bake-off)",
+  "prompt": "A large brass balance scale beam swinging down and settling, a long warm metallic ring fading slowly",
+  "duration": 2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:01.392Z"
+}

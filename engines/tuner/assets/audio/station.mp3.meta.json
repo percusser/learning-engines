@@ -1,0 +1,9 @@
+{
+  "name": "station",
+  "kind": "sfx",
+  "moment": "the needle settles on a station (soft, quiet, neutral: not a right/wrong signal)",
+  "prompt": "One tiny soft click of a small plastic switch, very quiet and short, clean and dry, no tone, no hum, no static, no ringing",
+  "duration": 0.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T16:10:46.571Z"
+}

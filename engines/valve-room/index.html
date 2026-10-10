@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Valve Room</title>
+<style>
+  /* Fonts ship in the package (SIL OFL). No network at play time. */
+  @font-face{font-family:"Saira Stencil One";src:url(./assets/fonts/Saira-Stencil-One_400.woff2) format("woff2");font-weight:400}
+  @font-face{font-family:"Barlow Condensed";src:url(./assets/fonts/Barlow-Condensed_500.woff2) format("woff2");font-weight:500}
+  @font-face{font-family:"Barlow Condensed";src:url(./assets/fonts/Barlow-Condensed_700.woff2) format("woff2");font-weight:700}
+  :root{ --cream:#EBDDB8; --brass:#C99A4B; --red:#B8302A; --ink:#15120E; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0a;color:var(--cream);
+    font-family:"Barlow Condensed","Arial Narrow",Impact,sans-serif;-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .stencil{font-family:"Saira Stencil One",Impact,"Arial Narrow",sans-serif;letter-spacing:.06em;text-transform:uppercase}
+
+  /* projected world labels */
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  :root{--ui:1}
+  .lbl{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));white-space:nowrap;
+    font-size:14px;color:#F6EEDC;background:rgba(12,13,15,.9);padding:3px 9px;border:1px solid #3a3a36;
+    box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .lbl.small{font-size:12px}
+  .lbl.vol{font-family:"Barlow Condensed";font-size:13px;color:#E4DCC8;letter-spacing:.04em;text-transform:none}
+
+  /* per-source control plate: name, volume, five stops */
+  .lbl.name{width:118px;text-align:right;line-height:1.1;padding:4px 8px;white-space:normal}
+  .lbl.name span{display:block;font-family:"Barlow Condensed";font-size:12px;color:#CFC6B0;text-transform:none;letter-spacing:.03em;margin-top:2px}
+  .row{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));width:200px;pointer-events:auto;
+    background:linear-gradient(180deg,#1c1d1f,#0f1012);border:1px solid #4a4a45;
+    box-shadow:inset 0 0 0 2px #0a0a0a,0 4px 10px rgba(0,0,0,.7);padding:4px}
+  .rail{display:flex;gap:2px}
+  .rail button{flex:1;font-family:inherit;font-size:10px;padding-inline:0;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+    padding:4px 0;border:1px solid #3a3a36;background:#232426;color:#CFC6B0;border-radius:2px}
+  .rail button:hover{background:#34363a;color:#fff}
+  .rail button[aria-checked="true"]{background:linear-gradient(180deg,#e3bf74,#a97c33);color:#1e1405;border-color:#5c4110;font-weight:700}
+  .rail button.pending{outline:2px dashed #e3bf74;outline-offset:-2px}
+  /* the customer's plan in round 1: a filled amber chip with a PLAN tab, so it can't be missed */
+  .rail button.proposed{background:#F5A623;color:#1e1405;border-color:#FFD27A;font-weight:700;box-shadow:0 0 0 2px #F5A623,0 0 10px rgba(245,166,35,.55)}
+  .rail button.proposed::before{content:"plan";position:absolute;left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:2px;
+    padding:1px 5px 0;font-size:calc(10px / max(var(--ui), .75));line-height:1.2;   /* the row scales down on small windows; the tab keeps a readable size */letter-spacing:.08em;font-weight:700;background:#F5A623;color:#1e1405;border-radius:2px 2px 0 0}
+
+  /* settings key plate: what each setting does and how much it keeps, on the wall */
+  #keyplate{left:0;bottom:18px;padding:10px 14px 8px;z-index:9;pointer-events:none}
+  #keyplate h3{font-family:"Saira Stencil One",Impact,sans-serif;font-weight:400;font-size:12px;letter-spacing:.16em;color:var(--brass);margin:0 0 4px 8px;text-transform:uppercase}
+  #keyplate table{border-collapse:collapse}
+  #keyplate td{padding:2px 6px;vertical-align:top;font-size:13px;line-height:1.25;color:#E4DCC8}
+  #keyplate td.k{font-family:"Saira Stencil One",Impact,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:#F2D28C;white-space:nowrap}
+  #keyplate td.v{white-space:nowrap;color:#CFC6B0}
+  #keyplate.tight{padding:8px 12px 6px}
+  #keyplate.tight td{font-size:12px;line-height:1.18;padding:1px 5px}
+  #keyplate.tight h3{display:none}
+  /* narrow windows: name and share on one line, the meaning under them */
+  #keyplate.stack tr{display:grid;grid-template-columns:auto 1fr;margin-bottom:3px}
+  #keyplate.stack td.s{grid-column:1/-1;padding-top:0}
+  .rail button{position:relative}
+  .rail button:focus-visible{outline:3px solid #7FD4FF;outline-offset:1px;z-index:1;position:relative}
+  #sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+  /* diegetic HUD */
+  .plate{position:fixed;z-index:10;padding:10px 16px;
+    background:linear-gradient(180deg,#2a2b2a,#151615);border:2px solid #4a4a45;
+    box-shadow:inset 0 0 0 3px #0c0c0b,inset 0 0 0 4px #5a5a52,0 6px 18px rgba(0,0,0,.6);
+    color:var(--cream)}
+  .plate::before,.plate::after{content:"";position:absolute;top:6px;width:6px;height:6px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#8a8a80,#2b2b28);box-shadow:0 1px 0 #000}
+  .plate::before{left:6px}.plate::after{right:6px}
+  #sign{left:50%;transform:translateX(-50%) scale(var(--ui));transform-origin:top center;top:14px;font-size:18px;line-height:1.05;text-align:center}
+  #sign small{display:block;font-size:17px;letter-spacing:.03em;opacity:.95;margin-top:5px;text-transform:none;font-family:"Barlow Condensed";font-weight:500;line-height:1.3}
+  #counter{left:18px;bottom:18px;transform:scale(var(--ui));transform-origin:bottom left;font-size:13px;letter-spacing:.18em}
+  #counter b{display:block;font-size:34px;line-height:1;margin-top:3px;color:var(--brass);
+    font-variant-numeric:tabular-nums;text-shadow:0 0 12px rgba(201,154,75,.35)}
+  #counter b span{font-size:16px;opacity:.6;color:var(--cream)}
+  #sound{left:18px;top:18px;z-index:30;cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:.14em;transform:scale(var(--ui));transform-origin:top left}
+  #sound[aria-pressed=false]{opacity:.7}
+  #help{left:calc(18px + 108px * var(--ui));top:18px;z-index:30;cursor:pointer;font-family:inherit;font-size:13px;letter-spacing:.14em;transform:scale(var(--ui));transform-origin:top left}
+  #help:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #sound:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #target{right:18px;top:18px;transform:scale(var(--ui));transform-origin:top right;font-size:13px;letter-spacing:.14em;text-align:right}
+  #target b{display:block;font-size:26px;line-height:1.05;margin-top:3px;font-variant-numeric:tabular-nums}
+  #target b.ok{color:#6FD08C}
+  #target b.bad{color:#E0533F}
+  #target i{font-style:normal;font-size:14px;opacity:.9;display:block;margin-top:2px;letter-spacing:.06em}
+
+  #logshift{position:fixed;right:18px;bottom:18px;z-index:10;cursor:pointer;transform-origin:bottom right;
+    width:190px;height:64px;border:0;border-radius:6px;padding:0 10px;
+    background:linear-gradient(180deg,#d9b56a,#9d7330);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #5f4415,0 8px 0 #2b1f0a,0 12px 20px rgba(0,0,0,.6);
+    color:#2a1d08;font-size:17px;transition:transform .08s,box-shadow .08s;transform:scale(var(--ui))}
+  #logshift:active{transform:scale(var(--ui)) translateY(6px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 #5f4415,0 2px 0 #2b1f0a}
+  #logshift:disabled{filter:saturate(.3) brightness(.6);cursor:default}
+
+  /* consequence toasts pinned to fixtures */
+  .toast{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));padding:5px 10px;font-size:13px;letter-spacing:.08em;
+    background:rgba(20,18,14,.92);border-left:4px solid var(--brass);color:var(--cream);
+    animation:toast 2.8s ease-out forwards;white-space:nowrap}
+  .toast.dark{border-color:var(--red)}
+  .toast.lit{border-color:#6FD08C}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,-30%)}12%{opacity:1;transform:translate(-50%,-50%)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%)}}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at center,rgba(10,10,8,.72),rgba(0,0,0,.92));opacity:0;pointer-events:none;transition:opacity .4s}
+  .ov.on{opacity:1;pointer-events:auto}
+  /* docked panel (round 1 results): over the source rows at left, so the lamps, board and tank stay in view */
+  .ov.dock{background:none;justify-content:flex-start;align-items:stretch;pointer-events:none}
+  .ov.dock.on{pointer-events:none}
+  .ov.dock.on .card{pointer-events:auto}
+  /* the panel says what to do next; the sign and the key plate would only peek out from behind it */
+  body:has(#round2.on) #sign, body:has(#round2.on) #keyplate{visibility:hidden}
+  .ov.dock .card{width:min(600px,52vw);max-height:none;height:100%;padding:calc(30px + 40px * var(--ui)) 24px 22px;border-left:0;border-top:0;border-bottom:0}
+  .ov.dock h1{font-size:26px}
+  .ov.dock table.dbf{font-size:15px}
+  .ov.dock table.dbf td{padding:5px 5px}
+  .ov.dock td.why{font-size:14px;line-height:1.3;min-width:180px}
+  .ov.dock .card button{font-size:15px;padding:9px 16px}
+  .card{width:min(680px,92vw);max-height:94vh;overflow:auto;padding:34px 40px;background:#1a1916;border:2px solid #3c3a33;
+    box-shadow:inset 0 0 0 4px #0d0c0a,inset 0 0 0 5px #5a5646,0 30px 60px #000;color:var(--cream)}
+  .card h1{font-size:34px;line-height:1;margin-bottom:6px}
+  .card h1 small{display:block;font-size:13px;letter-spacing:.2em;opacity:.7;margin-bottom:10px}
+  .card h2{font-size:14px;letter-spacing:.16em;color:var(--brass);margin:18px 0 4px;font-weight:700;text-transform:uppercase}
+  .card .sub{font-size:19px;color:#E4DCC8;margin-top:8px}
+  .card .btns{display:flex;gap:10px;flex-wrap:wrap}
+  .card button.ghost{background:#3a3a36;color:#eee;box-shadow:none}
+  .card p{font-size:17px;line-height:1.45;margin:12px 0;color:#E4DCC8}
+  .card ol{margin:6px 0 4px 22px;font-size:17px;line-height:1.5;color:#E4DCC8}
+  .card ol b{color:var(--brass)}
+  .card p b{color:var(--brass)}
+  .card .rule{border-top:1px dashed #4a4640;margin:18px 0}
+  .card button{font-family:inherit;font-size:18px;padding:12px 26px;cursor:pointer;border:0;color:#2a1d08;
+    background:linear-gradient(180deg,#d9b56a,#9d7330);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 #2b1f0a}
+  .card button:active{transform:translateY(4px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 1px 0 #2b1f0a}
+  @media (max-height:700px){
+    #intro .card{padding:22px 34px}
+    #intro .card h1{font-size:28px}
+    #intro .card p, #intro .card ol{font-size:15px;line-height:1.35;margin-top:6px;margin-bottom:6px}
+    #intro .card h2{margin-top:10px}
+    #intro .card .rule{margin:10px 0}
+  }
+  table.dbf{width:100%;border-collapse:collapse;font-size:17px;margin:12px 0}
+  table.dbf th{text-align:left;font-weight:500;letter-spacing:.1em;font-size:13px;opacity:.7;padding:4px 6px;border-bottom:1px solid #3c3a33;text-transform:uppercase}
+  table.dbf td{padding:6px;border-bottom:1px solid #26241f;vertical-align:top}
+  table.dbf td.st{width:90px;font-family:"Saira Stencil One";letter-spacing:.06em}
+  table.dbf.sum td:first-child{width:45%;color:#C9BFA8}
+  .lit{color:#6FD08C}.dark{color:#E0533F}
+  /* outlet call buttons (round 1) */
+  button.lbl{cursor:pointer;font-family:"Saira Stencil One",Impact,"Arial Narrow",sans-serif;pointer-events:auto}
+  button.lbl:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  button.lbl[aria-pressed="true"]{border-color:#E0533F;background:#3a1210;color:#FFD9D3}
+  button.lbl[aria-pressed="true"]::before{content:"BREAKS · ";color:#E0533F}
+  button.lbl.survives:not([aria-pressed="true"]){border-color:#6FD08C}
+  button.lbl.survives:not([aria-pressed="true"])::before{content:"WORKS · ";color:#6FD08C}
+  button.lbl:not(:disabled)::after{content:" ▸";opacity:.7}
+  button.lbl:disabled{cursor:default}
+  button.lbl.hit{border-color:#6FD08C;box-shadow:0 0 0 2px #6FD08C inset}
+  button.lbl.miss{border-color:#E0533F;box-shadow:0 0 0 2px #E0533F inset}
+  button.lbl.miss::before{content:"MISSED · ";color:#E0533F}
+  button.lbl.hit::before{content:"RIGHT · ";color:#6FD08C}
+  button.lbl.quiet::before{content:"RIGHT · ";color:#6FD08C}
+  button.lbl.false::before{content:"WRONG · ";color:#E3BF74}
+  .needs{font-size:15px;color:#C9BFA8}
+  .card .needs{font-size:17px}
+  #specTable td.srcname{width:150px}
+  #specTable td.reads{font-size:17px;line-height:1.35;color:#F0E6CF}
+  #specTable td.plancell{width:200px}
+  #specTable td.plancell .st{font-family:"Saira Stencil One";letter-spacing:.06em;color:#E3BF74;text-transform:uppercase}
+  #specTable .stopnote{font-size:14px;line-height:1.3;color:#B8AE97;margin-top:3px}
+  #err{position:fixed;left:0;right:0;bottom:0;z-index:99;background:#400;color:#fdd;font:12px monospace;padding:8px;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div class="plate stencil" id="sign"><span id="signtitle">Round 1 of 2</span><small id="signsub">Click each output on the right and mark it.</small></div>
+<div id="sr" role="status" aria-live="polite"></div>
+<div class="plate stencil" id="target">Daily volume<b id="volnum">0%</b><i>Goal: −30% or lower, nothing broken</i></div>
+<div class="plate stencil" id="counter"><span id="ctitle">Outputs marked</span><b><span id="found">0</span> <span id="ctail">/ 7</span></b></div>
+<div class="plate" id="keyplate" aria-label="What each setting does"><h3>Settings</h3><table id="keyTable"></table></div>
+<button id="logshift" class="stencil">Run their plan</button>
+<button id="sound" class="plate stencil" type="button">Sound on</button>
+<button id="help" class="plate stencil" type="button">Help</button>
+
+<div class="ov on" id="intro"><div class="card">
+  <h1 class="stencil">The Valve Room</h1>
+  <p class="sub" id="introSub">Cut a customer's <span id="introProduct">Splunk</span> data without breaking what depends on it.</p>
+  <h2>The situation</h2>
+  <p id="introOutputs">A customer must index 30% less data each day. Their ops lead has a plan to do it. On the right are seven outputs: five alerts, a dashboard and a retention tank.</p>
+  <h2>Your goal</h2>
+  <p>Find what their plan breaks. Then make a plan that reaches −30% and breaks nothing.</p>
+  <h2>What to do</h2>
+  <ol>
+    <li>Their plan shows as amber <b>plan</b> chips on the rows at left. The plate below the rows says what each setting does.</li>
+    <li>Click each output on the right. Read what it uses from each source, then mark it <b>Will break</b> or <b>Will work</b>.</li>
+    <li>Press <b>Run their plan</b>.</li>
+    <li>In round 2, click settings on the rows to change their plan. You get six changes. Nothing is tested until you submit.</li>
+    <li>Press <b>Submit plan</b>.</li>
+  </ol>
+  <div class="rule"></div>
+  <button id="start" class="stencil">Start</button>
+</div></div>
+
+<div class="ov" id="spec"><div class="card" style="width:min(720px,94vw)" role="dialog" aria-labelledby="specTitle">
+  <h1 class="stencil"><small>What it reads</small><span id="specTitle"></span></h1>
+  <p class="needs" style="margin-top:-4px">Read what it uses from each source. Will their plan still give it that?</p>
+  <table class="dbf" id="specTable"></table>
+  <div class="rule"></div>
+  <div id="specCall" style="display:flex;gap:10px;flex-wrap:wrap">
+    <button id="callDark" class="stencil">Will break</button>
+    <button id="callLit" class="stencil" style="background:linear-gradient(180deg,#8fd6a4,#3f8a58);color:#062010">Will work</button>
+    <button id="specClose" class="stencil" style="background:#3a3a36;color:#eee;box-shadow:none">Close</button>
+  </div>
+</div></div>
+<div class="ov dock" id="round2"><div class="card" role="dialog" aria-labelledby="r1Title">
+  <h1 class="stencil"><small>Round 1 results</small><span id="r1Title"></span></h1>
+  <table class="dbf" id="r1Table"></table>
+  <div class="rule"></div>
+  <div class="btns"><button id="go2" class="stencil">Start round 2</button><button id="r2Close" class="stencil ghost">Close</button></div>
+</div></div>
+<div class="ov" id="debrief"><div class="card" style="width:min(960px,94vw);max-height:92vh;overflow:auto" role="dialog" aria-labelledby="dbTitle">
+  <h1 class="stencil"><small>Results</small><span id="dbTitle"></span></h1>
+  <table class="dbf sum" id="dbSummary"></table>
+  <h2>Each output</h2>
+  <table class="dbf" id="dbTable"></table>
+  <h2>What each setting does</h2>
+  <table class="dbf" id="dbLinks"></table>
+  <div class="rule"></div>
+  <div class="btns"><button id="again" class="stencil">Play again</button><button id="dbClose" class="stencil ghost">Close</button></div>
+</div></div>
+<div class="ov" id="helpov"><div class="card" role="dialog" aria-labelledby="helpTitle">
+  <h1 class="stencil" id="helpTitle">Help</h1>
+  <h2>Settings</h2>
+  <table class="dbf" id="helpStops"></table>
+  <h2>Controls</h2>
+  <p>Click a setting on a row, or drag the brass wheel. Clockwise lowers the setting.</p>
+  <p>Keyboard: Tab to a row, then use the arrow keys. Esc closes a box.</p>
+  <div class="rule"></div>
+  <button id="helpClose" class="stencil">Close</button>
+</div></div>
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/",
+  "scorm": "./scorm.js"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { connectScorm } from 'scorm';
+import { createAudio } from './assets/audio/audio.js';
+import defaultContent from './content.js';
+import { validatePack } from './validate-pack.mjs';
+import { getTheme, applyThemeColors } from './theme.js';
+
+window.addEventListener('error', e=>{ const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.error?.stack || e.message); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CONTENT PACK — the only place a product or a source name appears.
+  Engine, HUD and mechanics are generic. See content.js and ../../content-packs/README.md.
+═══════════════════════════════════════════════════════════════════════════*/
+const MODES = ['full','filter','sample','cold','drop'];
+const CONTENT = window.__ENGINE_CONTENT__ ?? defaultContent;
+{
+  const problems = validatePack(CONTENT);
+  if (problems.length) {
+    const el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = 'This content pack cannot be played:\n' + problems.map(p=>'- '+p).join('\n');
+    throw new Error('Invalid content pack:\n' + problems.join('\n'));
+  }
+}
+const MODE_VOL = CONTENT.modeVolume;
+const THEME = getTheme(CONTENT.theme?.pack).theme;
+applyThemeColors(THEME, CONTENT.theme?.colors);
+const CONSUMERS = [...CONTENT.lamps, CONTENT.board, CONTENT.tank];
+document.getElementById('introProduct').textContent = CONTENT.product;
+document.getElementById('introOutputs').textContent =
+  `A customer must index ${Math.abs(Math.round(CONTENT.target*100))}% less data each day. Their ops lead has a plan to do it. `
+  + `On the right are ${CONSUMERS.length} outputs: ${CONTENT.lamps.length} alerts, a dashboard and a retention tank.`;
+/*═══════════════════════════════════════════════════════════════════════════
+  SOUND — assets/audio/audio.json lists each sound and the moment it fires on
+═══════════════════════════════════════════════════════════════════════════*/
+const audio = createAudio({ storageKey:'valve-room.muted',
+  sfx:{ detent:'./assets/audio/detent.mp3', wheel:'./assets/audio/wheel.mp3', 'spec-open':'./assets/audio/spec-open.mp3',
+    call:'./assets/audio/call.mp3', 'run-plan':'./assets/audio/run-plan.mp3', 'log-shift':'./assets/audio/log-shift.mp3',
+    'lamp-out':'./assets/audio/lamp-out.mp3', 'lamp-on':'./assets/audio/lamp-on.mp3', 'tank-drain':'./assets/audio/tank-drain.mp3',
+    'all-clear':'./assets/audio/all-clear.mp3', alarm:'./assets/audio/alarm.mp3' } });
+audio.mountToggle(document.getElementById('sound'));
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STATE
+═══════════════════════════════════════════════════════════════════════════*/
+// phase: 'read' (their plan, wall frozen, learner calls what goes dark) -> 'build' (wheels live, turn budget) -> 'done'
+const state = { modes:{}, phase:'read', calls:new Set(), marked:new Set(), truth:{}, turns:CONTENT.turns, finished:false };
+for (const s of CONTENT.sources) state.modes[s.id] = CONTENT.plan[s.id] || 'full';
+const BASE = Object.fromEntries(CONTENT.sources.map(s=>[s.id,'full']));
+function shown(){ return state.phase==='read' ? BASE : state.modes; }
+
+const totalGb = CONTENT.sources.reduce((n,s)=>n+s.gb,0);
+function volumeDelta(){ return CONTENT.sources.reduce((n,s)=>n+s.gb*MODE_VOL[state.modes[s.id]],0)/totalGb - 1; }
+function consumerUp(c, modes=state.modes){ return Object.entries(c.needs).every(([sid,ok])=>ok.includes(modes[sid])); }
+function consumerShare(c, modes=state.modes){ const e=Object.entries(c.needs); return e.filter(([sid,ok])=>ok.includes(modes[sid])).length/e.length; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  RENDERER, ENVIRONMENT, LIGHT
+═══════════════════════════════════════════════════════════════════════════*/
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060a);
+scene.fog = new THREE.Fog(0x05060a, 12, 22);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .35;
+
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, .1, 60);
+camera.position.set(-0.45, 2.75, 11.0);
+camera.lookAt(-0.45, 2.65, 0);
+// The wall has to fit on any window: pick the vertical fov that shows the whole
+// working width (about 11 units) as well as the whole height (about 6.9).
+function fitCamera(){
+  const dist=11, needH=6.9, needW=10.9, aspect=innerWidth/innerHeight;
+  const fovH=2*Math.atan(needH/2/dist), fovW=2*Math.atan(needW/2/dist/aspect);
+  camera.fov=THREE.MathUtils.radToDeg(Math.max(fovH,fovW)); camera.aspect=aspect; camera.updateProjectionMatrix();
+  // HTML scales with the world: 1.0 at the reference frame, smaller as the view shrinks
+  const ref=2*Math.tan(THREE.MathUtils.degToRad(34)/2)*dist;  // world height at reference fov
+  const cur=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*dist;
+  document.documentElement.style.setProperty('--ui', Math.max(.55, Math.min(1, (innerHeight/900)*(ref/cur))).toFixed(3));
+}
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0x30363f, .55));
+function cageLamp(x,y,z,color=0xffc98a,i=26){
+  const L = new THREE.SpotLight(color, i, 20, Math.PI/3.4, .55, 1.6);
+  L.position.set(x,y,z); L.target.position.set(x, 0, z-.4); L.castShadow = true;
+  L.shadow.mapSize.set(2048,2048); L.shadow.bias = -0.0006; L.shadow.normalBias = .02;
+  scene.add(L, L.target);
+  // the fixture itself: cage + bulb
+  const g = new THREE.Group(); g.position.set(x,y,z);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.09,.16,.22,12,1,true), new THREE.MeshStandardMaterial({color:0x222, metalness:.8, roughness:.5, side:THREE.DoubleSide})));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(.07,16,12), new THREE.MeshBasicMaterial({color}));
+  bulb.position.y = -.12; g.add(bulb);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,1.2,6), new THREE.MeshStandardMaterial({color:0x111, metalness:.9, roughness:.4})).translateY(.7));
+  scene.add(g); return L;
+}
+cageLamp(-2.6, 6.2, 1.6); cageLamp(2.6, 6.2, 1.6);
+const redLamp = new THREE.PointLight(THEME.redLampHex, 0, 6, 2); redLamp.position.set(3.2, 5.3, .9); scene.add(redLamp);
+const fill = new THREE.DirectionalLight(0x8fa7c9, .25); fill.position.set(-4, 3, 8); scene.add(fill);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MATERIALS — generated textures at authoring time, PBR at runtime
+═══════════════════════════════════════════════════════════════════════════*/
+const tl = new THREE.TextureLoader();
+function tex(name, rx=1, ry=1){ const t = tl.load(`./assets/tex/${name}.jpg`); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t; }
+const M = {
+  wall:  new THREE.MeshStandardMaterial({ map:tex('steel-wall',3.2,2.2), roughness:.78, metalness:.35 }),
+  floor: new THREE.MeshStandardMaterial({ map:tex('floor',4,4), roughness:.45, metalness:.15 }),
+  pipe:  new THREE.MeshStandardMaterial({ map:tex('pipe-paint',2,1), roughness:.62, metalness:.5 }),
+  pipeBig: new THREE.MeshStandardMaterial({ map:tex('pipe-paint',3,1.5), roughness:.62, metalness:.5 }),
+  rust:  new THREE.MeshStandardMaterial({ map:tex('rust',1,1), roughness:.9, metalness:.3 }),
+  brass: new THREE.MeshStandardMaterial({ map:tex('brass',1,1), roughness:.32, metalness:.95, color:THEME.brassHex }),
+  brassDark: new THREE.MeshStandardMaterial({ map:tex('brass',2,2), roughness:.45, metalness:.9, color:THEME.brassDarkHex }),
+  iron:  new THREE.MeshStandardMaterial({ color:0x2a2a2c, roughness:.55, metalness:.85 }),
+  glass: new THREE.MeshPhysicalMaterial({ color:0xcfd8dd, transmission:.9, thickness:.1, roughness:.06, metalness:0, ior:1.4, transparent:true, opacity:.28, depthWrite:false }),
+  enamel:new THREE.MeshStandardMaterial({ color:0x1b1d1c, roughness:.35, metalness:.55 }),
+  cream: new THREE.MeshStandardMaterial({ color:0xE8DCC0, roughness:.6, metalness:.1 }),
+};
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CANVAS TEXTURES — crisp text on gauge faces and tags
+═══════════════════════════════════════════════════════════════════════════*/
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t; }
+const F = '"Saira Stencil One",Impact,sans-serif', FB='"Barlow Condensed",Arial,sans-serif';
+
+function gaugeFace(title, ticks, redFrom, redTo, sub){
+  return canvasTex(1024,1024,(g,w,h)=>{
+    const cx=w/2, cy=h/2, R=470;
+    g.fillStyle='#EBDDB8'; g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.fill();
+    // patina
+    const rg=g.createRadialGradient(cx,cy,R*.5,cx,cy,R); rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(1,'rgba(70,40,10,.35)'); g.fillStyle=rg; g.fillRect(0,0,w,h);
+    const a0=-Math.PI*1.25, a1=Math.PI*.25; // sweep 270°
+    const ang=v=>a0+(a1-a0)*v;
+    // red zone
+    if(redFrom!=null){ g.beginPath(); g.arc(cx,cy,R*.82,ang(redFrom),ang(redTo)); g.lineWidth=46; g.strokeStyle='rgba(184,48,42,.9)'; g.stroke(); }
+    // ticks
+    for(let i=0;i<=ticks.n;i++){ const v=i/ticks.n, a=ang(v), major=i%ticks.major===0;
+      const r1=R*.9, r0=R*(major?.76:.83);
+      g.beginPath(); g.moveTo(cx+Math.cos(a)*r0, cy+Math.sin(a)*r0); g.lineTo(cx+Math.cos(a)*r1, cy+Math.sin(a)*r1);
+      g.lineWidth=major?8:4; g.strokeStyle='#15120E'; g.stroke();
+      if(major && ticks.label){ g.fillStyle='#15120E'; g.font=`700 52px ${FB}`; g.textAlign='center'; g.textBaseline='middle';
+        g.fillText(ticks.label(v), cx+Math.cos(a)*R*.63, cy+Math.sin(a)*R*.63); }
+    }
+    g.fillStyle='#15120E'; g.textAlign='center'; g.textBaseline='middle';
+    g.font=`64px ${F}`; g.fillText(title, cx, cy+R*.32);
+    if(sub){ g.font=`500 34px ${FB}`; g.fillStyle='#5a4a30'; g.fillText(sub, cx, cy+R*.48); }
+    g.beginPath(); g.arc(cx,cy,R,0,Math.PI*2); g.lineWidth=14; g.strokeStyle='#3a2a12'; g.stroke();
+  });
+}
+function tagTex(text){ return canvasTex(256,384,(g,w,h)=>{
+  g.fillStyle='#D9C48E'; g.fillRect(0,0,w,h);
+  for(let i=0;i<400;i++){ g.fillStyle=`rgba(90,60,20,${Math.random()*.08})`; g.fillRect(Math.random()*w,Math.random()*h,3,3); }
+  g.strokeStyle='#8a1f1a'; g.lineWidth=10; g.strokeRect(14,14,w-28,h-28);
+  g.fillStyle='#1a1512'; g.beginPath(); g.arc(w/2,44,14,0,7); g.fill();
+  g.fillStyle='#8a1f1a'; g.textAlign='center'; g.font=`46px ${F}`;
+  text.split('\n').forEach((l,i)=>g.fillText(l,w/2,150+i*64));
+}); }
+function flowTex(){ const t=canvasTex(256,64,(g,w,h)=>{ g.fillStyle='#062a33'; g.fillRect(0,0,w,h);
+  g.fillStyle='#4FE3FF'; for(let x=-40;x<w;x+=64){ g.beginPath(); g.moveTo(x,0); g.lineTo(x+26,0); g.lineTo(x+56,h); g.lineTo(x+30,h); g.fill(); } });
+  t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(4,1); return t; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  ROOM
+═══════════════════════════════════════════════════════════════════════════*/
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(22,12), M.wall); wall.position.set(0,5,0); wall.receiveShadow=true; scene.add(wall);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(24,16), M.floor); floor.rotation.x=-Math.PI/2; floor.position.set(0,0,6); floor.receiveShadow=true; scene.add(floor);
+// conduit along the top and a skirting rail
+function box(w,h,d,m,x,y,z){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.set(x,y,z); b.castShadow=b.receiveShadow=true; scene.add(b); return b; }
+box(22,.18,.22,M.iron,0,.09,.11);
+const conduit = new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,22,10), M.iron); conduit.rotation.z=Math.PI/2; conduit.position.set(0,5.75,.12); conduit.castShadow=true; scene.add(conduit);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MESH TOOLKIT
+═══════════════════════════════════════════════════════════════════════════*/
+function cyl(r,len,m,seg=24){ const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg),m); c.castShadow=c.receiveShadow=true; return c; }
+function pipeX(x0,x1,y,z,r,m=M.pipe){ const c=cyl(r,Math.abs(x1-x0),m); c.rotation.z=Math.PI/2; c.position.set((x0+x1)/2,y,z); scene.add(c); return c; }
+function pipeY(y0,y1,x,z,r,m=M.pipeBig){ const c=cyl(r,Math.abs(y1-y0),m); c.position.set(x,(y0+y1)/2,z); scene.add(c); return c; }
+function flange(x,y,z,r,axis='x'){ const f=cyl(r*1.45,.09,M.iron,20); if(axis==='x') f.rotation.z=Math.PI/2; f.position.set(x,y,z); scene.add(f);
+  for(let i=0;i<6;i++){ const b=cyl(r*.14,.14,M.iron,8); const a=i/6*Math.PI*2; if(axis==='x'){ b.rotation.z=Math.PI/2; b.position.set(x, y+Math.cos(a)*r*1.15, z+Math.sin(a)*r*1.15);} else { b.position.set(x+Math.cos(a)*r*1.15, y, z+Math.sin(a)*r*1.15);} scene.add(b);} return f; }
+function bracket(x,y,z,r){ const b=box(.08,r*2.6,.5,M.iron,x,y,z-.2); b.position.z = z - .22; }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  INLETS — one per source: pipe, sight glass, valve body, hand-wheel
+═══════════════════════════════════════════════════════════════════════════*/
+const PIPE_Z = .42, VALVE_X = -3.85, HEADER_X = -.55;
+const Y_TOP = 5.05, Y_STEP = .52;
+const flowMap = flowTex();
+const INLETS = [];
+const pickables = [];
+CONTENT.sources.forEach((s,i)=>{
+  const y = Y_TOP - i*Y_STEP;
+  const r = .07 + .2*Math.sqrt(s.gb/420);
+  pipeX(-11, VALVE_X+.35, y, PIPE_Z, r);
+  bracket(-5.3, y, PIPE_Z, r);
+  // after the wheel: a sight glass shows what the stop actually lets through
+  const glassLen = .78;
+  const GX = -1.45;
+  pipeX(VALVE_X+.3, GX-glassLen/2-.03, y, PIPE_Z, r);
+  flange(GX-glassLen/2-.03, y, PIPE_Z, r);
+  const glass = cyl(r+.045, glassLen, M.glass, 28); glass.rotation.z=Math.PI/2; glass.position.set(GX, y, PIPE_Z); glass.castShadow=false; scene.add(glass);
+  const fm = new THREE.MeshStandardMaterial({ map:flowMap.clone(), emissive:0x2FB8D8, emissiveMap:flowMap.clone(), emissiveIntensity:1.2, roughness:.4, metalness:.1 });
+  fm.map.repeat.set(3,1); fm.emissiveMap.repeat.set(3,1);
+  const back = new THREE.Mesh(new THREE.CylinderGeometry(r*.9, r*.9, glassLen-.02, 24, 1, true, Math.PI/2, Math.PI), new THREE.MeshStandardMaterial({color:0x07090c, roughness:.9, side:THREE.DoubleSide})); back.rotation.z=Math.PI/2; back.position.copy(glass.position); back.castShadow=false; scene.add(back);
+  const liquid = cyl(r*.8, glassLen-.01, fm, 24); liquid.rotation.z=Math.PI/2; liquid.position.copy(glass.position); liquid.castShadow=false; scene.add(liquid);
+  flange(GX+glassLen/2+.03, y, PIPE_Z, r);
+  pipeX(GX+glassLen/2+.03, HEADER_X, y, PIPE_Z, r);
+  // valve body
+  const body = new THREE.Mesh(new THREE.SphereGeometry(r*1.35, 20, 14), M.rust); body.position.set(VALVE_X, y, PIPE_Z); body.castShadow=body.receiveShadow=true; body.scale.set(1.2,1,1); scene.add(body);
+  const bonnet = cyl(r*.55, .32, M.rust, 14); bonnet.rotation.x=Math.PI/2; bonnet.position.set(VALVE_X, y, PIPE_Z+.2); scene.add(bonnet);
+  const stem = cyl(.022, .3, M.brass, 8); stem.rotation.x=Math.PI/2; stem.position.set(VALVE_X, y, PIPE_Z+.42); scene.add(stem);
+  // hand-wheel
+  const wr = .21;
+  const wheel = new THREE.Group(); wheel.position.set(VALVE_X, y, PIPE_Z+.56);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(wr, .026, 12, 40), M.brass); rim.castShadow=true; wheel.add(rim);
+  for(let k=0;k<5;k++){ const sp=cyl(.016, wr, M.brass, 8); sp.rotation.z = k/5*Math.PI*2; sp.position.set(Math.sin(sp.rotation.z)*-wr/2, Math.cos(sp.rotation.z)*wr/2, 0); wheel.add(sp); }
+  const lug = new THREE.Mesh(new THREE.SphereGeometry(.045,12,10), M.iron); lug.position.set(0,wr,.02); wheel.add(lug);
+  const hub = cyl(.05,.07,M.brass,12); hub.rotation.x=Math.PI/2; wheel.add(hub);
+  const nut = new THREE.Mesh(new THREE.CylinderGeometry(.032,.032,.04,6), M.iron); nut.rotation.x=Math.PI/2; nut.position.z=.05; wheel.add(nut);
+  // invisible grab disc so drags land anywhere on the wheel
+  const grab = new THREE.Mesh(new THREE.CircleGeometry(wr+.05, 24), new THREE.MeshBasicMaterial({visible:false})); grab.position.z=.03; wheel.add(grab);
+  scene.add(wheel);
+  grab.userData.inlet = i; pickables.push(grab);
+  INLETS.push({ s, y, r, wheel, rim, liquid, fm, angle:0, targetAngle:0, spin:0, mat:fm });
+});
+
+/*═══════════════════════════════════════════════════════════════════════════
+  HEADER + OUTLETS
+═══════════════════════════════════════════════════════════════════════════*/
+const RH = .27;
+pipeY(.35, 5.5, HEADER_X, PIPE_Z, RH);
+flange(HEADER_X, 5.5, PIPE_Z, RH, 'y'); flange(HEADER_X, .35, PIPE_Z, RH, 'y');
+bracket(HEADER_X-.4, 2.8, PIPE_Z, RH);
+const OUT_Z = PIPE_Z;
+
+// master gauge, fed from the header top
+pipeX(HEADER_X, 0.75, 5.1, OUT_Z, .07); pipeY(4.95, 5.1, .75, OUT_Z, .07);
+function gauge(x,y,R,face,depth=.16){
+  const g=new THREE.Group(); g.position.set(x,y,OUT_Z);
+  const rim=cyl(R,depth,M.brass,48); rim.rotation.x=Math.PI/2; g.add(rim);
+  const inner=cyl(R*.93,depth*.4,M.enamel,48); inner.rotation.x=Math.PI/2; inner.position.z=depth*.3; g.add(inner);
+  const fc=new THREE.Mesh(new THREE.CircleGeometry(R*.9,48), new THREE.MeshStandardMaterial({map:face, roughness:.7, metalness:0})); fc.position.z=depth*.52; g.add(fc);
+  const needle=new THREE.Group(); needle.position.z=depth*.56;
+  const n=new THREE.Mesh(new THREE.BoxGeometry(.018,R*.8,.008), new THREE.MeshStandardMaterial({color:0x1a1210,roughness:.5})); n.position.y=R*.32; needle.add(n);
+  const tail=new THREE.Mesh(new THREE.BoxGeometry(.03,R*.18,.008), new THREE.MeshStandardMaterial({color:0xB8302A})); tail.position.y=-R*.09; needle.add(tail);
+  const cap=cyl(R*.08,.03,M.brass,16); cap.rotation.x=Math.PI/2; needle.add(cap);
+  g.add(needle);
+  const glass=new THREE.Mesh(new THREE.CircleGeometry(R*.92,48), M.glass); glass.position.z=depth*.7; g.add(glass);
+  const bezel=new THREE.Mesh(new THREE.TorusGeometry(R*.93,.025,10,48), M.brass); bezel.position.z=depth*.7; g.add(bezel);
+  g.traverse(o=>{ if(o.isMesh && o!==glass) o.castShadow=true; });
+  scene.add(g); return { g, needle, face:fc };
+}
+const masterFace = gaugeFace('DAILY VOLUME', { n:24, major:4, label:v=>`${Math.round(-50+v*60)}%` }, 1/3, 1, 'change from today');
+const master = gauge(0.75, 4.35, .62, masterFace, .2);
+const angFor = (v0,v1,v)=>{ const t=THREE.MathUtils.clamp((v-v0)/(v1-v0),0,1); return THREE.MathUtils.lerp(Math.PI*.75, -Math.PI*.75, t); };
+let masterAngle = angFor(-50,10,0);
+
+// lamp panel
+pipeX(HEADER_X, 2.05, 3.55, OUT_Z, .1); pipeY(2.65, 3.55, 2.05, OUT_Z, .1); flange(2.05, 3.55, OUT_Z, .1); flange(2.05, 2.65, OUT_Z, .1, 'y');
+const panel = box(1.75, 2.45, .12, M.enamel, 2.95, 3.85, .1);
+const panelRim = new THREE.Mesh(new THREE.BoxGeometry(1.85,2.55,.06), M.iron); panelRim.position.set(2.95,3.85,.06); scene.add(panelRim);
+const haloTex = canvasTex(128,128,(g)=>{ const r=g.createRadialGradient(64,64,4,64,64,64); r.addColorStop(0,'rgba(255,255,255,.95)'); r.addColorStop(.3,'rgba(120,255,160,.45)'); r.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=r; g.fillRect(0,0,128,128); });
+const LAMPS = CONTENT.lamps.map((c,i)=>{
+  const y = 4.75 - i*.46, x = 2.4;
+  const sock=cyl(.11,.08,M.brass,20); sock.rotation.x=Math.PI/2; sock.position.set(x,y,.2); scene.add(sock);
+  const mat=new THREE.MeshPhysicalMaterial({ color:THEME.lampOffHex, emissive:0x000000, roughness:.15, metalness:0, transmission:.35, thickness:.3, transparent:true });
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.105,24,16), mat); bulb.position.set(x,y,.28); scene.add(bulb);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({ map:haloTex, blending:THREE.AdditiveBlending, depthWrite:false, transparent:true, opacity:0 })); halo.scale.set(.7,.7,1); halo.position.set(x,y,.34); scene.add(halo);
+  const light=new THREE.PointLight(THEME.lampOnHex, 0, 1.6, 2); light.position.set(x,y,.5); scene.add(light);
+  // hanging "out of service" tag on a chain
+  const tag=new THREE.Group(); tag.position.set(x-.2,y+.08,.3);
+  const chain=cyl(.006,.1,M.iron,6); chain.position.y=-.05; tag.add(chain);
+  const card=new THREE.Mesh(new THREE.PlaneGeometry(.17,.25), new THREE.MeshStandardMaterial({ map:tagTex('OUT OF\nSERVICE'), roughness:.9, side:THREE.DoubleSide })); card.position.y=-.21; card.castShadow=true; tag.add(card);
+  tag.visible=false; scene.add(tag);
+  return { c, x, y, mat, halo, light, tag, up:consumerUp(c, shown()), off:false, lit:0 };
+});
+const brutePos = LAMPS[0];
+
+// operations board gauge
+pipeX(HEADER_X, 1.35, 2.25, OUT_Z, .09); flange(1.35, 2.25, OUT_Z, .09);
+const boardFace = gaugeFace('OPERATIONS', { n:10, major:5, label:v=>`${Math.round(v*100)}` }, 0, .4, 'data coverage');
+const board = gauge(1.75, 2.25, .42, boardFace);
+let boardAngle = angFor(0,100,100);
+
+// retention tank
+pipeX(HEADER_X, 3.05, 1.15, OUT_Z, .09); flange(3.05, 1.15, OUT_Z, .09);
+const TANK = (()=>{
+  const x=3.45, y0=.55, h=1.55, R=.34;
+  const g=new THREE.Group(); scene.add(g);
+  const cap=cyl(R*1.12,.08,M.brass,32); cap.position.set(x,y0+h+.04,PIPE_Z); scene.add(cap);
+  const base=cyl(R*1.12,.08,M.brass,32); base.position.set(x,y0-.04,PIPE_Z); scene.add(base);
+  const shell=cyl(R,h,M.glass,32); shell.position.set(x,y0+h/2,PIPE_Z); shell.castShadow=false; scene.add(shell);
+  const lm=new THREE.MeshStandardMaterial({ color:0x0f5a66, emissive:0x0e6f7c, emissiveIntensity:.35, roughness:.3, metalness:.1, transparent:true, opacity:.85 });
+  const liquid=cyl(R*.94,1,lm,32); liquid.castShadow=false; scene.add(liquid);
+  for(const t of [.25,.5,.75]){ const band=new THREE.Mesh(new THREE.TorusGeometry(R+.01,.012,8,40),M.brass); band.rotation.x=Math.PI/2; band.position.set(x,y0+h*t,PIPE_Z); scene.add(band); }
+  const feet=[-1,1].map(s=>{ const f=box(.08,.5,.3,M.iron,x+s*R*.85,.25,PIPE_Z); return f; });
+  return { x, y0, h, liquid, lm, level:1 };
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  LABELS — HTML projected into the world so text stays crisp
+═══════════════════════════════════════════════════════════════════════════*/
+const labelsEl = document.getElementById('labels');
+const LABELS = [];
+function label(text, x, y, z, cls='', consumer=null){ const el=document.createElement(consumer?'button':'div'); el.className='lbl stencil '+cls; el.textContent=text; labelsEl.appendChild(el);
+  if(consumer){ el.type='button'; el.setAttribute('aria-pressed','false'); el.setAttribute('aria-label', `${text}: see what it reads`);
+    el.addEventListener('click', ()=>openSpec(consumer)); }
+  const L={ el, p:new THREE.Vector3(x,y,z) }; LABELS.push(L); return L; }
+INLETS.forEach((it,i)=>{
+  const name=document.createElement('div'); name.className='lbl name stencil'; name.innerHTML=`${it.s.name}<span>${it.s.gb} GB/day</span>`;
+  labelsEl.appendChild(name); LABELS.push({ el:name, p:new THREE.Vector3(VALVE_X-.72, it.y, PIPE_Z+.6) });
+  const row=document.createElement('div'); row.className='row stencil'; row.setAttribute('role','group'); row.setAttribute('aria-label', `${it.s.name}, ${it.s.gb} gigabytes per day`);
+  row.innerHTML = `<div class="rail" role="radiogroup" aria-label="stop"></div>`;
+  const rail=row.querySelector('.rail');
+  it.btns = MODES.map(m=>{ const b=document.createElement('button'); b.type='button'; b.setAttribute('role','radio'); b.textContent=m; b.dataset.mode=m;
+    b.addEventListener('click', ()=>{ if(!canTurn()) return; it.targetAngle=MODES.indexOf(m)*DETENT; setMode(it,m); b.focus(); }); rail.appendChild(b); return b; });
+  rail.addEventListener('keydown', e=>{ const i=MODES.indexOf(state.modes[it.s.id]); let j=null;
+    if(e.key==='ArrowRight'||e.key==='ArrowDown') j=Math.min(i+1,4); if(e.key==='ArrowLeft'||e.key==='ArrowUp') j=Math.max(i-1,0);
+    if(e.key==='Home') j=0; if(e.key==='End') j=4; if(j===null||!canTurn()) return; e.preventDefault(); it.targetAngle=j*DETENT; setMode(it,MODES[j]); it.btns[j].focus(); });
+  labelsEl.appendChild(row); LABELS.push({ el:row, p:new THREE.Vector3(VALVE_X+1.02, it.y, PIPE_Z+.6) });
+  it.row=row; it.syncRail=()=>{ const cur=shown()[it.s.id], prop=state.phase==='read' ? state.modes[it.s.id] : null;
+    it.btns.forEach(b=>{ const on=b.dataset.mode===cur; b.setAttribute('aria-checked',on); b.tabIndex=on?0:-1; b.disabled=!canTurn();
+      b.classList.toggle('proposed', !!prop && prop!==cur && b.dataset.mode===prop); }); };
+  it.syncRail();
+});
+LAMPS.forEach(l=>{ l.lbl = label(l.c.name, l.x+.72, l.y, .3, 'small', l.c); });
+const tankBtn = label('Retention tank', TANK.x, TANK.y0+TANK.h+.24, PIPE_Z, 'small', CONTENT.tank);
+const tankLbl = label('', TANK.x, TANK.y0+TANK.h+.08, PIPE_Z, 'vol');
+const boardBtn = label('Operations board', 1.75, 1.7, OUT_Z, 'small', CONTENT.board);
+// The card is evidence, not the answer: what the output reads from each source, and the setting the plan gives
+// that source with its meaning. Which settings an output survives (`needs`) appears only after a run.
+let SPEC=null;
+function openSpec(c){
+  SPEC=c; audio.play('spec-open', { gain:.5 }); document.getElementById('specTitle').textContent=c.name;
+  const planHead = state.phase==='read'||state.phase==='reveal' ? 'Their plan' : 'Plan now';
+  document.getElementById('specTable').innerHTML=`<tr><th>Source</th><th>What it reads</th><th>${planHead}</th></tr>`+Object.keys(c.needs).map(sid=>{ const src=CONTENT.sources.find(x=>x.id===sid);
+    const m=state.modes[sid];
+    return `<tr><td class="srcname">${src.name}<div class="needs">${src.gb} GB/day</div></td><td class="reads">${c.reads[sid]}</td><td class="plancell"><span class="st">${m}</span><div class="stopnote">${CONTENT.stops[m]||''}</div></td></tr>`; }).join('');
+  document.getElementById('specCall').querySelectorAll('#callDark,#callLit').forEach(b=>b.style.display = state.phase==='read'?'':'none');
+  document.getElementById('spec').classList.add('on'); document.getElementById(state.phase==='read'?'callDark':'specClose').focus();
+}
+function closeSpec(){ document.getElementById('spec').classList.remove('on'); if(SPEC) CALL_BTN[SPEC.id].focus(); SPEC=null; }
+document.getElementById('specClose').addEventListener('click', closeSpec);
+document.getElementById('callDark').addEventListener('click', ()=>{ audio.play('call', { gain:.6 }); state.calls.add(SPEC.id); state.marked.add(SPEC.id); CALL_BTN[SPEC.id].setAttribute('aria-pressed','true'); updateHud(); closeSpec(); });
+document.getElementById('callLit').addEventListener('click', ()=>{ audio.play('call', { gain:.6, rate:1.12 }); state.calls.delete(SPEC.id); state.marked.add(SPEC.id); CALL_BTN[SPEC.id].setAttribute('aria-pressed','false'); CALL_BTN[SPEC.id].classList.add('survives'); updateHud(); closeSpec(); });
+addEventListener('keydown', e=>{ if(e.key!=='Escape') return; if(SPEC) return closeSpec();
+  for(const id of ['helpov','round2','debrief']) document.getElementById(id).classList.remove('on'); });
+const CALL_BTN = Object.fromEntries([...LAMPS.map(l=>[l.c.id,l.lbl.el]), ['board',boardBtn.el], ['tank',tankBtn.el]]);
+label('Daily volume', .75, 3.6, OUT_Z, 'small');
+
+const _v = new THREE.Vector3();
+function projectLabels(){
+  for(const L of LABELS){ _v.copy(L.p).project(camera);
+    L.el.style.left = ((_v.x+1)/2*innerWidth)+'px'; L.el.style.top = ((1-_v.y)/2*innerHeight)+'px'; }
+}
+function toast(text, x, y, z, cls){ document.getElementById('sr').textContent=text; _v.set(x,y,z).project(camera); const el=document.createElement('div'); el.className='toast stencil '+cls; el.textContent=text;
+  el.style.left=((_v.x+1)/2*innerWidth)+'px'; el.style.top=((1-_v.y)/2*innerHeight)+'px'; labelsEl.appendChild(el); setTimeout(()=>el.remove(), 2900); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  INTERACTION — drag a hand-wheel; detents snap on release
+═══════════════════════════════════════════════════════════════════════════*/
+const ray = new THREE.Raycaster(); const ptr = new THREE.Vector2();
+let drag = null, hover = null;
+const DETENT = -1.25; // radians per stop
+function setPtr(e){ ptr.set((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1); }
+function pick(e){ setPtr(e); ray.setFromCamera(ptr, camera); const h=ray.intersectObjects(pickables,false)[0]; return h ? INLETS[h.object.userData.inlet] : null; }
+// The wheel turns the way the hand turns it: the pointer's angle around the wheel's
+// centre on screen drives the rotation, so a clockwise drag is clockwise. Clockwise shuts.
+function wheelCentre(it){ const v=it.wheel.position.clone().project(camera); return [(v.x+1)/2*innerWidth, (1-v.y)/2*innerHeight]; }
+function ptrAngle(e,c){ return Math.atan2(e.clientY-c[1], e.clientX-c[0]); }   // screen y is down: increases clockwise
+renderer.domElement.addEventListener('pointermove', e=>{
+  if(drag){ let d=ptrAngle(e,drag.c)-drag.last; if(d>Math.PI) d-=Math.PI*2; if(d<-Math.PI) d+=Math.PI*2; drag.last=ptrAngle(e,drag.c);   // absolute, so a wheel spun past its stop never wraps a full turn
+    drag.it.targetAngle = THREE.MathUtils.clamp(drag.it.targetAngle - d, DETENT*4-.3, .3);
+    const m=MODES[THREE.MathUtils.clamp(Math.round(drag.it.targetAngle/DETENT),0,4)];
+    drag.it.btns.forEach(b=>b.classList.toggle('pending', b.dataset.mode===m));
+    const now=performance.now(); if(m!==drag.m && now-drag.at>45){ drag.m=m; drag.at=now; audio.play('detent', { gain:.5, rate:.95+Math.random()*.1 }); } return; }
+  const it=pick(e); if(it!==hover){ hover=it; renderer.domElement.style.cursor = it?'grab':'default'; }
+});
+renderer.domElement.addEventListener('pointerdown', e=>{ const it=pick(e); if(!it||!canTurn()) return; const c=wheelCentre(it);
+  drag={ it, c, last:ptrAngle(e,c), m:state.modes[it.s.id], at:0 }; renderer.domElement.style.cursor='grabbing'; renderer.domElement.setPointerCapture(e.pointerId); });
+function release(){ if(!drag) return; const it=drag.it; const idx=THREE.MathUtils.clamp(Math.round(it.targetAngle/DETENT),0,4); it.targetAngle=idx*DETENT; drag=null; renderer.domElement.style.cursor='grab';
+  it.btns.forEach(b=>b.classList.remove('pending')); setMode(it, MODES[idx]); }
+renderer.domElement.addEventListener('pointerup', release); renderer.domElement.addEventListener('pointercancel', release);
+
+function canTurn(){ return state.phase==='build' && !state.finished && state.turns>0; }
+function setMode(it, mode){
+  if(state.modes[it.s.id]===mode) return;
+  state.modes[it.s.id]=mode; state.turns--; audio.play('wheel', { gain:.5 }); if(state.turns===0) sign('Round 2 of 2', 'No changes left. Press Submit plan.');
+  INLETS.forEach(x=>x.syncRail());
+  // Round 2 tests nothing until Submit: no settle here, so turning wheels until every lamp is green does not work.
+  // Only the volume (gauge, number, tank label) stays live; the learner can work that out from the key plate anyway.
+  updateHud();
+  save();
+}
+// Untested look for round 2: lamps dim with no tag, board needle at rest on a dimmed face, tank liquid gray.
+function setUntested(off){ LAMPS.forEach(l=>l.off=off); board.off=off; TANK.off=off; }
+// Test every output against the wall's settings. With a stagger, each change lands on its own beat so the
+// learner sees each break; `force` replays every output (round 2's Submit, after the untested look).
+// Returns { dur, flush }: dur is when the last change lands, flush lands the rest at once.
+function settle({ stagger=0, force=false }={}){
+  const m=shown();
+  const loud = state.phase!=='read';
+  const events=[];
+  for(const l of LAMPS){ const up=consumerUp(l.c,m); if(force||l.off||up!==l.up) events.push(()=>{ const was=l.off?null:l.up; l.off=false; l.up=up;
+    if(force||was!==up){ if(loud) audio.play(up?'lamp-on':'lamp-out', { overlap:true }); toast(`${l.c.name} · ${up?'working':'broke'}`, l.x+.95, l.y, .3, up?'lit':'dark'); } }); }
+  const bUp=consumerShare(CONTENT.board,m), tUp=consumerShare(CONTENT.tank,m);
+  if(force||board.off||bUp!==board.share) events.push(()=>{ const first=board.share===undefined; board.off=false; board.share=bUp; if(first) return;
+    if(loud) audio.play(bUp===1?'lamp-on':'lamp-out', { overlap:true }); toast(`Operations board · ${bUp===1?'working':'broke'}`, 1.75, 2.25, .5, bUp===1?'lit':'dark'); });
+  if(force||TANK.off||tUp!==TANK.share) events.push(()=>{ const first=TANK.share===undefined; TANK.off=false; TANK.share=tUp; if(first) return;
+    if(loud && tUp<1) audio.play('tank-drain', { overlap:true }); toast(`Retention tank · ${tUp===1?'working':'broke'}`, TANK.x, TANK.y0+TANK.h/2, .8, tUp===1?'lit':'dark'); });
+  const timers=[];
+  events.forEach((ev,k)=>{ if(!stagger) ev(); else timers.push(setTimeout(()=>{ events[k]=null; ev(); }, k*stagger)); });
+  updateHud();
+  return { dur: stagger ? Math.max(0, events.length-1)*stagger : 0,
+    flush(){ timers.forEach(clearTimeout); events.forEach(ev=>ev&&ev()); events.fill(null); } };
+}
+
+function updateHud(){
+  const d=CONTENT.sources.reduce((n,s)=>n+s.gb*MODE_VOL[shown()[s.id]],0)/totalGb-1;
+  const el=document.getElementById('volnum'); el.textContent=(d>0?'+':'')+(d*100).toFixed(1)+'%'; el.className = d<=CONTENT.target?'ok':'bad';
+  if(state.phase==='read' && state.marked.size===CONSUMERS.length) sign('Round 1 of 2', 'Press Run their plan.');
+  if(state.phase!=='build' && state.phase!=='done'){ document.getElementById('ctitle').textContent='Outputs marked'; document.getElementById('found').textContent=state.marked.size; document.getElementById('ctail').textContent=`/ ${CONSUMERS.length}`; }
+  else { document.getElementById('ctitle').textContent='Changes left'; document.getElementById('found').textContent=state.turns; document.getElementById('ctail').textContent=`/ ${CONTENT.turns}`; }
+  const hot=CONTENT.sources.reduce((n,s)=>n+s.gb*MODE_VOL[shown()[s.id]],0);
+  tankLbl.el.textContent=`${Math.round(hot)} GB/day indexed`;
+}
+
+// Round 1 -> reveal: their plan runs, every call is graded on the wall itself.
+const pct = d=>(d>0?'+':'')+(d*100).toFixed(1)+'%';
+function sign(title, sub){ document.getElementById('signtitle').textContent=title; document.getElementById('signsub').textContent=sub; document.getElementById('sr').textContent=sub; }
+const show = id=>document.getElementById(id).classList.add('on'), hide = id=>document.getElementById(id).classList.remove('on');
+function runPlan(){
+  state.phase='reveal'; const ls=document.getElementById('logshift'); ls.disabled=true; audio.play('run-plan');
+  sign('Round 1 of 2', 'Their plan is running.');
+  for(const c of CONSUMERS) state.truth[c.id]=consumerUp(c, state.modes);
+  INLETS.forEach(it=>{ it.targetAngle=MODES.indexOf(state.modes[it.s.id])*DETENT; it.syncRail(); });
+  // The wall fails first: each break lands on its own beat, then the marks are graded in place,
+  // then the results dock to the side so the dark lamps stay in view.
+  setTimeout(()=>{ const { dur }=settle({ stagger:400 });
+    const hits=CONSUMERS.filter(c=>!state.truth[c.id] && state.calls.has(c.id)).length, darks=CONSUMERS.filter(c=>!state.truth[c.id]).length;
+    const falses=CONSUMERS.filter(c=>state.truth[c.id] && state.calls.has(c.id)).length;
+    state.round1={hits,darks,falses};
+    document.getElementById('r1Title').textContent = hits===darks && !falses ? 'All marks right' : `You caught ${hits} of ${darks} breaks`;
+    const rows=CONSUMERS.map(c=>{ const dark=!state.truth[c.id], called=state.calls.has(c.id), right=dark===called;
+      return `<tr><td>${c.name}</td><td>${state.marked.has(c.id)?(called?'Will break':'Will work'):'Not marked'}</td><td class="${dark?'dark':'lit'}">${dark?'Broke':'Worked'}</td><td class="${right?'lit':'dark'}">${right?'Right':'Wrong'}</td><td class="needs why">${CONTENT.say[c.id]||''}</td></tr>`; }).join('');
+    document.getElementById('r1Table').innerHTML=`<tr><th>Output</th><th>Your mark</th><th>Their plan</th><th>Result</th><th>Why</th></tr>${rows}
+      <tr><td>Daily volume</td><td></td><td>${pct(volumeDelta())}</td><td class="needs">goal −30%</td><td></td></tr>`;
+    setTimeout(()=>{
+      for(const c of CONSUMERS){ const btn=CALL_BTN[c.id]; btn.disabled=false; const called=state.calls.has(c.id), dark=!state.truth[c.id];
+        btn.setAttribute('aria-pressed','false'); btn.classList.remove('survives'); btn.classList.add(dark ? (called?'hit':'miss') : (called?'false':'quiet')); }
+      audio.play(hits===darks && !falses ? 'all-clear' : 'alarm', { gain:.6 });
+      ls.textContent='Start round 2'; ls.disabled=false;
+      sign('Round 1 of 2', 'Check your marks on the wall, then press Start round 2.');
+    }, dur+600);
+    setTimeout(()=>{ if(state.phase==='reveal'){ show('round2'); document.getElementById('go2').focus({ preventScroll:true }); } }, dur+1200);
+  }, 1400);
+}
+function startRound2(){
+  if(state.phase!=='reveal') return;
+  hide('round2'); state.phase='build'; setUntested(true);
+  for(const c of CONSUMERS){ const b=CALL_BTN[c.id]; b.classList.remove('hit','miss','false','quiet'); b.disabled=false; }
+  sign('Round 2 of 2', 'Change their plan. Nothing is tested until you press Submit plan.');
+  const ls=document.getElementById('logshift'); ls.textContent='Submit plan'; ls.disabled=false;
+  INLETS.forEach(x=>x.syncRail()); updateHud();
+}
+document.getElementById('go2').addEventListener('click', startRound2);
+document.getElementById('r2Close').addEventListener('click', ()=>hide('round2'));
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SCORM
+═══════════════════════════════════════════════════════════════════════════*/
+const lms = connectScorm();
+function save(){ if(!lms.connected||state.phase!=='build') return; lms.save(JSON.stringify({ v:2, contentVersion:CONTENT.version, modes:state.modes, turns:state.turns, calls:[...state.calls], round1:state.round1 })); }
+(function restore(){ const raw=lms.resumeData(); if(!raw) return; try{ const s=JSON.parse(raw); if(s.v!==2||s.contentVersion!==CONTENT.version) return;
+  Object.assign(state.modes, s.modes||{}); state.turns=s.turns??state.turns; (s.calls||[]).forEach(c=>state.calls.add(c)); state.round1=s.round1;
+  for(const c of CONSUMERS) state.truth[c.id]=consumerUp(c, Object.fromEntries(CONTENT.sources.map(x=>[x.id, CONTENT.plan[x.id]||'full'])));
+  INLETS.forEach(it=>{ it.angle=it.targetAngle=MODES.indexOf(state.modes[it.s.id])*DETENT; });
+  state.phase='reveal'; hide('intro'); document.getElementById('logshift').textContent='Start round 2'; document.getElementById('r1Title').textContent='Round 1 done'; sign('Round 2 of 2', 'Press Start round 2.');
+  show('round2'); }catch(_){} })();
+
+let SKIP=null;   // during the round 2 reveal: lands the remaining lamps and opens the debrief now
+document.getElementById('logshift').addEventListener('click', ()=>{ if(SKIP) return SKIP(); if(state.phase==='read') runPlan(); else if(state.phase==='reveal') startRound2(); else if(state.phase==='build') finish(); else if(state.phase==='done') show('debrief'); });
+function finish(){
+  if(state.finished) return; state.finished=true; state.phase='done'; INLETS.forEach(x=>x.syncRail());
+  const d=volumeDelta(), onTarget=d<=CONTENT.target;
+  const dark=CONSUMERS.filter(c=>!consumerUp(c));
+  const valid=onTarget && dark.length===0;
+  const r1=state.round1||{hits:0,darks:1,falses:0};
+  const readScore=Math.max(0, r1.hits - r1.falses)/Math.max(1,r1.darks)*50;
+  const score=Math.round(readScore + (valid?50:onTarget?15:dark.length===0?15:0));
+  const passed=score>=70;
+  lms.finish({ score, max:100, passed });
+  // The headline is the score; each round's rows follow it in order.
+  document.getElementById('dbTitle').textContent = `${score} of 100 · ${passed ? 'Passed' : 'Not passed'}`;
+  const r2Story = valid ? 'Goal met, nothing broken' : dark.length ? `${dark.length} output${dark.length>1?'s':''} broken` : 'Nothing broken, volume too high';
+  document.getElementById('dbSummary').innerHTML = [
+    ['Round 1: breaks you caught', `${r1.hits} of ${r1.darks}`],
+    ['Round 1: wrong marks', r1.falses],
+    ['Round 2: result', `<span class="${valid?'lit':'dark'}">${r2Story}</span>`],
+    ['Round 2: daily volume', `<span class="${onTarget?'lit':'dark'}">${pct(d)}</span> (goal −30%)`],
+    ['Round 2: outputs broken', `<span class="${dark.length?'dark':'lit'}">${dark.length}</span>`],
+    ['Round 2: changes used', `${CONTENT.turns-state.turns} of ${CONTENT.turns}`],
+  ].map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+  const rows=CONSUMERS.map(c=>{ const up=consumerUp(c);
+    const needs=Object.entries(c.needs).map(([sid,ok])=>{ const s=CONTENT.sources.find(s=>s.id===sid); const have=state.modes[sid]; const good=ok.includes(have);
+      return `<span class="${good?'lit':'dark'}">${s.name}: ${have}</span>${good?'':` <span style="opacity:.8">(needs ${ok.join(' or ')})</span>`}`; }).join('<br>');
+    return `<tr><td class="st ${up?'lit':'dark'}">${up?'Works':'Broken'}</td><td>${c.name}</td><td class="needs">${needs}</td><td class="needs" style="min-width:240px">${CONTENT.say[c.id]||''}</td></tr>`; }).join('');
+  document.getElementById('dbTable').innerHTML=`<tr><th>Your plan</th><th>Output</th><th>Your settings</th><th>Why</th></tr>${rows}`;
+  document.getElementById('dbLinks').innerHTML=STOP_ROWS;
+  // Now the plan runs: every output is tested one by one, then the debrief opens.
+  audio.play('log-shift'); sign('Round 2 of 2', 'Your plan is running.');
+  const ls=document.getElementById('logshift');
+  const run=settle({ stagger:400, force:true }), wait=run.dur+1200;
+  let opened=false;
+  const open=()=>{ if(opened) return; opened=true; SKIP=null; run.flush();
+    audio.play(valid ? 'all-clear' : 'alarm', { gain:.6 });
+    ls.textContent='Show results'; ls.disabled=false;
+    sign('Done', 'Your plan is submitted.');
+    show('debrief'); document.querySelector('#debrief .card').scrollTop=0; document.getElementById('again').focus({ preventScroll:true }); };
+  if(wait>3000){ SKIP=open; ls.textContent='Skip'; ls.disabled=false; } else { ls.disabled=true; }
+  setTimeout(open, wait);
+}
+const STOP_ROWS=Object.entries(CONTENT.stops).map(([k,v])=>`<tr><td class="st">${k}</td><td class="needs">${v}</td></tr>`).join('');
+// Key plate on the wall: each setting's meaning and the share of volume it keeps. It sits under the source rows,
+// left of the header pipe, so it covers no pipe, lamp or gauge at any window size.
+document.getElementById('keyTable').innerHTML=MODES.map(m=>`<tr><td class="k">${m}</td><td class="v">keeps ${Math.round(MODE_VOL[m]*100)}%</td><td class="s">${CONTENT.stops[m]||''}</td></tr>`).join('');
+function placeKey(){
+  const kp=document.getElementById('keyplate'), cr=document.getElementById('counter').getBoundingClientRect();
+  const left=cr.right+14, right=window.__dbg.project(HEADER_X-RH, 1, PIPE_Z+RH)[0]-14;
+  const last=INLETS[INLETS.length-1]; let top=0;
+  for(const el of [last.row, LABELS.find(L=>L.el.classList.contains('name') && L.p.y===last.y)?.el]) if(el) top=Math.max(top, el.getBoundingClientRect().bottom);
+  top+=10;
+  kp.style.left=left+'px'; kp.style.width=Math.max(0,right-left)+'px';
+  // first layout that fits under the rows: roomy table, tight table, stacked, stacked and tight
+  let r, used;
+  // if none fits, keep the one that covers the least of the rows
+  let best=null;
+  for(const cls of ['', 'tight', 'stack', 'stack tight']){ kp.className='plate'+(cls?' '+cls:''); used=cls; r=kp.getBoundingClientRect(); if(r.top>=top) break; if(!best || r.top>best.top) best={cls, top:r.top}; }
+  if(r.top<top && best){ used=best.cls; kp.className='plate'+(used?' '+used:''); r=kp.getBoundingClientRect(); }
+  window.__dbg.keyFit={ fits:r.top>=top && r.right<=right+1, layout:used||'table', top:Math.round(r.top), limit:Math.round(top) };
+}
+document.getElementById('helpStops').innerHTML=STOP_ROWS;
+document.getElementById('help').addEventListener('click', ()=>{ show('helpov'); document.getElementById('helpClose').focus(); });
+document.getElementById('helpClose').addEventListener('click', ()=>hide('helpov'));
+document.getElementById('dbClose').addEventListener('click', ()=>hide('debrief'));
+document.getElementById('again').addEventListener('click', ()=>location.reload());
+document.getElementById('start').addEventListener('click', ()=>{ document.getElementById('intro').classList.remove('on'); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  FRAME
+═══════════════════════════════════════════════════════════════════════════*/
+const clock=new THREE.Clock();
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime;
+  // wheels
+  for(const it of INLETS){
+    it.angle += (it.targetAngle-it.angle)*Math.min(1,dt*10); it.wheel.rotation.z=it.angle;
+    const f=MODE_VOL[state.modes[it.s.id]]; it.flow = it.flow===undefined?f:it.flow+(f-it.flow)*Math.min(1,dt*2.5);
+    it.fm.map.offset.x -= dt*(.4+1.6*it.flow); it.fm.emissiveMap.offset.x=it.fm.map.offset.x;
+    it.fm.emissiveIntensity = .1 + 1.2*it.flow; const sc=.12+.88*it.flow; it.liquid.scale.set(sc,1,sc); it.liquid.position.y = it.y - it.r*.8*(1-sc);
+    it.rim.material = (hover===it||drag?.it===it) ? M.brass : M.brass;
+    it.wheel.scale.setScalar(hover===it||drag?.it===it ? 1.06 : 1);
+  }
+  // master gauge
+  masterAngle += (angFor(-50,10,volumeDelta()*100)-masterAngle)*Math.min(1,dt*2.2);
+  master.needle.rotation.z = masterAngle + Math.sin(t*9)*.004;
+  // untested (round 2 before Submit): the board needle rests on a dimmed face and the tank liquid goes gray
+  const bs=board.off ? 0 : (board.share??consumerShare(CONTENT.board));
+  boardAngle += (angFor(0,100,bs*100)-boardAngle)*Math.min(1,dt*2); board.needle.rotation.z=boardAngle;
+  board.face.material.color.setScalar(board.off ? .38 : 1);
+  // tank
+  const ts=TANK.share??consumerShare(CONTENT.tank); if(!TANK.off) TANK.level += ((.12+.88*ts)-TANK.level)*Math.min(1,dt*1.2);
+  TANK.liquid.scale.y=TANK.h*TANK.level-.02; TANK.liquid.position.set(TANK.x, TANK.y0+(TANK.h*TANK.level)/2, PIPE_Z);
+  TANK.lm.color.setHex(TANK.off ? 0x3a3f42 : 0x0f5a66); TANK.lm.emissiveIntensity = TANK.off ? 0 : .35;
+  // lamps: lit green when working, dark with a hung tag when broken, dim with no tag when untested
+  let anyDark=false;
+  for(const l of LAMPS){ l.lit += ((!l.off && l.up?1:0)-l.lit)*Math.min(1,dt*3);
+    const k=l.lit*(0.85+0.15*Math.sin(t*23+l.y*7));
+    l.mat.emissive.setRGB(.25*k, 1*k, .45*k); l.mat.emissiveIntensity=2.2; l.mat.color.setRGB(.16+.2*k,.19+.5*k,.17+.3*k);
+    l.halo.material.opacity=.9*k; l.light.intensity=2.2*k;
+    l.tag.visible = !l.off && !l.up && l.lit<.5; if(l.tag.visible){ l.tag.rotation.z=Math.sin(t*1.7+l.y)*.12; l.tag.rotation.x=Math.sin(t*1.1)*.05; }
+    if(!l.off && !l.up) anyDark=true;
+  }
+  redLamp.intensity += ((anyDark? 3+Math.sin(t*4)*1.2 : 0)-redLamp.intensity)*Math.min(1,dt*3);
+  renderer.render(scene,camera); projectLabels();
+  requestAnimationFrame(frame);
+}
+const placeKeySoon=()=>requestAnimationFrame(()=>requestAnimationFrame(placeKey));   // after projectLabels has moved the rows
+addEventListener('resize', ()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight); placeKeySoon(); });
+settle(); updateHud(); INLETS.forEach(x=>x.syncRail()); frame();
+window.__dbg = { audio, INLETS, LAMPS, state, camera, runPlan, project:(x,y,z)=>{ const v=new THREE.Vector3(x,y,z).project(camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]; } };
+placeKeySoon(); document.fonts.ready.then(placeKeySoon);
+</script>
+</body>
+</html>

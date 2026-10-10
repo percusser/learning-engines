@@ -1,0 +1,9 @@
+{
+  "name": "peg-in",
+  "kind": "sfx",
+  "moment": "READ/COMMIT: the note is pegged to the chosen claim",
+  "prompt": "A small wooden dowel peg pushed firmly into a drilled hole in a wooden block, tight wooden squeak and a short tap",
+  "duration": 0.6,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:03.784Z"
+}

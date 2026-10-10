@@ -1,0 +1,11 @@
+[
+  {"name": "note-open", "kind": "sfx", "duration": 0.8, "moment": "READ: a customer quote is pinned in the quote panel (low gain)", "prompt": "A small stiff paper index card picked up off a wooden table and flicked open, crisp card rustle, close up"},
+  {"name": "block-pick", "kind": "sfx", "duration": 0.6, "influence": 0.8, "moment": "COMMIT: a claim block is lifted to be dragged (soft)", "prompt": "A solid hardwood block lifted off a wooden rack, one light hollow wood knock, close up"},
+  {"name": "peg-in", "kind": "sfx", "duration": 0.6, "influence": 0.8, "moment": "COMMIT: a quote sticks into a claim block (soft and lower when one goes back to the tray)", "prompt": "A small wooden dowel peg pushed firmly into a drilled hole in a wooden block, tight wooden squeak and a short tap"},
+  {"name": "block-set", "kind": "sfx", "duration": 0.8, "influence": 0.8, "moment": "COMMIT: a block lands on the tower (once per level)", "prompt": "A heavy hardwood block set down firmly on top of another hardwood block, one solid dense wood clack"},
+  {"name": "lock", "kind": "sfx", "duration": 1.0, "moment": "COMMIT: the learner starts the meeting", "prompt": "A heavy brass latch on a wooden case snapped shut, solid metallic clunk"},
+  {"name": "hold", "kind": "sfx", "duration": 1.0, "influence": 0.6, "moment": "REVEAL right: the hand tests a block, the peg carries it, it stays", "prompt": "A heavy wooden block pressed down firmly by a flat hand onto a stack of solid hardwood blocks, a deep steady wooden creak and thud, the stack settles and holds"},
+  {"name": "pull", "kind": "sfx", "duration": 1.2, "moment": "REVEAL wrong: the hand drags a block out of the tower", "prompt": "A wooden block dragged sideways out of a tight stack of wooden blocks, rough wood scraping against wood"},
+  {"name": "collapse", "kind": "sfx", "duration": 2.0, "moment": "REVEAL wrong: everything resting on the pulled block comes down", "prompt": "A tall stack of wooden blocks toppling over and clattering onto a hardwood table, blocks bouncing and rolling"},
+  {"name": "debrief", "kind": "sfx", "duration": 1.2, "moment": "end: the meeting is over and the debrief slides in", "prompt": "Several sheets of paper squared by tapping them on a wooden desk, then slid into a card folder"}
+]

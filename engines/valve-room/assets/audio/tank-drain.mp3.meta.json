@@ -1,0 +1,9 @@
+{
+  "name": "tank-drain",
+  "kind": "sfx",
+  "moment": "reveal: the retention tank starts draining",
+  "prompt": "Water draining out of a large glass tank through a steel pipe, deep hollow gurgle and glugging",
+  "duration": 1.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:43.741Z"
+}

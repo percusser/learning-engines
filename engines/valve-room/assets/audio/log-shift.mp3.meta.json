@@ -1,0 +1,9 @@
+{
+  "name": "log-shift",
+  "kind": "sfx",
+  "moment": "Log shift pressed (the round 2 commit)",
+  "prompt": "A heavy rubber date stamp slammed onto a thick paper logbook on a steel desk, one solid thump",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:36.803Z"
+}

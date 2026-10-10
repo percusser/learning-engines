@@ -1,0 +1,9 @@
+{
+  "name": "pen",
+  "kind": "sfx",
+  "moment": "reveal: each month the chart recorder pens draw the next stretch",
+  "prompt": "Chart recorder pens scratching across paper while the chart drive motor whirs softly, steady mechanical scribble",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:51.478Z"
+}

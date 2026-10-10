@@ -1,0 +1,9 @@
+{
+  "name": "file-open",
+  "kind": "sfx",
+  "moment": "a station file is opened (read the evidence)",
+  "prompt": "A single sheet of paper slid out of a manila card folder onto a desk, crisp paper rustle, close up",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:49:35.236Z"
+}

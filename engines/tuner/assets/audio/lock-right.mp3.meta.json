@@ -1,0 +1,9 @@
+{
+  "name": "lock-right",
+  "kind": "sfx",
+  "moment": "reveal, source named right: the magic eye holds open",
+  "prompt": "Short soft pleasant two-note bell chime, rising, gentle and bright, clean, no hum, no buzz",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T16:10:50.068Z"
+}

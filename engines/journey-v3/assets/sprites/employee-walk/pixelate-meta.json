@@ -1,0 +1,9 @@
+{
+  "input": "/tmp/sprite-run/pix/out/sheet-transparent.png",
+  "cell_size": 280,
+  "subject_height": 196,
+  "anchor_y": 0.9534161490683231,
+  "grid": 48,
+  "block": 4,
+  "palette": 24
+}

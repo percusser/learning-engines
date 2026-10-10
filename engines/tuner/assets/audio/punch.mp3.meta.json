@@ -1,0 +1,9 @@
+{
+  "name": "punch",
+  "kind": "sfx",
+  "moment": "Punch it confirmed: the tag is punched and hung (the commit)",
+  "prompt": "A heavy steel hand ticket punch biting through thick card stock with a sharp metallic chunk, then the card tag dropped onto a metal hook",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:49:46.915Z"
+}

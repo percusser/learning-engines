@@ -1,0 +1,9 @@
+{
+  "name": "open",
+  "kind": "sfx",
+  "moment": "READ: look closer, the inspection sheet opens",
+  "prompt": "A clipboard picked up and its top paper page flipped over, paper and hardboard, close up",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:56.447Z"
+}

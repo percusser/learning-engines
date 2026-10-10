@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Node Graph</title>
+  <style>
+    /* Colors come from content: main.ts writes --background, --edge, --text,
+       --accent, --healthy, --degraded, --failed, --unknown onto :root. */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--background, #101318);
+      color: var(--text, #c8d2df);
+      overflow: hidden;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    #app { position: fixed; inset: 0; display: flex; }
+    #stage { flex: 1 1 52%; min-width: 0; }
+    #stage svg { display: block; width: 100%; height: 100%; }
+
+    /* ---- edges ---- */
+    .edge line { stroke-width: 1.6; transition: stroke-opacity .2s ease; }
+    .edge.kind-soft line { stroke-dasharray: 6 5; }
+    .edge-label { font-size: 12px; opacity: .55; }
+
+    /* ---- nodes ---- */
+    .node { cursor: pointer; outline: none; }
+    .node .shape {
+      stroke: var(--edge, #3c4654);
+      stroke-width: 2;
+      fill: var(--unknown, #5a6472);
+      /* State changes ease rather than snap. */
+      transition: fill .35s ease, stroke .35s ease, stroke-width .15s ease;
+    }
+    .node[data-state="healthy"] .shape { fill: var(--healthy); }
+    .node[data-state="degraded"] .shape { fill: var(--degraded); }
+    .node[data-state="failed"] .shape { fill: var(--failed); }
+    .node[data-state="unknown"] .shape { fill: var(--unknown); stroke-dasharray: 4 4; }
+    .node .label { font-size: 14px; pointer-events: none; }
+    .node:not(.inspected) .label { opacity: .55; }
+    .node.selected .shape { stroke: var(--accent); stroke-width: 3.5; }
+
+    /* ---- a broken node pulses; a healthy one is still ---- */
+    .halo { fill: none; stroke: none; transform-box: fill-box; transform-origin: center; }
+    .node[data-state="failed"] .halo,
+    .node[data-state="degraded"] .halo {
+      stroke-width: 2;
+      animation: pulse 1.5s ease-out infinite;
+    }
+    .node[data-state="failed"] .halo { stroke: var(--failed); }
+    .node[data-state="degraded"] .halo { stroke: var(--degraded); animation-duration: 2.2s; }
+    @keyframes pulse {
+      0%   { transform: scale(.72); opacity: .85; }
+      100% { transform: scale(1.15); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .node[data-state="failed"] .halo,
+      .node[data-state="degraded"] .halo { animation: none; opacity: .5; transform: scale(.8); }
+    }
+
+    /* ---- hover focus: everything unrelated recedes ---- */
+    svg.focusing .node:not(.near) { opacity: .22; }
+    svg.focusing .edge:not(.near) line { stroke-opacity: .18; }
+    svg.focusing .edge:not(.near) .edge-label { opacity: .1; }
+    svg.focusing .edge.near line { stroke: var(--accent); stroke-width: 2.4; }
+    .node, .edge line, .edge-label { transition: opacity .18s ease; }
+
+    /* ---- failure in flight ---- */
+    .flow { stroke: #000; stroke-opacity: .35; stroke-width: 1; }
+    .flow.failed { fill: var(--failed); }
+    .flow.degraded { fill: var(--degraded); }
+
+    /* ---- side panel ---- */
+    #side { flex: 0 0 clamp(420px, 42%, 620px); border-left: 1px solid var(--edge); display: flex; flex-direction: column; }
+    #hudbar {
+      order: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--edge); font-size: 14px;
+    }
+    #hud { letter-spacing: .04em; }
+    #hud.pop { animation: pop .45s ease; }
+    @keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.22); color: var(--accent); } 100% { transform: scale(1); } }
+    #reset {
+      font: inherit; font-size: 12px; color: var(--text); background: transparent;
+      border: 1px solid var(--edge); border-radius: 4px; padding: 3px 8px; cursor: pointer;
+    }
+    #reset:hover { border-color: var(--accent); color: var(--accent); }
+    .panel { order: 2; padding: 20px; flex: 0 0 auto; max-height: 42%; border-top: 1px solid var(--edge); overflow-y: auto; font-size: 14px; line-height: 1.6; }
+    .panel:not(.open)::after { content: 'Click any shape on the left to read what it is.'; opacity: .45; }
+    .panel h2 { font-size: 17px; margin-bottom: 2px; }
+    .panel .kind { opacity: .5; text-transform: uppercase; letter-spacing: .1em; font-size: 11px; }
+    .panel .health { margin: 9px 0; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+    .panel .health.healthy { color: var(--healthy); }
+    .panel .health.degraded { color: var(--degraded); }
+    .panel .health.failed { color: var(--failed); }
+    .panel .health.unknown { color: var(--unknown); }
+    .panel .knowledge { margin: 2px 0 9px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+    .panel .knowledge.unknown { text-decoration: underline dotted; }
+    .panel .knowledge.assumed::before { content: '△ '; }
+    .panel .knowledge.confirmed::before { content: '✓ '; }
+    .panel details.evidence { margin: 10px 0; padding: 8px; border: 1px solid var(--edge); }
+    .panel details.evidence summary { cursor: pointer; font-weight: 600; }
+    .panel details.evidence p { margin-top: 6px; }
+    .node[data-knowledge="unknown"] .shape { stroke-dasharray: 4 4; }
+    .node[data-knowledge="assumed"] .shape { stroke-dasharray: 10 3 2 3; }
+    .node[data-knowledge="confirmed"] .shape { stroke-width: 3; }
+    .panel .detail { opacity: .8; margin-bottom: 12px; }
+    .panel .block { margin-bottom: 10px; }
+    .panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; opacity: .45; font-weight: normal; }
+    .panel ul { list-style: none; }
+    .panel li::before { content: '· '; opacity: .5; }
+    .panel .none { opacity: .35; }
+
+    /* ---- the narrowing ---- */
+    .narrowing { order: 1; padding: 20px; overflow-y: auto; font-size: 14.5px; line-height: 1.6; flex: 1 1 auto; }
+    .narrowing h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .1em; opacity: .45; font-weight: normal; margin: 16px 0 6px; }
+    .narrowing h3:first-child { margin-top: 0; }
+    .narrowing .brief { opacity: .8; }
+    .narrowing .note { opacity: .6; margin-top: 8px; }
+    .narrowing button { font: inherit; font-size: 14px; cursor: pointer; border-radius: 4px; background: transparent; color: var(--text); border: 1px solid var(--edge); }
+    .narrowing button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .narrowing button:disabled { opacity: .3; cursor: default; }
+
+    .candidates { list-style: none; }
+    .candidates li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 0; }
+    .candidates li::before { content: '· '; opacity: .5; }
+    .candidates li > span { flex: 1; }
+    .candidates li.out > span { text-decoration: line-through; opacity: .32; }
+    .candidates li.chosen > span { color: var(--accent); }
+    .candidates li.truth > span { color: var(--healthy); }
+    .candidates .commit { padding: 1px 7px; }
+
+    .probes { display: flex; flex-direction: column; gap: 6px; }
+    .probes .probe { text-align: left; padding: 6px 9px; line-height: 1.4; }
+    .probes .probe.asked { opacity: .45; border-style: dashed; }
+
+    .log { list-style: none; counter-reset: n; }
+    .log li { counter-increment: n; border-left: 2px solid var(--edge); padding: 4px 0 8px 9px; margin-top: 8px; }
+    .log li.useful { border-left-color: var(--healthy); }
+    .log li.redundant { border-left-color: var(--failed); }
+    .log .q { opacity: .5; }
+    .log .q::before { content: counter(n) '. '; }
+    .log .a { margin: 2px 0; }
+    .log .meta { font-size: 12.5px; opacity: .55; }
+    .log li.redundant .meta { color: var(--failed); opacity: .85; }
+
+    .debrief { margin: 0 0 16px; padding: 10px; border: 1px solid var(--edge); border-radius: 5px; }
+    .debrief.right { border-color: var(--healthy); }
+    .debrief.wrong { border-color: var(--failed); }
+    .debrief .verdict { margin-bottom: 6px; }
+    .debrief .meta { font-size: 13px; opacity: .6; }
+    .learning-review { margin-top: 16px; padding: 14px; border: 2px solid var(--edge); background: color-mix(in srgb, var(--background) 88%, white); }
+    .learning-review h2 { margin: 0 0 10px; font: 700 18px Georgia, serif; }
+    .learning-review p { margin: 6px 0; line-height: 1.45; }
+    .learning-review button { margin-top: 10px; min-height: 40px; padding: 8px 12px; border: 1px solid var(--edge); background: var(--accent); color: white; font: 700 14px system-ui, sans-serif; cursor: pointer; }
+
+
+    /* ---- blast radius ---- */
+    .blast { order: 1; padding: 14px; overflow-y: auto; font-size: 12px; line-height: 1.55; flex: 1 1 auto; }
+    .blast h3 { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; opacity: .45; font-weight: normal; margin: 16px 0 6px; }
+    .blast h3:first-child { margin-top: 0; }
+    .blast .brief { opacity: .8; }
+    .blast .note { opacity: .6; margin-top: 8px; color: var(--accent); }
+
+    .tools { display: flex; flex-direction: column; gap: 6px; }
+    .tools .tool {
+      font: inherit; font-size: 11px; text-align: left; cursor: pointer;
+      background: transparent; color: var(--text);
+      border: 1px solid var(--edge); border-left-width: 3px; border-radius: 4px;
+      padding: 7px 9px; line-height: 1.45;
+    }
+    .tools .tool.closes { border-left-color: var(--accent); }
+    .tools .tool:hover:not(:disabled) { border-color: var(--accent); }
+    .tools .tool:disabled { opacity: .28; cursor: default; }
+    .tools .tool.used { border-style: dashed; }
+    .tool-label { font-size: 12px; }
+    .tool-detail { opacity: .6; margin: 2px 0; }
+    .tool-meta { font-size: 10px; letter-spacing: .05em; opacity: .55; text-transform: uppercase; }
+    .blast .stop {
+      font: inherit; font-size: 11px; cursor: pointer; margin-top: 10px; padding: 4px 9px;
+      background: transparent; color: var(--text); border: 1px dashed var(--edge); border-radius: 4px;
+    }
+    .blast .stop:hover { border-color: var(--failed); color: var(--failed); }
+    .prediction-choices { display: grid; gap: 6px; margin: 8px 0; padding: 10px; border: 1px solid var(--edge); }
+    .prediction-choices label { display: flex; gap: 8px; align-items: center; }
+    .prediction-commit, .prediction-cancel { font: inherit; margin: 4px 8px 4px 0; padding: 6px 9px; color: var(--text); background: transparent; border: 1px solid var(--edge); }
+    .prediction-result { margin: 0 0 12px; padding: 10px; border: 1px solid var(--edge); }
+    .prediction-result.right { border-color: var(--healthy); }
+    .prediction-result.wrong { border-color: var(--failed); }
+
+    .blast .log { list-style: none; counter-reset: n; }
+    .blast .log li { counter-increment: n; border-left: 2px solid var(--edge); padding: 4px 0 8px 9px; margin-top: 8px; }
+    .blast .log li.clean { border-left-color: var(--healthy); }
+    .blast .log li.costly { border-left-color: var(--failed); }
+    .blast .log .q { opacity: .75; }
+    .blast .log .q::before { content: counter(n) '. '; opacity: .5; }
+    .blast .log .a { margin: 2px 0; opacity: .85; }
+    .blast .log .meta { font-size: 10.5px; opacity: .55; letter-spacing: .05em; }
+
+    .blast .debrief { margin: 0 0 16px; padding: 10px; border: 1px solid var(--edge); border-radius: 5px; }
+    .blast .debrief.right { border-color: var(--healthy); }
+    .blast .debrief.ok { border-color: var(--degraded); }
+    .blast .debrief.wrong { border-color: var(--failed); }
+    .blast .debrief .verdict { margin-bottom: 4px; }
+    .blast .debrief .headline { font-size: 15px; letter-spacing: .02em; margin-bottom: 6px; }
+    .blast .debrief .meta { font-size: 10.5px; opacity: .6; margin-top: 4px; }
+    .alts { list-style: none; margin-top: 4px; }
+    .alts li { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; opacity: .7; }
+    .alts li.yours { opacity: 1; color: var(--accent); }
+    .alts .alt-meta { font-size: 10.5px; white-space: nowrap; opacity: .75; }
+
+    /* What a node costs when it goes down. Only drawn once it is found. */
+    .node .weight { font-size: 10px; opacity: .45; pointer-events: none; }
+
+    /* Something is holding this one out of the blast. */
+    .node.shielded .shape { stroke: var(--accent); stroke-width: 3; stroke-dasharray: 2 3; }
+    .node.shielded .halo { stroke: var(--accent); stroke-width: 1.5; animation: none; opacity: .35; transform: scale(1); }
+
+    /* ---- knowledge map: the progress bar, replaced ---- */
+    #mapbar { order: 0; padding: 12px 14px; border-bottom: 1px solid var(--edge); font-size: 11px; }
+    .kmap-top { display: flex; justify-content: space-between; align-items: baseline; }
+    .kmap-title { text-transform: uppercase; letter-spacing: .1em; opacity: .45; font-size: 10px; }
+    .kmap-count { letter-spacing: .04em; }
+    .kmap-bar { height: 4px; margin: 6px 0 8px; background: var(--edge); border-radius: 2px; overflow: hidden; }
+    .kmap-bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .4s ease; }
+    .kmap-xp { letter-spacing: .1em; opacity: .55; font-size: 10px; text-transform: uppercase; }
+    .kmap-xp b { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 0; }
+    /* Fires only when XP moved — i.e. only when something was understood. */
+    .kmap.gain .kmap-xp b { animation: xpgain .6s ease; }
+    @keyframes xpgain {
+      0% { transform: scale(1); }
+      30% { transform: scale(1.35); color: var(--accent); }
+      100% { transform: scale(1); }
+    }
+    .kmap.gain .kmap-bar > i { box-shadow: 0 0 8px var(--accent); }
+    .kmap-leads-title { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; opacity: .45; font-weight: normal; margin: 12px 0 4px; }
+    .kmap-leads { list-style: none; }
+    .kmap-leads li { padding: 1px 0; opacity: .85; }
+    .kmap-leads .lead-arrow { opacity: .4; margin: 0 5px; }
+    .kmap-leads .lead-hole { color: var(--accent); font-weight: 600; }
+    .kmap-leads .more { opacity: .4; }
+
+    /* The map, drawn on the diagram itself. A frontier node is a hole you can
+       see: the wire is there, the far end is not identified. */
+    .node .mark { font-size: 15px; font-weight: 600; opacity: 0; pointer-events: none; }
+    .node.frontier .label { display: none; }
+    .node.frontier .mark { opacity: .8; }
+    .node.frontier .shape { fill: var(--unknown); stroke: var(--accent); stroke-dasharray: 5 4; }
+    .node.frontier .halo { animation: none; }
+    .node.unseen, .edge.unseen { display: none; }
+    .edge.hole line { stroke: var(--accent); stroke-opacity: .5; stroke-dasharray: 3 5; }
+    .narrowing .candidates li.unfound > span { opacity: .35; font-style: italic; }
+
+    /* ---- ruled out: the learner's working memory, on the diagram ---- */
+    .node.candidate .shape { stroke: var(--accent); }
+    .node.symptom .shape { stroke: var(--failed); stroke-width: 3; }
+    .node.ruled-out { opacity: .2; }
+    .node.ruled-out .shape { stroke: var(--edge); }
+
+    /* ---- the opening card ---- */
+    .howto-veil {
+      position: fixed; inset: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+      background: color-mix(in srgb, var(--background, #101318) 88%, transparent);
+      padding: 24px;
+    }
+    .howto-card {
+      max-width: 640px; width: 100%;
+      background: var(--background, #101318);
+      border: 1px solid var(--edge, #3c4654);
+      border-radius: 10px;
+      padding: 28px 30px 24px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.55);
+    }
+    .howto-card h2 {
+      font-size: 17px; font-weight: 600; letter-spacing: .02em;
+      color: var(--text, #c8d2df); margin-bottom: 18px;
+    }
+    .howto-card ol { margin: 0 0 22px; padding-left: 22px; }
+    .howto-card li {
+      font-size: 13px; line-height: 1.65; margin-bottom: 11px;
+      color: color-mix(in srgb, var(--text, #c8d2df) 82%, transparent);
+    }
+    .howto-card li::marker { color: var(--accent, #6fb2ff); }
+    .howto-start {
+      font: inherit; font-size: 13px;
+      background: var(--accent, #6fb2ff); color: var(--background, #101318);
+      border: 0; border-radius: 6px; padding: 9px 22px; cursor: pointer;
+    }
+    .howto-start:focus-visible { outline: 2px solid var(--text, #c8d2df); outline-offset: 2px; }
+
+    /* ---- the opening card ---- */
+    .howto-veil {
+      position: fixed; inset: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: center;
+      background: color-mix(in srgb, var(--background, #101318) 88%, transparent);
+      padding: 24px;
+    }
+    .howto-card {
+      max-width: 640px; width: 100%;
+      background: var(--background, #101318);
+      border: 1px solid var(--edge, #3c4654);
+      border-radius: 10px;
+      padding: 28px 30px 24px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.55);
+    }
+    .howto-card h2 {
+      font-size: 17px; font-weight: 600; letter-spacing: .02em;
+      color: var(--text, #c8d2df); margin-bottom: 18px;
+    }
+    .howto-card ol { margin: 0 0 22px; padding-left: 22px; }
+    .howto-card li {
+      font-size: 13px; line-height: 1.65; margin-bottom: 11px;
+      color: color-mix(in srgb, var(--text, #c8d2df) 82%, transparent);
+    }
+    .howto-card li::marker { color: var(--accent, #6fb2ff); }
+    .howto-start {
+      font: inherit; font-size: 13px;
+      background: var(--accent, #6fb2ff); color: var(--background, #101318);
+      border: 0; border-radius: 6px; padding: 9px 22px; cursor: pointer;
+    }
+    .howto-start:focus-visible { outline: 2px solid var(--text, #c8d2df); outline-offset: 2px; }
+
+    /* ---- the reasoning tree (Narrowing) ---- */
+    .tree { display: block; width: 100%; height: 100%; }
+    .tbox rect {
+      fill: color-mix(in srgb, var(--text, #c8d2df) 5%, transparent);
+      stroke: var(--edge, #3c4654); stroke-width: 1.4;
+      transition: opacity .3s ease;
+    }
+    .tbox.start rect { stroke-dasharray: 4 4; }
+    .tbox.taken rect {
+      fill: color-mix(in srgb, var(--accent, #6fb2ff) 13%, transparent);
+      stroke: var(--accent, #6fb2ff);
+    }
+    .tbox.cut rect { opacity: .38; }
+    .tbox.barren rect { stroke: var(--degraded, #c9a03c); stroke-dasharray: 5 4; }
+    .tcap {
+      font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase;
+      fill: color-mix(in srgb, var(--text, #c8d2df) 55%, transparent);
+    }
+    .tbox.taken .tcap { fill: var(--accent, #6fb2ff); }
+    .tname { font-size: 13px; fill: var(--text, #c8d2df); }
+    .tbox.cut .tname { fill: color-mix(in srgb, var(--text, #c8d2df) 45%, transparent); text-decoration: line-through; }
+    .tq {
+      font-size: 11.5px; letter-spacing: .02em;
+      fill: color-mix(in srgb, var(--text, #c8d2df) 70%, transparent);
+    }
+    .tq.barren { fill: var(--degraded, #c9a03c); }
+    .tlink { fill: none; stroke: var(--edge, #3c4654); stroke-width: 1.4; }
+    .tlink.taken { stroke: var(--accent, #6fb2ff); stroke-width: 2; }
+    .tlink.cut { opacity: .3; }
+  </style>
+  <script type="module" crossorigin src="./assets/index-DjVOSVQB.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/style-8JeWJXrC.css">
+</head>
+<body>
+  <div id="app">
+    <div id="stage"></div>
+    <div id="side">
+      <div id="hudbar"><span id="hud"></span><button id="reset" type="button">reset</button></div>
+      <div id="mapbar"></div>
+    </div>
+  </div>
+</body>
+</html>

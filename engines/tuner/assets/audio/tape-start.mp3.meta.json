@@ -1,0 +1,9 @@
+{
+  "name": "tape-start",
+  "kind": "sfx",
+  "moment": "Start the tape pressed: the recording begins",
+  "prompt": "Reel-to-reel tape machine starting: the mechanical clunk of the play key, then the motor and reels spinning up and running steadily",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:50:41.660Z"
+}

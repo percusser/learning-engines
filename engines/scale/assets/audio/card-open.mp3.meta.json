@@ -1,0 +1,9 @@
+{
+  "name": "card-open",
+  "kind": "sfx",
+  "moment": "a weight's card opens (reading a criterion)",
+  "prompt": "A small solid brass weight lifted off a wooden rack and a thick paper card turned over on green felt, soft metal and paper",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:39.669Z"
+}

@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Scale</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='14'%3E%E2%9A%96%3C/text%3E%3C/svg%3E">
+<style>
+  /* Fonts ship in the package (SIL OFL). No network at play time. */
+  @font-face{font-family:"Cinzel";src:url(./assets/fonts/Cinzel_600.woff2) format("woff2");font-weight:600}
+  @font-face{font-family:"Crimson Pro";src:url(./assets/fonts/Crimson-Pro_400.woff2) format("woff2");font-weight:400 600}
+  :root{ --cream:#EFE3C6; --brass:#C99A4B; --red:#8E2018; --green:#2C4A32; --ink:#181410; --ui:1 }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#0a0907;color:var(--cream);
+    font-family:"Crimson Pro",Georgia,serif;font-weight:400;-webkit-font-smoothing:antialiased;user-select:none}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  .cin{font-family:"Cinzel",Georgia,serif;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+  b{font-weight:600}
+
+  /* projected world labels: every label sits on a dark plate */
+  #labels{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+  /* world labels never shrink below their set size: at 12px they are the smallest text a learner can read */
+  .lbl{position:absolute;transform:translate(-50%,-50%) scale(var(--lbl,1));white-space:nowrap;
+    font-size:14px;color:#F6EEDC;background:rgba(13,11,9,.93);padding:3px 10px;border:1px solid #4a4238;
+    box-shadow:0 2px 6px rgba(0,0,0,.6)}
+  .lbl.small{font-size:12px}
+  button.lbl{cursor:pointer;pointer-events:auto;font-family:inherit}
+  button.lbl:hover{background:#2c2419}
+  button.lbl:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  button.lbl:not(:disabled)::after{content:" \25B8";opacity:.7}
+  #sr{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+  /* the two card racks, projected onto the table apron */
+  .deck{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));pointer-events:auto;
+    background:linear-gradient(180deg,#1e1b16,#100e0b);border:1px solid #4a4238;padding:5px 6px 6px;
+    box-shadow:inset 0 0 0 2px #0a0a0a,0 4px 10px rgba(0,0,0,.7)}
+  body.docked .deck,body.docked .rackLbl{display:none}
+  .deck h3{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:#B7A98C;margin:0 0 5px;text-align:center}
+  .deck .grid{display:grid;gap:3px}
+  .deck.two .grid{grid-template-columns:1fr 1fr}
+  .deck button{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+    padding:4px 5px;border:1px solid #3d372e;background:#26221b;color:#DFD3B6;cursor:pointer;border-radius:2px;
+    text-align:left;white-space:nowrap;position:relative}
+  .deck button:hover{background:#3a3227;color:#fff}
+  .deck button:focus-visible{outline:3px solid #7FD4FF;outline-offset:1px;z-index:1}
+  .deck button[data-on="1"]{background:linear-gradient(180deg,#e3bf74,#a97c33);color:#1e1405;border-color:#5c4110}
+  .deck button[data-on="1"]::after{content:" \2713"}
+  .deck button[data-on="2"]{background:#3a1210;color:#FFC9C2;border-color:#7a2a20;text-decoration:line-through}
+  .deck button:disabled{opacity:.5;cursor:default}
+  .deck .hint{font-size:13px;color:#9a917f;margin-top:5px;text-align:center;font-family:"Crimson Pro",Georgia,serif;letter-spacing:.02em}
+
+  /* diegetic HUD */
+  .plate{position:fixed;z-index:10;padding:10px 16px;
+    background:linear-gradient(180deg,#2a2620,#141210);border:2px solid #4a4238;
+    box-shadow:inset 0 0 0 3px #0c0b0a,inset 0 0 0 4px #5a5246,0 6px 18px rgba(0,0,0,.6);color:var(--cream)}
+  .plate::before,.plate::after{content:"";position:absolute;top:6px;width:6px;height:6px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#8a8a80,#2b2b28);box-shadow:0 1px 0 #000}
+  .plate::before{left:6px}.plate::after{right:6px}
+  #sign{left:50%;transform:translateX(-50%) scale(var(--ui));transform-origin:top center;top:14px;font-size:19px;line-height:1.05;text-align:center}
+  #sign small{display:block;font-size:16px;letter-spacing:.03em;opacity:.92;margin-top:6px;text-transform:none;
+    font-family:"Crimson Pro",Georgia,serif;font-weight:400;line-height:1.4}
+  #status{left:18px;bottom:18px;transform:scale(var(--ui));transform-origin:bottom left;font-size:11px;letter-spacing:.16em;width:320px}
+  #status b{display:block;font-size:26px;line-height:1.05;margin-top:3px;color:var(--brass);font-variant-numeric:tabular-nums;
+    font-family:"Cinzel",Georgia,serif}
+  #status b span{display:inline-block;min-width:3ch;text-align:right}
+  #status b.low{color:#E0533F}
+  #status i{font-style:normal;font-size:16px;opacity:.9;display:block;margin-top:6px;letter-spacing:.1em;
+    font-variant-numeric:tabular-nums;white-space:nowrap;font-family:"Cinzel",Georgia,serif}
+  #status i span{display:inline-block;min-width:1ch;text-align:right;color:var(--brass)}
+  #sound{left:18px;top:18px;z-index:30;cursor:pointer;font-family:inherit;font-size:12px;letter-spacing:.14em;transform:scale(var(--ui));transform-origin:top left}
+  #sound[aria-pressed=false]{opacity:.7}
+  #sound:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #lock{position:fixed;right:18px;bottom:18px;z-index:10;cursor:pointer;transform-origin:bottom right;
+    width:210px;height:64px;border:0;border-radius:6px;padding:0 10px;
+    background:linear-gradient(180deg,#d9b56a,#9d7330);
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #5f4415,0 8px 0 #2b1f0a,0 12px 20px rgba(0,0,0,.6);
+    color:#2a1d08;font-size:17px;transition:transform .08s,box-shadow .08s;transform:scale(var(--ui))}
+  #lock:active{transform:scale(var(--ui)) translateY(6px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -2px 0 #5f4415,0 2px 0 #2b1f0a}
+  #lock:disabled{filter:saturate(.3) brightness(.6);cursor:default}
+  #lock:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  #skip{position:fixed;right:18px;bottom:18px;z-index:11;cursor:pointer;transform-origin:bottom right;transform:scale(var(--ui));
+    width:210px;height:64px;border:0;border-radius:6px;padding:0 10px;background:#3a352c;color:#F6EEDC;font-size:17px;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.15),inset 0 -6px 0 #1e1b16,0 8px 0 #0e0c09,0 12px 20px rgba(0,0,0,.6)}
+  #skip:hover{background:#4a4338}
+  #skip:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+
+  .toast{position:absolute;transform:translate(-50%,-50%) scale(var(--ui));padding:5px 11px;font-size:13px;letter-spacing:.06em;
+    background:rgba(20,17,12,.94);border-left:4px solid var(--brass);color:var(--cream);
+    animation:toast 1.6s ease-out forwards;white-space:nowrap;font-family:"Cinzel",Georgia,serif;font-weight:600;text-transform:uppercase}
+  .toast.bad{border-color:#E0533F}
+  .toast.ok{border-color:#6FD08C}
+  .toast.long{animation-duration:3.4s;white-space:normal;width:max-content;max-width:min(280px,80vw);text-align:center;line-height:1.35}
+  @keyframes toast{0%{opacity:0;transform:translate(-50%,-30%)}12%{opacity:1;transform:translate(-50%,-50%)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%)}}
+
+  /* overlays */
+  .ov{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:20px 0;
+    background:radial-gradient(ellipse at center,rgba(10,9,6,.72),rgba(0,0,0,.93));opacity:0;pointer-events:none;transition:opacity .35s}
+  .ov.on{opacity:1;pointer-events:auto}
+  .card{width:min(660px,92vw);padding:32px 38px;background:#1b1814;border:2px solid #3c372f;
+    box-shadow:inset 0 0 0 4px #0d0c0a,inset 0 0 0 5px #5a5246,0 30px 60px #000;color:var(--cream)}
+  .ov .card{max-height:calc(100vh - 40px);overflow:auto}
+  @media (max-height:700px){
+    .ov .card{padding:14px 26px;width:min(900px,94vw)}   /* wider, so the copy needs fewer lines on a short screen */
+    .card h1{font-size:21px}
+    .card h1 small{font-size:10px;margin-bottom:4px}
+    .card p,.card ol,.card ul{line-height:1.35;margin:6px 0}
+    .card .rule{margin:10px 0}
+    .card button{font-size:13px;padding:8px 16px}
+    .quote{padding:9px 13px;margin:8px 0}
+    .spec dt{margin-top:8px}
+  }
+  .card h1{font-size:32px;line-height:1.05;margin-bottom:6px}
+  .card h1 small{display:block;font-size:11px;letter-spacing:.3em;opacity:.55;margin-bottom:9px}
+  .card p{font-size:17px;line-height:1.5;margin:12px 0;color:#E7DCC2}
+  .card ol,.card ul{margin:10px 0 4px 22px;font-size:17px;line-height:1.5;color:#E7DCC2}
+  .card b{color:var(--brass)}
+  .card .rule{border-top:1px dashed #4a4640;margin:18px 0}
+  .card h2{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:13px;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--brass);margin:18px 0 0}
+  .card button{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:16px;letter-spacing:.06em;text-transform:uppercase;
+    padding:12px 24px;cursor:pointer;border:0;color:#2a1d08;
+    background:linear-gradient(180deg,#d9b56a,#9d7330);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 5px 0 #2b1f0a}
+  .card button:active{transform:translateY(4px);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 1px 0 #2b1f0a}
+  .card button.quiet{background:#3a352c;color:#eee;box-shadow:none}
+  .card button:disabled{filter:saturate(.3) brightness(.7);cursor:default}
+  .card button:focus-visible{outline:3px solid #7FD4FF;outline-offset:2px}
+  table.dbf{width:100%;border-collapse:collapse;font-size:17px;margin:10px 0}
+  table.dbf th{text-align:left;font-family:"Cinzel",Georgia,serif;font-weight:600;letter-spacing:.14em;font-size:12px;
+    text-transform:uppercase;opacity:.7;padding:4px 6px;border-bottom:1px solid #3c3a33}
+  table.dbf td{padding:6px;border-bottom:1px solid #26241f;vertical-align:top;font-variant-numeric:tabular-nums}
+  table.dbf td.st{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+  table.dbf tr.you td{background:rgba(201,154,75,.12)}
+  .ok{color:#6FD08C}.bad{color:#E0533F}.amber{color:#E3BF74}
+  .needs{font-size:17px;color:#C9BFA8;line-height:1.45}
+  .quote{background:#EFE3C6;color:#1a1512;padding:14px 18px;font-size:17px;line-height:1.5;font-style:italic;
+    box-shadow:inset 0 0 0 1px #b9a77a;margin:12px 0}
+  .quote::before{content:"\201C"}.quote::after{content:"\201D"}
+  .spec dt{font-family:"Cinzel",Georgia,serif;font-weight:600;font-size:12px;letter-spacing:.2em;text-transform:uppercase;opacity:.6;margin-top:13px}
+  .spec dd{font-size:17px;line-height:1.45;color:#E7DCC2;margin:2px 0 0}
+  .spec dd.warn{color:#E3BF74}
+  /* the learner's read of an option, picked before it can go on the pan */
+  .readQ{margin-top:16px}
+  .readQ h2{margin:0 0 4px}
+  .readQ .look{font-size:16px;color:#C9BFA8;margin:0 0 8px}
+  .readQ .opts{display:flex;flex-direction:column;gap:6px}
+  .card button.readOpt{text-align:left;font-family:"Crimson Pro",Georgia,serif;font-weight:600;font-size:17px;letter-spacing:.01em;
+    text-transform:none;padding:8px 14px 8px 38px;position:relative;background:#26221b;color:#E7DCC2;border:1px solid #4a4238;box-shadow:none}
+  .card button.readOpt::before{content:"";position:absolute;left:13px;top:50%;width:14px;height:14px;margin-top:-8px;border-radius:50%;
+    border:2px solid #B7A98C}
+  .card button.readOpt[aria-checked="true"]{background:#3a3227;border-color:#C99A4B;color:#fff}
+  .card button.readOpt[aria-checked="true"]::after{content:"";position:absolute;left:18px;top:50%;width:8px;height:8px;margin-top:-3px;
+    border-radius:50%;background:#E3BF74}
+  .card button.readOpt:active{transform:none}
+  #debrief{position:fixed;top:0;right:0;bottom:0;z-index:20;width:min(520px,94vw);overflow:auto;padding:24px 26px;
+    opacity:0;pointer-events:none;transition:opacity .3s;border-width:0 0 0 2px}
+  #debrief.on{opacity:1;pointer-events:auto}
+  @media (max-height:700px){ #debrief{width:min(440px,42vw);padding:18px 20px} }
+  #debrief h1{font-size:25px}
+  #debrief h2{margin-top:22px;margin-bottom:2px}
+  #debrief p{font-size:17px;margin:10px 0}
+  #debrief table.dbf{margin:6px 0}
+  #debrief button{font-size:14px;padding:9px 16px}
+  #dbShow{position:fixed;right:18px;bottom:18px;z-index:21;transform:scale(var(--ui));transform-origin:bottom right;cursor:pointer;
+    width:210px;height:64px;border:0;border-radius:6px;background:linear-gradient(180deg,#d9b56a,#9d7330);color:#2a1d08;font-size:17px;
+    box-shadow:inset 0 2px 0 rgba(255,255,255,.35),inset 0 -6px 0 #5f4415,0 8px 0 #2b1f0a,0 12px 20px rgba(0,0,0,.6)}
+  #err{position:fixed;left:0;right:0;bottom:0;z-index:99;background:#400;color:#fdd;font:12px monospace;padding:8px;white-space:pre-wrap;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="labels"></div>
+
+<div class="plate cin" id="sign">The Scale<small id="signsub">Click a criterion to read it.</small></div>
+<div id="sr" role="status" aria-live="polite"></div>
+<div class="plate cin" id="status">Credibility<b id="stCred"><span>100</span> / 100</b><i>On your pan <span id="stCount">0</span> / <span id="stMax">5</span></i></div>
+<button id="lock" class="cin" disabled>Lock scorecard</button>
+<button id="skip" class="cin" type="button" hidden>Skip to result</button>
+<button id="sound" class="plate cin" type="button">Sound on</button>
+
+<div class="ov on" id="intro"><div class="card">
+  <h1 class="cin"><small>Set the test before the bake-off</small>The Scale</h1>
+  <h2>The situation</h2>
+  <p id="introSituation"></p>
+  <h2>Your goal</h2>
+  <p id="introGoal"></p>
+  <h2>What to do</h2>
+  <ol id="introSteps"></ol>
+  <div class="rule"></div>
+  <button id="start" class="cin">Start</button>
+</div></div>
+
+<div class="ov" id="crit"><div class="card" style="width:min(600px,92vw)" role="dialog" aria-labelledby="critTitle">
+  <h1 class="cin"><small id="critKind"></small><span id="critTitle"></span></h1>
+  <div id="critQuote"></div>
+  <dl class="spec" id="critBody"></dl>
+  <div class="readQ" id="critRead" hidden>
+    <h2 id="readQH">How will they hear this?</h2>
+    <p class="look">Compare it with their own criteria on the left.</p>
+    <div class="opts" role="radiogroup" aria-labelledby="readQH" id="readOpts"></div>
+  </div>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button id="critPlace" class="cin">Add to pan</button>
+    <button id="critClose" class="cin quiet">Close</button>
+  </div>
+</div></div>
+
+<div class="ov" id="sheet"><div class="card" role="dialog" aria-labelledby="sheetTitle">
+  <h1 class="cin"><small>Bake-off sheet</small><span id="sheetTitle"></span></h1>
+  <p id="sheetLede"></p>
+  <table class="dbf" id="sheetTable"></table>
+  <div class="rule"></div>
+  <button id="sheetClose" class="cin quiet">Close</button>
+</div></div>
+
+<div class="ov" id="confirm"><div class="card" style="width:min(560px,92vw)" role="dialog" aria-labelledby="cfTitle">
+  <h1 class="cin"><span id="cfTitle">Lock scorecard?</span></h1>
+  <table class="dbf" id="cfBody"></table>
+  <p>You cannot undo this.</p>
+  <div class="rule"></div>
+  <div style="display:flex;gap:10px"><button id="cfYes" class="cin">Lock scorecard</button><button id="cfNo" class="cin quiet">Go back</button></div>
+</div></div>
+
+<aside id="debrief" class="card" aria-label="Bake-off results" tabindex="-1">
+  <h1 class="cin"><small>Results</small><span id="dbTitle"></span></h1>
+  <table class="dbf" id="dbSummary"></table>
+  <p id="dbLook"></p>
+  <h2>Each criterion</h2>
+  <table class="dbf" id="dbRows"></table>
+  <h2 id="dbReadsH" hidden>How they heard yours</h2>
+  <table class="dbf" id="dbReads" hidden></table>
+  <h2>What to say about yours</h2>
+  <table class="dbf" id="dbSay"></table>
+  <h2>Best scorecard</h2>
+  <table class="dbf" id="dbBest"></table>
+  <div class="rule"></div>
+  <button id="dbHide" class="cin quiet">Hide results</button>
+  <button id="startOver" class="cin quiet">Start over</button>
+</aside>
+<button id="dbShow" class="cin" hidden>Show results</button>
+<div id="err"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "./node_modules/three/build/three.module.js",
+  "three/addons/": "./node_modules/three/examples/jsm/",
+  "scorm": "./scorm.js"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { connectScorm } from 'scorm';
+import { createAudio } from './assets/audio/audio.js';
+import defaultContent from './content.js';
+import { validatePack } from './validate-pack.mjs';
+
+window.addEventListener('error', e=>{ const el=document.getElementById('err'); el.style.display='block';
+  el.textContent += '\n' + (e.error?.stack || e.message); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CONTENT PACK — the only place a product, a vendor or a person is named.
+  Engine, HUD and mechanics are generic. Default lives in ./content.js;
+  content-packs/scale/*.json swap in via window.__ENGINE_CONTENT__.
+
+  Every criterion carries three numbers:
+    w      how much the criterion counts in the bake-off (1 light, 3 heavy)
+    bias   how much it reads like the seller's own material (0 none, 3 blatant)
+    takes  who wins it when it is scored: 'us', 'them' or 'split'
+═══════════════════════════════════════════════════════════════════════════*/
+const CONTENT = window.__ENGINE_CONTENT__ ?? defaultContent;
+{
+  const problems = validatePack(CONTENT);
+  if (problems.length) {
+    const el = document.getElementById('err');
+    el.style.display = 'block';
+    el.textContent = 'Content pack failed validation:\n' + problems.map(p => '- ' + p).join('\n');
+    throw new Error('Invalid content pack:\n' + problems.join('\n'));
+  }
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  THEME — the look (cloth, wood, brass, HUD ink), separate from the pack's
+  facts. Same lookup shape as layers/theme/registry.ts's createThemeRegistry
+  (that file is imported by relative path elsewhere; here it's inlined since a
+  .ts import doesn't run in a plain browser module). No `theme` on the pack
+  means the engine renders pixel-identical to before this seam existed.
+═══════════════════════════════════════════════════════════════════════════*/
+const THEME_PACKS = {
+  default: {
+    colors: {
+      '--cream':'#EFE3C6', '--brass':'#C99A4B', '--red':'#8E2018', '--green':'#2C4A32', '--ink':'#181410',
+      baize:'#3E6B47', floor:'#6a6258', brass:'#E2B96C', brassDark:'#8f6a2c',
+    },
+  },
+};
+function getTheme(packId){
+  const requestedPack = packId || 'default';
+  const theme = THEME_PACKS[requestedPack];
+  if (theme) return { theme, requestedPack, activePack:requestedPack };
+  console.warn(`[scale] pack "${requestedPack}" not available, using "default"`);
+  return { theme:THEME_PACKS.default, requestedPack, activePack:'default' };
+}
+const { theme: THEME } = getTheme(CONTENT.theme?.pack);
+const COLOR = { ...THEME.colors, ...(CONTENT.theme?.colors || {}) };
+for (const k of ['--cream','--brass','--red','--green','--ink']) {
+  document.documentElement.style.setProperty(k, COLOR[k]);
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MODEL
+═══════════════════════════════════════════════════════════════════════════*/
+const CRIT = Object.fromEntries([...CONTENT.stated, ...CONTENT.candidates].map(c=>[c.id,c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function credFor(ids){ return CONTENT.cred.start - ids.reduce((n,id)=>n+CRIT[id].bias*CONTENT.cred.perBias, 0); }
+function struckBy(ids){ const c=credFor(ids); return c<CONTENT.cred.threshold ? ids.filter(id=>CRIT[id].bias>=2) : []; }
+function tally(ids){                        // ids = your placed criteria that survived
+  let us=0, them=0;
+  for(const c of [...CONTENT.stated, ...ids.map(id=>CRIT[id])]){
+    if(c.takes==='us') us+=c.w; else if(c.takes==='them') them+=c.w; else { us+=c.w/2; them+=c.w/2; }
+  }
+  return { us, them };
+}
+function outcome(ids){
+  const cred=credFor(ids), struck=struckBy(ids), live=ids.filter(id=>!struck.includes(id));
+  const t=tally(live);
+  const bake=Math.round(50*clamp(.5+(t.us-t.them)/CONTENT.swing, 0, 1));
+  const credScore=Math.round(50*clamp(cred,0,100)/100);
+  return { cred, struck, live, ...t, bake, credScore, score:bake+credScore };
+}
+/* The learner's read of how an option sounds. The engine owns the bands; packs only carry bias 0-3.
+   Bias 0 and 1 share a band: their own words and a fair test both sound fair to them. */
+const READS = [
+  { id:'fair',  label:'Their own words or a fair test', short:'fair' },
+  { id:'pitch', label:'Close to our pitch',             short:'close to our pitch' },
+  { id:'sheet', label:'Straight off our data sheet',    short:'straight off our data sheet' },
+];
+const READ_BY = Object.fromEntries(READS.map(r=>[r.id,r]));
+const readOf = c => c.bias<=1 ? 'fair' : c.bias===2 ? 'pitch' : 'sheet';
+const bandOf = c => c.hears.split('.')[0];               // the first sentence of `hears` names the band; the validator holds it
+// Best scorecard, brute forced over every subset up to the placement cap. 638 combinations.
+const BEST = (()=>{
+  const ids=CONTENT.candidates.map(c=>c.id); let best={ score:-1, set:[] };
+  const walk=(i,set)=>{ const o=outcome(set); if(o.score>best.score) best={ ...o, set:[...set] };
+    if(set.length===CONTENT.maxPlace) return;
+    for(let k=i;k<ids.length;k++){ set.push(ids[k]); walk(k+1,set); set.pop(); } };
+  walk(0,[]); return best;
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  STATE — phase: read -> reveal -> done
+═══════════════════════════════════════════════════════════════════════════*/
+const state = { phase:'read', placed:[], reads:{}, struck:[], finished:false, result:null, restoring:false };
+/*═══════════════════════════════════════════════════════════════════════════
+  SOUND — assets/audio/audio.json lists each sound and the moment it fires on
+═══════════════════════════════════════════════════════════════════════════*/
+const audio = createAudio({ storageKey:'scale.muted',
+  sfx:{ 'card-open':'./assets/audio/card-open.mp3', sheet:'./assets/audio/sheet.mp3', place:'./assets/audio/place.mp3',
+    lock:'./assets/audio/lock.mp3', strike:'./assets/audio/strike.mp3', unroll:'./assets/audio/unroll.mp3',
+    'take-us':'./assets/audio/take-us.mp3', 'take-them':'./assets/audio/take-them.mp3', 'take-even':'./assets/audio/take-even.mp3',
+    'result-won':'./assets/audio/result-won.mp3', 'result-lost':'./assets/audio/result-lost.mp3' } });
+audio.mountToggle(document.getElementById('sound'));
+
+/*═══════════════════════════════════════════════════════════════════════════
+  RENDERER, ENVIRONMENT, LIGHT
+═══════════════════════════════════════════════════════════════════════════*/
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070605);
+scene.fog = new THREE.Fog(0x070605, 14, 26);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), .04).texture;
+scene.environmentIntensity = .38;
+
+const LOOK = new THREE.Vector3(-0.7, 1.55, 0);
+const camera = new THREE.PerspectiveCamera(34, innerWidth/innerHeight, .1, 60);
+camera.position.set(LOOK.x, 3.8, 10.7);
+camera.lookAt(LOOK);
+function panelInset(){ const db=document.getElementById('debrief');
+  return db && db.classList.contains('on') ? db.getBoundingClientRect().width : 0; }
+function fitCamera(){
+  // The debrief is docked over the right of the canvas, so the world has to fit the strip that is left.
+  // Docked, the camera frames the balance, the bob and the struck weights alone, so the stamps stay big enough to read.
+  const dist=11.0, needH=6.0, needW=panelInset() ? 10.4 : 15.2;
+  const inset=Math.min(panelInset(), innerWidth*.6), S=innerWidth-inset, F=innerWidth+inset;
+  const fovH=2*Math.atan(needH/2/dist), fovW=2*Math.atan(needW/2/dist/(S/innerHeight));
+  camera.fov=THREE.MathUtils.radToDeg(Math.max(fovH,fovW)); camera.aspect=F/innerHeight; camera.updateProjectionMatrix();
+  if(inset) camera.setViewOffset(F, innerHeight, inset, 0, innerWidth, innerHeight); else camera.clearViewOffset();
+  const ref=2*Math.tan(THREE.MathUtils.degToRad(34)/2)*dist, cur=2*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2)*dist;
+  const ui=Math.max(.55, Math.min(1, (innerHeight/900)*(ref/cur)));
+  document.documentElement.style.setProperty('--ui', ui.toFixed(3));
+  document.documentElement.style.setProperty('--lbl', Math.max(1, ui).toFixed(3));
+  // the option decks are for choosing; with the results docked they would sit over the struck weights
+  document.body.classList.toggle('docked', !!inset);
+}
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0x3a3630, .55));
+function deskLamp(x,y,z,color=0xffd39a,i=30,fixture=true){
+  const L=new THREE.SpotLight(color, i, 22, Math.PI/3.2, .55, 1.5);
+  L.position.set(x,y,z); L.target.position.set(x*.72, .6, 0); L.castShadow=true;
+  L.shadow.mapSize.set(2048,2048); L.shadow.bias=-.0006; L.shadow.normalBias=.02;
+  scene.add(L, L.target);
+  if(!fixture) return L;
+  const g=new THREE.Group(); g.position.set(x,y,z);
+  g.add(new THREE.Mesh(new THREE.ConeGeometry(.42,.4,24,1,true), new THREE.MeshStandardMaterial({color:0x3b2f20, metalness:.85, roughness:.4, side:THREE.DoubleSide})));
+  const brim=new THREE.Mesh(new THREE.TorusGeometry(.42,.022,8,28), new THREE.MeshStandardMaterial({color:0xC99A4B, metalness:.95, roughness:.3})); brim.rotation.x=Math.PI/2; brim.position.y=-.2; g.add(brim);
+  const bulb=new THREE.Mesh(new THREE.SphereGeometry(.07,16,12), new THREE.MeshBasicMaterial({color})); bulb.position.y=-.13; g.add(bulb);
+  g.add(new THREE.Mesh(new THREE.CylinderGeometry(.012,.012,3.0,6), new THREE.MeshStandardMaterial({color:0x131110, metalness:.9, roughness:.4})).translateY(1.6));
+  scene.add(g); return L;
+}
+deskLamp(-3.6, 5.05, 2.7); deskLamp(3.6, 5.05, 2.7);
+deskLamp(-6.0, 5.6, 2.6, 0xffd39a, 20, false); deskLamp(5.4, 5.4, 2.8, 0xffd39a, 22, false);
+const fill = new THREE.DirectionalLight(0xaebbd0, .2); fill.position.set(-5, 3, 9); scene.add(fill);
+const floorFill = new THREE.DirectionalLight(0xffd9a8, .5); floorFill.position.set(0, 6, 7); floorFill.target.position.set(0,-3,3); scene.add(floorFill, floorFill.target);
+const redLamp = new THREE.PointLight(0xff2a1a, 0, 8, 2); redLamp.position.set(0, 2.4, 3.0); scene.add(redLamp);
+
+/*═══════════════════════════════════════════════════════════════════════════
+  MATERIALS
+═══════════════════════════════════════════════════════════════════════════*/
+const tl = new THREE.TextureLoader();
+function tex(name, rx=1, ry=1){ const t=tl.load(`./assets/tex/${name}.jpg`); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(rx,ry); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t; }
+const M = {
+  baize: new THREE.MeshStandardMaterial({ map:tex('cloth',7,3), color:COLOR.baize, roughness:.94, metalness:0 }),
+  walnut:new THREE.MeshStandardMaterial({ map:tex('walnut',3,1), roughness:.42, metalness:.1 }),
+  walnutT:new THREE.MeshStandardMaterial({ map:tex('walnut',1,1), roughness:.42, metalness:.1 }),
+  floor: new THREE.MeshStandardMaterial({ map:tex('floor',6,6), color:COLOR.floor, roughness:.6, metalness:.1 }),
+  brass: new THREE.MeshStandardMaterial({ map:tex('brass',1,1), roughness:.3,  metalness:.95, color:COLOR.brass }),
+  brassD:new THREE.MeshStandardMaterial({ map:tex('brass',2,2), roughness:.46, metalness:.9,  color:COLOR.brassDark }),
+  iron:  new THREE.MeshStandardMaterial({ color:0x2a2a2c, roughness:.55, metalness:.85 }),
+  paper: new THREE.MeshStandardMaterial({ map:tex('parchment',1,1), roughness:.92, metalness:0, side:THREE.DoubleSide }),
+};
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; t.canvas=c; return t; }
+const FD='"Cinzel",Georgia,serif', FS='"Crimson Pro",Georgia,serif';
+
+/*═══════════════════════════════════════════════════════════════════════════
+  TABLE
+═══════════════════════════════════════════════════════════════════════════*/
+function box(w,h,d,m,x,y,z,parent=scene){ const b=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m); b.position.set(x,y,z); b.castShadow=b.receiveShadow=true; parent.add(b); return b; }
+function cyl(r,len,m,seg=24){ const c=new THREE.Mesh(new THREE.CylinderGeometry(r,r,len,seg),m); c.castShadow=c.receiveShadow=true; return c; }
+const TABLE = { y:0, x0:-8.2, x1:8.2, z0:-2.6, z1:3.0 };
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(40,30), M.floor); floor.rotation.x=-Math.PI/2; floor.position.set(0,-3.4,0); floor.receiveShadow=true; scene.add(floor);
+const backWall=new THREE.Mesh(new THREE.PlaneGeometry(40,20), new THREE.MeshStandardMaterial({ map:tex('walnut',6,3), color:0x2e2419, roughness:.8, metalness:.05 }));
+backWall.position.set(0,6.0,-10.5); backWall.receiveShadow=true; scene.add(backWall);
+(function table(){
+  const w=TABLE.x1-TABLE.x0, d=TABLE.z1-TABLE.z0, cx=(TABLE.x0+TABLE.x1)/2, cz=(TABLE.z0+TABLE.z1)/2;
+  const baize=new THREE.Mesh(new THREE.PlaneGeometry(w-.9,d-.7), M.baize); baize.rotation.x=-Math.PI/2; baize.position.set(cx,.012,cz-.1); baize.receiveShadow=true; scene.add(baize);
+  box(w+.5,.2,d+.5,M.walnut,cx,-.1,cz);                         // wood surround, its top just under the cloth
+  box(w+.5,.52,.34,M.walnutT,cx,-.42,TABLE.z1+.2);              // front apron
+  box(w+.5,.52,.34,M.walnutT,cx,-.42,TABLE.z0-.2);
+  for(const s of [-1,1]) for(const t of [-1,1]) { const leg=cyl(.16,2.4,M.walnutT,12); leg.position.set(cx+s*(w/2-.5),-1.6,cz+t*(d/2-.5)); scene.add(leg); }
+  // brass edge banding, catches the lamps
+  const band=new THREE.Mesh(new THREE.BoxGeometry(w+.54,.06,.06), M.brassD); band.position.set(cx,-.16,TABLE.z1+.38); scene.add(band);
+})();
+
+/*═══════════════════════════════════════════════════════════════════════════
+  BALANCE — column, beam, two hanging pans
+═══════════════════════════════════════════════════════════════════════════*/
+const SC = { x:-1.55, pivotY:3.4, arm:2.45, hang:1.5, panR:1.16, maxTilt:.13 };
+(function column(){
+  const {x,pivotY}=SC;
+  box(1.5,.14,1.0,M.brassD,x,.07,0);
+  const foot=cyl(.62,.1,M.brass,40); foot.position.set(x,.16,0); scene.add(foot);
+  const step=cyl(.44,.12,M.brassD,32); step.position.set(x,.26,0); scene.add(step);
+  const shaft=cyl(.115,pivotY-.3,M.brass,24); shaft.position.set(x,.3+(pivotY-.3)/2,0); scene.add(shaft);
+  for(const y of [1.0,2.1]){ const c=new THREE.Mesh(new THREE.TorusGeometry(.15,.028,10,28),M.brassD); c.rotation.x=Math.PI/2; c.position.set(x,y,0); scene.add(c); }
+  const cap=cyl(.2,.16,M.brassD,24); cap.position.set(x,pivotY-.1,0); scene.add(cap);
+})();
+const BEAM = new THREE.Group(); BEAM.position.set(SC.x, SC.pivotY, 0); scene.add(BEAM);
+(function beam(){
+  const a=SC.arm;
+  const bar=box(a*2,.1,.13,M.brass,0,0,0,BEAM);
+  for(const s of [-1,1]){ const t=new THREE.Mesh(new THREE.ConeGeometry(.08,.34,4),M.brass); t.rotation.z=s*Math.PI/2; t.position.set(s*(a+.14),0,0); BEAM.add(t); }
+  const boss=new THREE.Mesh(new THREE.SphereGeometry(.2,20,14),M.brass); BEAM.add(boss);
+  const ptr=box(.055,.5,.05,M.brassD,0,.32,0,BEAM);
+  for(let i=-4;i<=4;i++){ const r=box(.05,.05,.05,M.brassD,i*.55,.07,.07,BEAM); }
+  BEAM.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+})();
+function makePan(side){
+  const g=new THREE.Group(); scene.add(g);
+  const R=SC.panR;
+  const pts=[]; for(const [r,y] of [[0,0],[R*.4,.015],[R*.75,.05],[R*.97,.13],[R,.17],[R*.985,.12],[R*.72,.035],[R*.38,.005],[0,-.012]]) pts.push(new THREE.Vector2(r,y));
+  const dish=new THREE.Mesh(new THREE.LatheGeometry(pts,48), new THREE.MeshStandardMaterial({ map:tex('brass',1,1), color:0xD9AF5E, roughness:.34, metalness:.95, side:THREE.DoubleSide }));
+  dish.castShadow=dish.receiveShadow=true; g.add(dish);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(R,.026,10,56),M.brassD); rim.rotation.x=Math.PI/2; rim.position.y=.17; g.add(rim);
+  const H=SC.hang-.17, cr=R*.52;
+  for(const a of [-2.2,0,2.2]){ const bx=Math.sin(a)*cr, bz=Math.cos(a)*cr;
+    const c=cyl(.012,H,M.brass,6); c.position.set(bx/2, .17+H/2, bz/2);
+    c.rotation.z=Math.asin(bx/H); c.rotation.x=-Math.asin(bz/H); g.add(c); }
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.07,.017,8,20),M.brassD); ring.position.y=SC.hang; g.add(ring);
+  return { g, side, items:[], dip:0, dipV:0 };
+}
+const PAN = { left:makePan(-1), right:makePan(1) };
+// splits land on a small rail at the fulcrum: neither side takes them
+const CENTRE = { items:[], x:SC.x, y:SC.pivotY+.40 };
+(function centreRail(){ box(2.0,.07,.34,M.brass,SC.x,SC.pivotY+.60,0); box(2.06,.04,.4,M.brassD,SC.x,SC.pivotY+.56,0);
+  for(const s of [-1,1]) box(.07,.42,.07,M.brassD,SC.x+s*.7,SC.pivotY+.36,0); })();
+const TABLE_SLOT = { items:[], x:.75, y:.32, z:2.05, step:1.25 };   // where struck weights land; the step leaves room for each red tag
+
+/*═══════════════════════════════════════════════════════════════════════════
+  WEIGHTS — brass plaques, stamped, sized by how much the criterion counts
+═══════════════════════════════════════════════════════════════════════════*/
+function stampTex(text, wide){
+  return canvasTex(wide?512:384, 256, (g,w,h)=>{
+    g.clearRect(0,0,w,h);
+    const m=13;
+    g.fillStyle='#100E0A'; g.fillRect(m,m,w-2*m,h-2*m);                       // recessed ink plate
+    g.strokeStyle='rgba(240,210,155,.5)'; g.lineWidth=6; g.strokeRect(m+6,m+6,w-2*m-12,h-2*m-12);
+    const words=text.split(' ');
+    const lines = words.length>1 && text.length>9 ? [words[0], words.slice(1).join(' ')] : [text];
+    let size = lines.length>1 ? 84 : 104;
+    g.font=`600 ${size}px ${FD}`;
+    const widest=()=>Math.max(...lines.map(l=>g.measureText(l).width));
+    while(size>22 && widest()>w-2*m-36){ size-=2; g.font=`600 ${size}px ${FD}`; }
+    g.textAlign='center'; g.textBaseline='middle';
+    lines.forEach((l,i)=>{
+      const y=h/2 + (i-(lines.length-1)/2)*(size+10);
+      g.font=`600 ${size}px ${FD}`;
+      g.fillStyle='#000';    g.fillText(l, w/2, y+3);
+      g.fillStyle='#F8EDD5'; g.fillText(l, w/2, y);
+    });
+  });
+}
+function tagTex(){ return canvasTex(320,208,(g,w,h)=>{
+  g.fillStyle='#A82A22'; g.fillRect(0,0,w,h);
+  for(let i=0;i<300;i++){ g.fillStyle=`rgba(60,10,6,${Math.random()*.10})`; g.fillRect(Math.random()*w,Math.random()*h,3,3); }
+  g.strokeStyle='#F0DCC0'; g.lineWidth=9; g.strokeRect(13,13,w-26,h-26);
+  g.fillStyle='#1a0806'; g.beginPath(); g.arc(w/2,40,12,0,7); g.fill();
+  g.textAlign='center'; g.textBaseline='middle';
+  let size=96; g.font=`600 ${size}px ${FD}`;
+  while(size>30 && g.measureText('STRUCK').width>w-56){ size-=2; g.font=`600 ${size}px ${FD}`; }
+  g.fillStyle='#40100C'; g.fillText('STRUCK', w/2+3, h/2+30);
+  g.fillStyle='#FBEFD6'; g.fillText('STRUCK', w/2,   h/2+27);
+}); }
+const TAG_TEX = tagTex();
+const pickables=[];
+function makeWeight(c, kind){
+  const w=.36+.11*c.w, h=.24+.07*c.w, d=.15;
+  const g=new THREE.Group(); scene.add(g);
+  const body=box(w,h,d,M.brass,0,0,0,g);
+  const st=stampTex(c.stamp, w>.75);
+  const face=new THREE.Mesh(new THREE.PlaneGeometry(w-.05,h-.05),
+    new THREE.MeshStandardMaterial({ map:st, emissive:0xffffff, emissiveMap:st, emissiveIntensity:.55,
+      transparent:true, roughness:.8, metalness:.05, color:0xffffff }));
+  face.position.z=d/2+.004; g.add(face);
+  const knob=new THREE.Mesh(new THREE.TorusGeometry(.055,.017,8,18),M.brassD); knob.position.y=h/2+.05; knob.rotation.y=Math.PI/2; g.add(knob);
+  const grab=new THREE.Mesh(new THREE.BoxGeometry(w+.1,h+.2,.5), new THREE.MeshBasicMaterial({visible:false})); g.add(grab);
+  grab.userData.crit=c.id; pickables.push(grab);
+  const tag=new THREE.Group(); tag.position.set(w/2+.30, h/2-.03, .06); tag.visible=false; g.add(tag);
+  const str=cyl(.006,.11,M.brassD,6); str.position.y=-.055; tag.add(str);
+  const card=new THREE.Mesh(new THREE.PlaneGeometry(.40,.26), new THREE.MeshStandardMaterial({ map:TAG_TEX,
+    emissive:0xffffff, emissiveMap:TAG_TEX, emissiveIntensity:.45, roughness:.9, side:THREE.DoubleSide }));
+  card.position.y=-.24; card.castShadow=true; tag.add(card);
+  const eye=new THREE.Mesh(new THREE.TorusGeometry(.028,.008,6,14),M.brassD); eye.rotation.y=Math.PI/2; tag.add(eye);
+  g.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+  return { c, kind, g, w, h, tag, pos:new THREE.Vector3(), place:kind==='stated'?'left':'rack', slot:0, flight:null, bounce:9 };
+}
+const W = {};
+CONTENT.stated.forEach((c,i)=>{ const w=makeWeight(c,'stated'); W[c.id]=w; PAN.left.items.push(c.id); });
+const RACK = { x:4.7, z:.9, cols:[4.24,5.16], rows:[.34,.92,1.50,2.08,2.66] };
+(function rack(){
+  const x0=RACK.cols[0]-.55, x1=RACK.cols[1]+.55;
+  for(const x of [x0,x1]){ const p=cyl(.05,3.16,M.brassD,12); p.position.set(x,1.58,RACK.z); scene.add(p);
+    const f=cyl(.13,.07,M.brass,16); f.position.set(x,.03,RACK.z); scene.add(f); }
+  for(const y of RACK.rows){ box(x1-x0+.2,.05,.4,M.walnutT,(x0+x1)/2,y-.02,RACK.z); box(x1-x0+.2,.03,.03,M.brassD,(x0+x1)/2,y+.02,RACK.z+.19); }
+  box(x1-x0+.3,.08,.48,M.walnutT,(x0+x1)/2,3.12,RACK.z);
+})();
+CONTENT.candidates.forEach((c,i)=>{ const w=makeWeight(c,'cand'); W[c.id]=w;
+  w.rackPos=new THREE.Vector3(RACK.cols[i%2], RACK.rows[Math.floor(i/2)]+(.24+.07*c.w)/2, RACK.z);
+  w.g.position.copy(w.rackPos); w.pos.copy(w.rackPos); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CREDIBILITY — a plumb bob on a graduated arc, LOW to HIGH
+═══════════════════════════════════════════════════════════════════════════*/
+const CRED = (()=>{
+  const x=2.85, z=.25, pivotY=2.9, R=.56, SPAN=.62;
+  box(.95,.1,.6,M.brassD,x,.05,z);
+  const post=cyl(.06,pivotY,M.brass,16); post.position.set(x,pivotY/2,z); scene.add(post);
+  const arcTex=canvasTex(1024,640,(g,w,h)=>{
+    g.clearRect(0,0,w,h);
+    const cx=w/2, cy=60, r0=386, r1=478;
+    const a=t=>Math.PI/2 - (t*2-1)*SPAN;                        // t: 0 low (left), 1 high (right)
+    const thr=CONTENT.cred.threshold/100;
+    g.lineWidth=r1-r0; g.lineCap='butt';
+    g.strokeStyle='rgba(20,16,10,.9)'; g.beginPath(); g.arc(cx,cy,(r0+r1)/2, a(1), a(0)); g.stroke();
+    g.strokeStyle='rgba(150,32,24,.92)'; g.beginPath(); g.arc(cx,cy,(r0+r1)/2, a(thr), a(0)); g.stroke();
+    for(let i=0;i<=10;i++){ const t=i/10, an=a(t), major=i%5===0;
+      g.beginPath(); g.moveTo(cx+Math.cos(an)*r0, cy+Math.sin(an)*r0); g.lineTo(cx+Math.cos(an)*(major?r1:r0+28), cy+Math.sin(an)*(major?r1:r0+28));
+      g.lineWidth=major?7:4; g.strokeStyle='#E7CE9A'; g.stroke(); }
+    const an=a(thr); g.beginPath(); g.moveTo(cx+Math.cos(an)*(r0-22), cy+Math.sin(an)*(r0-22)); g.lineTo(cx+Math.cos(an)*(r1+22), cy+Math.sin(an)*(r1+22));
+    g.lineWidth=9; g.strokeStyle='#F3D9A6'; g.stroke();
+    g.fillStyle='#F0DFBB'; g.font=`600 40px ${FD}`; g.textBaseline='middle';
+    g.textAlign='right'; g.fillText('LOW',  cx+Math.cos(a(0))*(r1+34), cy+Math.sin(a(0))*(r1+24));
+    g.textAlign='left';  g.fillText('HIGH', cx+Math.cos(a(1))*(r1+34), cy+Math.sin(a(1))*(r1+24));
+    // outside the band, so the swinging rod never crosses it
+    g.textAlign='center'; g.font=`600 34px ${FD}`; g.fillStyle='#F0AE94';
+    g.fillText('STRUCK', cx+Math.cos(a(thr/2))*(r1+40), cy+Math.sin(a(thr/2))*(r1+30));
+    g.font=`600 32px ${FD}`; g.fillStyle='#F3D9A6';
+    g.fillText(String(CONTENT.cred.threshold), cx+Math.cos(a(thr))*(r1+40), cy+Math.sin(a(thr))*(r1+30));
+  });
+  // the arc is drawn around canvas point (512,60); put that point on the rod's pivot
+  const PW=2.6, PH=PW*640/1024;
+  const arc=new THREE.Mesh(new THREE.PlaneGeometry(PW,PH), new THREE.MeshStandardMaterial({ map:arcTex, transparent:true, roughness:.6, metalness:.2 }));
+  arc.position.set(x, pivotY - (PH/2 - (60/640)*PH), z-.07);
+  scene.add(arc);
+  const boss=cyl(.13,.1,M.brass,20); boss.rotation.x=Math.PI/2; boss.position.set(x,pivotY,z); scene.add(boss);
+  const rodG=new THREE.Group(); rodG.position.set(x,pivotY,z+.05); scene.add(rodG);
+  const rod=cyl(.026,R,M.brass,10); rod.position.y=-R/2; rodG.add(rod);
+  const bob=new THREE.Group(); bob.position.y=-R; rodG.add(bob);
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(.14,20,16),M.brass); bob.add(ball);
+  const tip=new THREE.Mesh(new THREE.ConeGeometry(.115,.42,20),M.brass); tip.position.y=-.24; tip.rotation.z=Math.PI; bob.add(tip);
+  const collar=new THREE.Mesh(new THREE.TorusGeometry(.095,.022,8,20),M.brassD); collar.rotation.x=Math.PI/2; collar.position.y=.11; bob.add(collar);
+  rodG.traverse(o=>{ if(o.isMesh) o.castShadow=true; });
+  return { x, z, pivotY, R, SPAN, rodG, angle:SPAN, target:SPAN };
+})();
+const credAngle = v => (clamp(v,0,100)/100*2-1)*CRED.SPAN;
+
+/*═══════════════════════════════════════════════════════════════════════════
+  BAKE-OFF SHEET — parchment on a brass frame, unrolls downward
+═══════════════════════════════════════════════════════════════════════════*/
+const SHEET = (()=>{
+  const x=-6.4, z=.35, w=2.0, hMax=2.5, topY=2.9;
+  box(.7,.1,.6,M.brassD,x,.05,z);
+  for(const s of [-1,1]){ const p=cyl(.045,topY,M.brass,12); p.position.set(x+s*(w/2+.13), topY/2, z); scene.add(p);
+    const k=new THREE.Mesh(new THREE.SphereGeometry(.09,14,12),M.brassD); k.position.set(x+s*(w/2+.13), topY+.05, z); scene.add(k); }
+  const rod=cyl(.06,w+.34,M.brass,16); rod.rotation.z=Math.PI/2; rod.position.set(x,topY,z); scene.add(rod);
+  const t=canvasTex(768,968,()=>{}); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping;
+  const geo=new THREE.PlaneGeometry(w,hMax); geo.translate(0,-hMax/2,0);
+  const sheet=new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map:t, roughness:.9, metalness:0, side:THREE.DoubleSide }));
+  sheet.position.set(x, topY-.04, z+.02); sheet.castShadow=true; sheet.scale.y=.001; scene.add(sheet);
+  const roll=cyl(.11,w,M.paper,20); roll.rotation.z=Math.PI/2; roll.position.set(x, topY-.16, z+.06); scene.add(roll);
+  const grab=new THREE.Mesh(new THREE.PlaneGeometry(w+.4,hMax), new THREE.MeshBasicMaterial({visible:false}));
+  grab.position.set(x, topY-hMax/2, z+.1); grab.userData.sheet=true; scene.add(grab); pickables.push(grab);
+  return { x, z, w, hMax, topY, mesh:sheet, tex:t, roll, open:0, target:0, rows:0 };
+})();
+function drawSheet(rows){
+  const g=SHEET.tex.canvas.getContext('2d'), w=768, h=968;
+  g.fillStyle='#E9DCBC'; g.fillRect(0,0,w,h);
+  const img=PAPER_IMG; if(img.complete && img.naturalWidth){ g.globalAlpha=.6; g.drawImage(img,0,0,w,h); g.globalAlpha=1; }
+  const rg=g.createLinearGradient(0,0,w,h); rg.addColorStop(0,'rgba(90,60,20,.06)'); rg.addColorStop(1,'rgba(60,40,10,.22)'); g.fillStyle=rg; g.fillRect(0,0,w,h);
+  g.fillStyle='#241a0c'; g.textAlign='center'; g.font=`600 62px ${FD}`; g.fillText('BAKE-OFF', w/2, 92);
+  g.strokeStyle='rgba(40,28,10,.5)'; g.lineWidth=4; g.beginPath(); g.moveTo(60,124); g.lineTo(w-60,124); g.stroke();
+  const cU=w*.62, cT=w*.86;
+  // Column half-width each header name must fit in without overlapping its neighbor
+  // or running off the canvas edge — shrink the font instead of a fixed size that
+  // clips a longer vendor name (was: "SPLUNK" fit at 34px, a longer name did not).
+  const colHalfW = (cT-cU)/2 - 6;
+  g.fillStyle='#3a2a12';
+  let hSize=34;
+  const fits=()=>{ g.font=`600 ${hSize}px ${FD}`;
+    return g.measureText(CONTENT.us.short).width/2<=colHalfW && g.measureText(CONTENT.them.short).width/2<=colHalfW; };
+  while(hSize>16 && !fits()) hSize-=2;
+  g.font=`600 ${hSize}px ${FD}`;
+  g.fillText(CONTENT.us.short, cU, 168); g.fillText(CONTENT.them.short, cT, 168);
+  g.textAlign='left'; g.font=`600 30px ${FD}`; g.fillStyle='#5a4326';
+  g.fillText(state.phase==='read' ? 'WHAT WE KNOW' : 'RESULTS', 58, 168);
+  g.beginPath(); g.moveTo(58,190); g.lineTo(w-58,190); g.lineWidth=3; g.strokeStyle='rgba(40,28,10,.35)'; g.stroke();
+  const list = rows || SHEET.list || [];
+  list.forEach((r,i)=>{
+    const y=246+i*66;
+    g.textAlign='left'; g.font=`600 38px ${FD}`; g.fillStyle=r.dim?'#8c7c5e':'#241a0c'; g.fillText(r.stamp, 58, y);
+    g.textAlign='center'; g.font=`600 40px ${FD}`;
+    const mark=(c,who)=>{ g.fillStyle = who ? (who==='us'?'#1F5C3A':'#8E2018') : 'rgba(80,64,40,.35)'; g.fillText(who?'●':'–', c, y+2); };
+    if(r.takes){ mark(cU, r.takes==='us'||r.takes==='split' ? 'us':null); mark(cT, r.takes==='them'||r.takes==='split' ? 'them':null); }
+    else { g.fillStyle='rgba(80,64,40,.35)'; g.fillText('–', cU, y+2); g.fillStyle='#8E2018'; g.fillText('●', cT, y+2); }
+    g.strokeStyle='rgba(40,28,10,.18)'; g.lineWidth=2; g.beginPath(); g.moveTo(58,y+22); g.lineTo(w-58,y+22); g.stroke();
+  });
+  SHEET.tex.needsUpdate=true;
+}
+const PAPER_IMG = new Image(); PAPER_IMG.src='./assets/tex/parchment.jpg';
+SHEET.list = CONTENT.candidates.filter(c=>c.known && c.takes!=='us').map(c=>({ stamp:c.stamp }))
+  .concat(CONTENT.stated.filter(c=>c.takes==='them').map(c=>({ stamp:c.stamp })));
+PAPER_IMG.onload=()=>drawSheet();
+drawSheet();
+SHEET.target=.62;
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SLOTS — where a weight sits, given what is holding it
+═══════════════════════════════════════════════════════════════════════════*/
+const PITCH=.72, ROWH=.40;
+function slotIn(list, id, ox, oy, oz){
+  const i=list.indexOf(id), n=list.length, row=Math.floor(i/3), inRow=Math.min(3, n-row*3), col=i%3;
+  return new THREE.Vector3(ox + (col-(inRow-1)/2)*PITCH, oy + row*ROWH + .24, oz);
+}
+const _p=new THREE.Vector3();
+function targetOf(w){
+  if(w.place==='rack') return w.rackPos;
+  if(w.place==='table'){ const i=TABLE_SLOT.items.indexOf(w.c.id);
+    return _p.set(TABLE_SLOT.x - i*TABLE_SLOT.step, TABLE_SLOT.y, TABLE_SLOT.z); }
+  if(w.place==='centre') return slotIn(CENTRE.items, w.c.id, CENTRE.x, CENTRE.y+.20, 0);
+  const pan=PAN[w.place]; return slotIn(pan.items, w.c.id, pan.g.position.x, pan.g.position.y+.17, pan.g.position.z);
+}
+/* A move is a real drop: lift and carry to a point above the slot, hang for a beat, then fall under gravity.
+   The sound, the pan dip and the beam's response all fire on the frame the weight hits, never on the click. */
+const CARRY=.6, DROP_H=.9, DROP_T=.38;                    // fall time from the height: g = 2h/t^2
+function fly(w, sound){
+  if(state.restoring){ w.g.position.copy(targetOf(w)); w.flight=null; return; }
+  w.flight={ from:w.g.position.clone(), t:0, sound }; }
+function land(w){
+  const f=w.flight; w.flight=null; w.bounce=0;
+  if(f.sound && timeScale===1) audio.play(f.sound);     // a skipped reveal lands quietly instead of a pile-up of clanks
+  if(w.place==='left'||w.place==='right') PAN[w.place].dipV -= .55+.25*w.c.w;
+  if(w.place==='table') redLamp.userData.pulse=1;
+}
+const easeIO=u=>u<.5 ? 4*u*u*u : 1-Math.pow(-2*u+2,3)/2;
+
+/*═══════════════════════════════════════════════════════════════════════════
+  LABELS AND THE TWO CRITERION DECKS
+═══════════════════════════════════════════════════════════════════════════*/
+const labelsEl=document.getElementById('labels'), LABELS=[];
+function label(text, x, y, z, cls='', onClick=null){ const el=document.createElement(onClick?'button':'div'); el.className='lbl cin '+cls; el.textContent=text; labelsEl.appendChild(el);
+  if(onClick){ el.type='button'; el.addEventListener('click', onClick); }
+  const L={ el, p:new THREE.Vector3(x,y,z) }; LABELS.push(L); return L; }
+const sheetBtn=label('Bake-off sheet', SHEET.x, SHEET.topY+.42, SHEET.z, 'small', ()=>openSheet());
+label('Their pan', SC.x-SC.arm, SC.pivotY+.34, 0, 'small');
+label('Your pan',  SC.x+SC.arm, SC.pivotY+.34, 0, 'small');
+const credLbl=label('Credibility', CRED.x, CRED.pivotY+.42, CRED.z, 'small');
+label('Your options', RACK.x, 3.38, RACK.z, 'small rackLbl');
+
+function deck(title, hint, items, cls, x, y, z){
+  const el=document.createElement('div'); el.className='deck cin '+cls; el.setAttribute('role','group'); el.setAttribute('aria-label',title);
+  el.innerHTML=`<h3>${title}</h3><div class="grid"></div><div class="hint">${hint}</div>`;
+  const grid=el.querySelector('.grid');
+  const btns={};
+  for(const c of items){ const b=document.createElement('button'); b.type='button'; b.textContent=c.stamp;
+    b.setAttribute('aria-label',`${c.stamp}: open the card`); b.addEventListener('click', ()=>openCrit(c, b)); grid.appendChild(b); btns[c.id]=b; }
+  labelsEl.appendChild(el); LABELS.push({ el, p:new THREE.Vector3(x,y,z) });
+  return { el, btns };
+}
+const DECK_L = deck('Their criteria', 'Click to read', CONTENT.stated, '', -3.9, .5, 1.6);
+// left of the rack, so no weight on its bottom shelves sits behind the buttons at any screen size
+const DECK_R = deck('Your options', `Add up to ${CONTENT.maxPlace}`, CONTENT.candidates, 'two', 2.4, .5, 1.6);
+
+const _v=new THREE.Vector3();
+function projectLabels(){ for(const L of LABELS){ _v.copy(L.p).project(camera); L.el.style.left=((_v.x+1)/2*innerWidth)+'px'; L.el.style.top=((1-_v.y)/2*innerHeight)+'px'; } }
+const TOASTS=[];
+function toast(text, x, y, z, cls='', avoid=null){ if(state.finished || timeScale>1) return;   // the debrief is up, or the reveal is skipping: nothing narrates
+  document.getElementById('sr').textContent=text; _v.set(x,y,z).project(camera);
+  const el=document.createElement('div'); el.className='toast '+cls; el.textContent=text;
+  let slot=0; while(TOASTS.some(t=>t._slot===slot)) slot++;      // live ones keep their line, so none overprints
+  el._slot=slot; el.style.marginTop=(slot*28)+'px';
+  el.style.left=((_v.x+1)/2*innerWidth)+'px'; el.style.top=((1-_v.y)/2*innerHeight)+'px';
+  labelsEl.appendChild(el); TOASTS.push(el);
+  if(avoid){ const r=el.getBoundingClientRect(), a=avoid.getBoundingClientRect();   // slide left of a world label it would cover
+    // the toast drifts up by half its height as it fades, so test the band it will sweep
+    if(r.right>a.left-8 && r.left<a.right && r.bottom>a.top && r.top-r.height*.6<a.bottom) el.style.left=(parseFloat(el.style.left)-(r.right-a.left+12))+'px'; }
+  setTimeout(()=>{ el.remove(); const i=TOASTS.indexOf(el); if(i>=0) TOASTS.splice(i,1); }, cls.includes('long')?3500:1700); }
+
+/*═══════════════════════════════════════════════════════════════════════════
+  CARDS
+═══════════════════════════════════════════════════════════════════════════*/
+let CUR=null, lastFocus=null;
+// Every overlay is modal: nothing behind it takes a click or a Tab. The reveal locks the world too.
+const OVS=['intro','crit','sheet','confirm'].map(id=>document.getElementById(id));
+const dbEl=document.getElementById('debrief');
+function setModal(){ const shut = OVS.some(o=>o.classList.contains('on')) || state.phase==='reveal';
+  labelsEl.inert=shut; document.getElementById('lock').inert=shut;
+  for(const o of OVS) o.inert=!o.classList.contains('on');   // a faded-out overlay is out of the tab order too
+  dbEl.inert=!dbEl.classList.contains('on'); }
+function ov(id,on){ document.getElementById(id).classList.toggle('on',on); setModal(); }
+function openCrit(c, from){
+  if(state.phase==='reveal') return;
+  CUR=c; lastFocus=from||null; audio.play('card-open',{ gain:.35 });
+  const cand=c.bias!==undefined, already=state.placed.includes(c.id);
+  document.getElementById('critKind').textContent = cand ? 'Your option' : 'Their criterion';
+  document.getElementById('critTitle').textContent = c.stamp;
+  document.getElementById('critQuote').innerHTML = cand ? '' : `<div class="quote">${c.said}</div>`;
+  const weightWord = ['','Light','Medium','Heavy'][c.w];
+  // Before an option is on the pan, its card never says how it sounds or what it does to credibility: that is the call.
+  const hidden = cand && !already && state.phase==='read';
+  const mine = state.reads[c.id];
+  document.getElementById('critBody').innerHTML = !cand
+    ? `<dt>Why it matters</dt><dd>${c.matters}</dd>
+       <dt>Weight</dt><dd>${weightWord} (${c.w} of 3)</dd>
+       <dt>What we know</dt><dd>${c.note}</dd>`
+    : hidden
+    ? `<dt>What it measures</dt><dd>${c.measures}</dd>
+       <dt>Weight</dt><dd>${weightWord} (${c.w} of 3)</dd>
+       <dt>What we know about ${CONTENT.them.name}</dt><dd>${c.theirs}</dd>`
+    : `<dt>What it measures</dt><dd>${c.measures}</dd>
+       ${already && mine ? `<dt>You said</dt><dd>${READ_BY[mine].label}</dd>` : ''}
+       <dt>How it sounds to them</dt><dd class="warn">${c.hears}</dd>
+       <dt>Weight</dt><dd>${weightWord} (${c.w} of 3)</dd>
+       <dt>Credibility change</dt><dd>${c.bias ? `−${c.bias*CONTENT.cred.perBias}` : 'None'}</dd>
+       <dt>What we know about ${CONTENT.them.name}</dt><dd>${c.theirs}</dd>`;
+  const full=state.placed.length>=CONTENT.maxPlace;
+  document.getElementById('critRead').hidden = !(hidden && !full);
+  if(hidden && !full) drawReads(c);
+  const place=document.getElementById('critPlace');
+  place.style.display = cand && state.phase==='read' ? '' : 'none';
+  setPlace(c);
+  ov('crit',true);
+  const firstRead=document.querySelector('#readOpts [tabindex="0"]');
+  (hidden && !full && firstRead ? firstRead : place.style.display!=='none' && !place.disabled ? place : document.getElementById('critClose')).focus();
+}
+function setPlace(c){
+  const place=document.getElementById('critPlace');
+  const already=state.placed.includes(c.id), full=state.placed.length>=CONTENT.maxPlace, read=state.reads[c.id];
+  place.disabled = already || full || !read;
+  place.textContent = already ? 'On your pan' : full ? 'Pan is full' : read ? 'Add to pan' : 'Pick how they will hear it';
+}
+// A radio group: one tab stop, arrows move the choice, Space or Enter on a choice picks it.
+function drawReads(c){
+  const box=document.getElementById('readOpts'), cur=state.reads[c.id];
+  box.innerHTML='';
+  READS.forEach((r,i)=>{ const b=document.createElement('button'); b.type='button'; b.className='readOpt';
+    b.setAttribute('role','radio'); b.dataset.read=r.id; b.textContent=r.label;
+    b.setAttribute('aria-checked', String(cur===r.id));
+    b.tabIndex = (cur ? cur===r.id : i===0) ? 0 : -1;
+    b.addEventListener('click', ()=>pickRead(c, r.id, b));
+    b.addEventListener('keydown', e=>{
+      const k=e.key, d = k==='ArrowDown'||k==='ArrowRight' ? 1 : k==='ArrowUp'||k==='ArrowLeft' ? -1 : 0;
+      if(!d) return; e.preventDefault();
+      const all=[...box.children], j=(all.indexOf(b)+d+all.length)%all.length;
+      pickRead(c, all[j].dataset.read, all[j]); });
+    box.appendChild(b); });
+}
+function pickRead(c, read, btn){
+  state.reads[c.id]=read;
+  for(const b of document.getElementById('readOpts').children){ const on=b.dataset.read===read;
+    b.setAttribute('aria-checked', String(on)); b.tabIndex=on?0:-1; }
+  btn?.focus(); setPlace(c);
+}
+function closeCrit(){ ov('crit',false); lastFocus?.focus(); CUR=null; }
+document.getElementById('critClose').addEventListener('click', closeCrit);
+document.getElementById('critPlace').addEventListener('click', ()=>{ const c=CUR; if(!c || !state.reads[c.id]) return; closeCrit(); placeCrit(c.id); });
+
+function openSheet(){ if(state.phase==='reveal') return; lastFocus=sheetBtn.el; audio.play('sheet',{ gain:.35 });
+  document.getElementById('sheetTitle').textContent = state.phase==='read' ? 'What we know' : 'Results';
+  document.getElementById('sheetLede').textContent = state.phase==='read'
+    ? 'This list is incomplete. If a criterion is missing, we know nothing about it.'
+    : 'Who won each criterion.';
+  const rows = state.phase==='read'
+    ? CONTENT.candidates.filter(c=>c.known).map(c=>`<tr><td class="st">${c.stamp}</td><td class="needs">${c.theirs}</td></tr>`).join('')
+      + CONTENT.stated.map(c=>`<tr><td class="st amber">${c.stamp}</td><td class="needs">${c.note}</td></tr>`).join('')
+    : rowsForResult();
+  document.getElementById('sheetTable').innerHTML=`<tr><th>Criterion</th><th>${state.phase==='read'?'What we know':'Won by'}</th>${state.phase==='read'?'':'<th>Weight</th>'}</tr>${rows}`;
+  ov('sheet',true); document.getElementById('sheetClose').focus(); }
+document.getElementById('sheetClose').addEventListener('click', ()=>{ ov('sheet',false); lastFocus?.focus(); });
+addEventListener('keydown', e=>{ if(e.key!=='Escape') return;
+  if(CUR) closeCrit(); ov('sheet',false); ov('confirm',false);
+  if(document.getElementById('intro').classList.contains('on')) startGame(); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  PLACEMENT
+═══════════════════════════════════════════════════════════════════════════*/
+document.getElementById('stMax').textContent=CONTENT.maxPlace;
+function updateHud(){
+  const cred=credFor(state.placed);
+  document.getElementById('stCount').textContent=state.placed.length;
+  const el=document.getElementById('stCred'); el.innerHTML=`<span>${cred}</span> / 100`;
+  el.classList.toggle('low', cred<CONTENT.cred.threshold);
+  CRED.target=credAngle(cred);
+  document.getElementById('lock').disabled = state.phase!=='read' || state.placed.length===0;
+  for(const c of CONTENT.candidates){ const b=DECK_R.btns[c.id];
+    b.dataset.on = state.struck.includes(c.id) ? '2' : state.placed.includes(c.id) ? '1' : ''; }
+}
+function placeCrit(id){
+  if(state.phase!=='read' || state.placed.includes(id) || state.placed.length>=CONTENT.maxPlace) return;
+  state.placed.push(id); PAN.right.items.push(id);
+  const w=W[id]; w.place='right'; fly(w,'place');
+  const cred=credFor(state.placed);
+  // the truth lands with the weight: your read against how they hear it, in words
+  const mine=state.reads[id], band=bandOf(w.c), lc=band[0].toLowerCase()+band.slice(1);
+  const said = !mine ? `${w.c.stamp} added. They hear: ${lc}`
+    : mine===readOf(w.c) ? `${w.c.stamp}. Right: ${lc}`
+    : `${w.c.stamp}. You said ${READ_BY[mine].short}. They hear: ${lc}`;
+  toast(said, SC.x+SC.arm, PAN.right.g.position.y+.95, 0, (mine && mine!==readOf(w.c) ? 'bad' : 'ok')+' long', credLbl.el);
+  if(cred<CONTENT.cred.threshold) toast(`Credibility below ${CONTENT.cred.threshold}`, CRED.x, CRED.pivotY-1.4, CRED.z, 'bad');   // under the arc, clear of its label and the pan toast
+  updateHud(); save();
+  const left=CONTENT.maxPlace-state.placed.length;
+  document.getElementById('signsub').textContent = left ? `Add up to ${left} more, or click Lock scorecard.` : 'Click Lock scorecard.';
+}
+document.getElementById('lock').addEventListener('click', ()=>{
+  if(state.phase!=='read' || !state.placed.length) return;
+  const cred=credFor(state.placed);
+  document.getElementById('cfBody').innerHTML =
+    `<tr><td>Your criteria</td><td>${state.placed.map(id=>CRIT[id].stamp).join(', ')}</td></tr>`
+    + `<tr><td>Credibility</td><td><b>${cred}</b> of 100</td></tr>`;
+  ov('confirm',true); document.getElementById('cfYes').focus();
+});
+document.getElementById('cfNo').addEventListener('click', ()=>{ ov('confirm',false); document.getElementById('lock').focus(); });
+document.getElementById('cfYes').addEventListener('click', ()=>{ ov('confirm',false); audio.play('lock'); reveal(); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  3D PICKING — click a weight or the sheet, same cards as the buttons
+═══════════════════════════════════════════════════════════════════════════*/
+const ray=new THREE.Raycaster(), ptr=new THREE.Vector2(); let hover=null;
+function pick(e){ ptr.set((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1); ray.setFromCamera(ptr,camera);
+  return ray.intersectObjects(pickables,false)[0]?.object||null; }
+renderer.domElement.addEventListener('pointermove', e=>{ const o=pick(e);
+  if(o!==hover){ hover=o; renderer.domElement.style.cursor = o?'pointer':'default'; } });
+renderer.domElement.addEventListener('pointerdown', e=>{ const o=pick(e); if(!o) return;
+  if(o.userData.sheet) openSheet(); else openCrit(CRIT[o.userData.crit], DECK_R.btns[o.userData.crit] || DECK_L.btns[o.userData.crit]); });
+
+/*═══════════════════════════════════════════════════════════════════════════
+  REVEAL — strikes, then the bake-off runs and every weight moves to a side
+═══════════════════════════════════════════════════════════════════════════*/
+function rowsForResult(){
+  const r=state.result; if(!r) return '';
+  return r.order.map(c=>{
+    const struck=state.struck.includes(c.id);
+    const who = struck ? '<span class="bad">Struck</span>' : c.takes==='us' ? `<span class="ok">${CONTENT.us.name}</span>`
+      : c.takes==='them' ? `<span class="bad">${CONTENT.them.name}</span>` : '<span class="amber">Tie</span>';
+    return `<tr class="${c.bias!==undefined?'you':''}"><td class="st">${c.stamp}</td><td>${who}</td><td>${c.w}</td></tr>`;
+  }).join('');
+}
+/* Reveal steps run on the animation clock, not the wall clock, so a slow frame rate never lets a step start before the last weight lands. */
+const LATER=[]; let gameT=0;
+// Skip to result runs the same simulation faster: several normal-size steps per frame, never one big step.
+let timeScale=1;
+const skipBtn=document.getElementById('skip');
+skipBtn.addEventListener('click', ()=>{ if(state.phase!=='reveal') return; timeScale=12; skipBtn.disabled=true;
+  document.getElementById('sr').textContent='Skipping to the result.'; });
+function later(ms, fn){ LATER.push({ at:gameT+ms/1000, fn }); }
+function reveal(){
+  if(state.phase!=='read') return; state.phase='reveal'; save(); setModal();
+  document.getElementById('lock').disabled=true;
+  document.getElementById('lock').hidden=true; skipBtn.hidden=false; skipBtn.disabled=false;
+  if(!state.restoring) skipBtn.focus();
+  const res=outcome(state.placed); state.struck=res.struck;
+  updateHud();
+  document.getElementById('signsub').textContent='The bake-off is running.';
+  document.getElementById('sr').textContent='Scorecard locked. The bake-off is running.';
+  let t=600;
+  // 1. strikes
+  for(const id of res.struck){ later(t, ()=>{
+    const w=W[id]; PAN.right.items.splice(PAN.right.items.indexOf(id),1); TABLE_SLOT.items.push(id);
+    w.place='table'; w.tag.visible=true; fly(w,'strike');
+    toast(`${w.c.stamp} struck`, TABLE_SLOT.x-(TABLE_SLOT.items.length-1)*TABLE_SLOT.step, 1.0+(TABLE_SLOT.items.length-1)*.34, TABLE_SLOT.z, 'bad');
+  }); t+=900; }
+  // 2. the sheet unrolls
+  later(t, ()=>{ SHEET.target=1; SHEET.list=[]; drawSheet(); audio.play('unroll'); }); t+=900;
+  // 3. criterion by criterion, each weight moves to whoever took it
+  const order=[...CONTENT.stated, ...res.live.map(id=>CRIT[id])];
+  state.result={ ...res, order };
+  order.forEach((c,i)=>{ later(t+i*820, ()=>{
+    const w=W[c.id], from=w.place; const src = from==='left'?PAN.left.items : from==='right'?PAN.right.items : CENTRE.items;
+    src.splice(src.indexOf(c.id),1);
+    w.place = c.takes==='us' ? 'right' : c.takes==='them' ? 'left' : 'centre';
+    (w.place==='centre'?CENTRE.items:PAN[w.place].items).push(c.id);
+    fly(w, c.takes==='us'?'take-us':c.takes==='them'?'take-them':'take-even');
+    SHEET.list.push({ stamp:c.stamp, takes:c.takes }); drawSheet();
+    toast(`${c.stamp}: ${c.takes==='us'?CONTENT.us.short:c.takes==='them'?CONTENT.them.short:'tie'}`,
+      SC.x, SC.pivotY+1.15, 0, c.takes==='us'?'ok':c.takes==='them'?'bad':'');
+  }); });
+  later(t+order.length*820+1500, finish);
+}
+
+/*═══════════════════════════════════════════════════════════════════════════
+  SCORE, DEBRIEF, SCORM
+═══════════════════════════════════════════════════════════════════════════*/
+const lms=connectScorm();
+function save(){ if(!lms.connected) return;
+  const reads=Object.fromEntries(state.placed.filter(id=>state.reads[id]).map(id=>[id,state.reads[id]]));
+  lms.save(JSON.stringify({ v:2, contentVersion:CONTENT.version, placed:state.placed, reads, locked:state.phase!=='read' })); }
+function finish(){
+  if(state.finished) return;
+  // a skip can never leave a weight in the air: anything still flying drops straight into its slot
+  for(const w of Object.values(W)) if(w.flight){ w.g.position.copy(targetOf(w)); w.flight=null; w.bounce=9; }
+  timeScale=1; skipBtn.hidden=true;
+  state.finished=true; state.phase='done';
+  const r=state.result; lms.finish({ score:r.score, max:100, passed:r.score>=70 });
+  const won=r.us>r.them; audio.play(won?'result-won':'result-lost');
+  const nRight=state.placed.filter(id=>state.reads[id]===readOf(CRIT[id])).length;
+  const nUs=CONTENT.us.name, nThem=CONTENT.them.name, passed=r.score>=70, row=(k,v)=>`<tr><td>${k}</td><td>${v}</td></tr>`;
+  document.getElementById('dbTitle').textContent = won ? `${nUs} wins` : r.us===r.them ? 'Tie' : `${nThem} wins`;
+  document.getElementById('dbSummary').innerHTML =
+      row('Score', `<b>${r.score}</b> of 100 · <span class="${passed?'ok':'bad'}">${passed?'Passed':'Not passed'}</span> (pass is 70)`)
+    + row('Bake-off', `${nUs} ${r.us}, ${nThem} ${r.them} · <b>${r.bake}</b> of 50 points`)
+    + row('Credibility', `${r.cred} of 100 · <b>${r.credScore}</b> of 50 points`)
+    + row('Struck', r.struck.length ? `<span class="bad">${r.struck.length}</span> of your ${state.placed.length}` : 'None')
+    + (state.placed.length ? row('Reads right', `<b>${nRight}</b> of ${state.placed.length} placed`) : '');
+  document.getElementById('dbLook').textContent = 'Each weight now sits on the pan of the side that won it. Ties sit on the middle rail.'
+    + (r.struck.length ? ' Red tags mark struck weights. They count for neither side.' : '');
+  document.getElementById('dbRows').innerHTML=`<tr><th>Criterion</th><th>Won by</th><th>Weight</th></tr>${rowsForResult()}`;
+  // every placed option: what you called it, how they heard it, and whether it was struck
+  if(state.placed.length){ document.getElementById('dbReadsH').hidden=false; const t=document.getElementById('dbReads'); t.hidden=false;
+    t.innerHTML=`<tr><th>Criterion</th><th>You said</th><th>They heard</th></tr>`+state.placed.map(id=>{ const c=CRIT[id], mine=state.reads[id];
+      const right=mine===readOf(c), struck=r.struck.includes(id);
+      return `<tr><td class="st${struck?' bad':''}">${c.stamp}${struck?'<br>Struck':''}</td>`
+        + `<td>${mine ? READ_BY[mine].label : 'No call'}</td>`
+        + `<td><span class="${right?'ok':'bad'}">${right?'Right.':'Missed.'}</span> ${c.hears}</td></tr>`; }).join(''); }
+  document.getElementById('dbSay').innerHTML = state.placed.length
+    ? `<tr><th>Criterion</th><th>What to say</th></tr>` + state.placed.map(id=>`<tr><td class="st">${CRIT[id].stamp}</td><td>${CRIT[id].say}</td></tr>`).join('')
+    : row('Nothing added', 'The bake-off ran only on their four criteria.');
+  const matched = BEST.set.length===state.placed.length && BEST.set.every(id=>state.placed.includes(id));
+  document.getElementById('dbBest').innerHTML =
+      row('Criteria', BEST.set.map(id=>CRIT[id].stamp).join(', ') + (matched ? ' <span class="ok">(yours)</span>' : ''))
+    + row('Score', `<b>${BEST.score}</b> of 100 · bake-off ${BEST.bake}, credibility ${BEST.credScore}`);
+  document.getElementById('signsub').textContent='Bake-off finished.';
+  document.getElementById('lock').hidden=true;
+  for(const t of TOASTS.splice(0)) t.remove();      // the result is up; stale narration goes
+  dbEl.classList.add('on'); setModal(); dbEl.scrollTop=0; dbEl.focus({preventScroll:true});
+  fitCamera();
+}
+document.getElementById('dbHide').addEventListener('click', ()=>{ dbEl.classList.remove('on'); setModal(); fitCamera(); const b=document.getElementById('dbShow'); b.hidden=false; b.focus(); });
+document.getElementById('dbShow').addEventListener('click', ()=>{ dbEl.classList.add('on'); setModal(); fitCamera(); document.getElementById('dbShow').hidden=true; document.getElementById('dbHide').focus(); });
+document.getElementById('startOver').addEventListener('click', ()=>{ lms.save(''); location.reload(); });
+(function restore(){ const raw=lms.resumeData(); if(!raw) return; try{ const s=JSON.parse(raw);
+  if(s.v!==2 || s.contentVersion!==CONTENT.version || !s.placed?.length) return;   // an older save starts a fresh run
+  ov('intro',false);
+  state.reads={ ...(s.reads||{}) };
+  state.restoring=true; for(const id of s.placed) placeCrit(id); state.restoring=false;
+  if(s.locked) reveal(); }catch(_){} })();
+function startGame(){ ov('intro',false); sheetBtn.el.focus(); }
+document.getElementById('start').addEventListener('click', startGame);
+setModal(); document.getElementById('start').focus();
+document.getElementById('introSituation').textContent =
+  `${CONTENT.industry[0].toUpperCase()}${CONTENT.industry.slice(1)} is choosing a new ${CONTENT.category}: ${CONTENT.us.name} or ${CONTENT.them.name}. They asked you what the bake-off should test. `
+  + `If your credibility drops below ${CONTENT.cred.threshold}, they strike criteria that sound like a sales pitch.`;
+document.getElementById('introGoal').textContent = `Add criteria that help ${CONTENT.us.name} win the bake-off, and keep their trust.`;
+document.getElementById('introSteps').innerHTML = [
+  'Click a name under <b>Their criteria</b> or <b>Your options</b> to read its card.',
+  `Click <b>Bake-off sheet</b> to see what we know about ${CONTENT.them.name}.`,
+  `Open an option, pick how the customer will hear it, then click <b>Add to pan</b>. Up to ${['','one','two','three','four','five'][CONTENT.maxPlace]||CONTENT.maxPlace}. You cannot take one back.`,
+  'Click <b>Lock scorecard</b> to run the bake-off.',
+].map(t=>`<li>${t}</li>`).join('');
+
+/*═══════════════════════════════════════════════════════════════════════════
+  FRAME
+═══════════════════════════════════════════════════════════════════════════*/
+const clock=new THREE.Clock();
+let beamAngle=0;
+function massOf(list){ return list.reduce((n,id)=>n+(W[id].flight?0:CRIT[id].w), 0); }   // a weight counts once it has landed
+let simT=0;
+function simulate(dt){
+  simT+=dt; const t=simT;
+  gameT+=dt; for(const x of LATER.filter(x=>x.at<=gameT).sort((p,q)=>p.at-q.at)){ LATER.splice(LATER.indexOf(x),1); x.fn(); }
+  // beam: it weighs the brass that is on it
+  const target=-clamp((massOf(PAN.right.items)-massOf(PAN.left.items))/10, -1, 1)*SC.maxTilt;
+  beamAngle += (target-beamAngle)*Math.min(1,dt*1.8);
+  BEAM.rotation.z = beamAngle + Math.sin(t*1.7)*.0025;
+  for(const k of ['left','right']){ const s=k==='left'?-1:1, a=BEAM.rotation.z;
+    const P=PAN[k]; P.dipV += (-180*P.dip - 9*P.dipV)*dt; P.dip += P.dipV*dt;   // damped spring: the pan gives under an impact
+    P.g.position.set(SC.x + s*SC.arm*Math.cos(a), SC.pivotY + s*SC.arm*Math.sin(a) - SC.hang + P.dip, 0); }
+  // weights settle into their slots
+  for(const id in W){ const w=W[id]; const tp=targetOf(w), f=w.flight;
+    if(f){ f.t+=dt;
+      if(f.t<CARRY){ const u=easeIO(f.t/CARRY);                       // lift and carry, ending still above the slot
+        w.g.position.lerpVectors(f.from, _v.set(tp.x, tp.y+DROP_H, tp.z), u); w.g.position.y += Math.sin(u*Math.PI)*.35; }
+      else { const u=Math.min(1,(f.t-CARRY)/DROP_T);                  // free fall: distance grows with time squared
+        w.g.position.set(tp.x, tp.y + DROP_H*(1-u*u), tp.z); if(u>=1) land(w); }
+    } else { w.bounce+=dt;                                             // a short hop after impact, then it sits in its slot
+      w.g.position.set(tp.x, tp.y + Math.abs(Math.sin(w.bounce*17))*Math.exp(-w.bounce*7)*.08, tp.z); }
+    w.g.rotation.z += ((w.place==='table' && !f ? -.13 : 0) - w.g.rotation.z)*Math.min(1,dt*(w.place==='table'?14:5));
+  }
+  // plumb bob
+  CRED.angle += (CRED.target-CRED.angle)*Math.min(1,dt*2.2);
+  CRED.rodG.rotation.z = CRED.angle + Math.sin(t*2.6)*.004;
+  // sheet unrolls
+  SHEET.open += (SHEET.target-SHEET.open)*Math.min(1,dt*2.2);
+  const o=Math.max(.001, SHEET.open); SHEET.mesh.scale.y=o;
+  SHEET.tex.repeat.set(1,o); SHEET.tex.offset.set(0,1-o);
+}
+function frame(){
+  const dt=Math.min(clock.getDelta(),.05), t=clock.elapsedTime;
+  // a skip takes several normal steps; a single scaled step would blow up the pan spring
+  for(let i=0;i<timeScale;i++) simulate(dt);
+  redLamp.userData.pulse=(redLamp.userData.pulse||0)*Math.max(0,1-dt*1.1);
+  redLamp.intensity=redLamp.userData.pulse*(4+Math.sin(t*5)*1.5);
+  renderer.render(scene,camera); projectLabels(); requestAnimationFrame(frame);
+}
+addEventListener('resize', ()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight); });
+updateHud(); frame();
+window.__dbg={ audio, state, W, PAN, CRED, SHEET, camera, placeCrit, reveal, finish, outcome, BEST, RACK, readOf,
+  setRead:(id, read)=>{ if(READ_BY[read] && CRIT[id]?.bias!==undefined) state.reads[id]=read; },
+  skip:()=>skipBtn.click(), get timeScale(){ return timeScale; },
+  project:(x,y,z)=>{ const v=new THREE.Vector3(x,y,z).project(camera); return [(v.x+1)/2*innerWidth,(1-v.y)/2*innerHeight]; } };
+</script>
+</body>
+</html>
