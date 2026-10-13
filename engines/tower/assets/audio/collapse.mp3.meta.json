@@ -1,0 +1,9 @@
+{
+  "name": "collapse",
+  "kind": "sfx",
+  "moment": "REVEAL wrong: everything resting on the pulled block comes down",
+  "prompt": "A tall stack of wooden blocks toppling over and clattering onto a hardwood table, blocks bouncing and rolling",
+  "duration": 2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:13.976Z"
+}

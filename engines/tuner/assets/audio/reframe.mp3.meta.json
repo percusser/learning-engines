@@ -1,0 +1,9 @@
+{
+  "name": "reframe",
+  "kind": "sfx",
+  "moment": "a reframe option is picked",
+  "prompt": "One firm click of a vintage bakelite push-button switch being pressed",
+  "duration": 0.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:49:38.919Z"
+}

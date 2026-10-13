@@ -1,0 +1,9 @@
+{
+  "name": "note-open",
+  "kind": "sfx",
+  "moment": "READ: a discovery note (peg) is opened and its card shows",
+  "prompt": "A small stiff paper index card picked up off a wooden table and flicked open, crisp card rustle, close up",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:59.630Z"
+}

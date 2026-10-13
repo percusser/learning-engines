@@ -1,0 +1,9 @@
+{
+  "prompt": "A close-up photograph of one continuous material surface, taken straight down, filling the whole square frame. The surface runs past all four edges of the frame and carries on across them, so copies laid side by side meet without a visible join. Flat even light with the same brightness at the top edge as the bottom, and the same at the left edge as the right: no gradient, no falloff, no bright center, no shadows, no vignette, no border, no lettering, no objects resting on it. Do not frame a single panel or a repeating grid of panels inside the picture. Polished black bakelite plastic surface with subtle dark brown and deep charcoal marbled swirls, glossy molded finish, faint mottled depth. Even tone overall, no scratches, no reflections of objects, no text.",
+  "model": "openai/gpt-image-2.5-sunburst",
+  "size": "1024x1024",
+  "quality": "high",
+  "cost": 0.053525,
+  "made": "2026-10-10",
+  "tool": "tools/art/gen-image-openrouter.mjs"
+}

@@ -1,0 +1,9 @@
+{
+  "prompt": "A close-up photograph of one continuous material surface, taken straight down, filling the whole square frame. The surface runs past all four edges of the frame and carries on across them, so copies laid side by side meet without a visible join. Flat even light with the same brightness at the top edge as the bottom, and the same at the left edge as the right: no gradient, no falloff, no bright center, no shadows, no vignette, no border, no lettering, no objects resting on it. Do not frame a single panel or a repeating grid of panels inside the picture. Seamless tileable texture, photographed flat and evenly lit, straight-on: industrial cast iron surface painted in deep steel blue enamel, slightly sandy cast texture, small chips in the paint showing dark gray iron underneath, faint grime in the low spots, a few thin rust freckles. Even coverage over the whole frame, no large features, no edges, no bolts, no text, no lettering, no logos, no people.",
+  "model": "openai/gpt-image-2.5-sunburst",
+  "size": "1024x1024",
+  "quality": "high",
+  "cost": 0.05373,
+  "made": "2026-10-10",
+  "tool": "tools/art/gen-image-openrouter.mjs"
+}

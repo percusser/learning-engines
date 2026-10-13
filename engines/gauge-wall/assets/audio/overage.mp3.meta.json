@@ -1,0 +1,9 @@
+{
+  "name": "overage",
+  "kind": "sfx",
+  "moment": "reveal, wrong: a month runs over the commitment and bills overage (red lamp pulses)",
+  "prompt": "An industrial panel warning buzzer sounding one harsh electric buzz, control room",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:58.766Z"
+}

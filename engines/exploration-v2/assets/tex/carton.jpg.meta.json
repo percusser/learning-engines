@@ -1,0 +1,9 @@
+{
+  "prompt": "Straight-on orthographic photograph of one face of a plain brown corrugated cardboard shipping carton, the face fills the entire square frame edge to edge, tan kraft color, one strip of clear brown packing tape running horizontally across the middle from the left edge to the right edge, slight dents, scuffs and soft creases near the edges, flat even light, completely unprinted, no labels, no lettering, no logos.",
+  "model": "openai/gpt-image-2.5-sunburst",
+  "size": "1024x1024",
+  "quality": "high",
+  "cost": 0.05313,
+  "made": "2026-10-10",
+  "tool": "tools/art/gen-image-openrouter.mjs"
+}

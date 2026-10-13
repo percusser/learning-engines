@@ -1,0 +1,9 @@
+{
+  "name": "hidden-lit",
+  "kind": "sfx",
+  "moment": "end of the tape: the competitor in the account lights up on the dial",
+  "prompt": "Gentle warm three-note rising chime with soft sparkle, calm reveal, clean and bright, no hum, no buzz, no drone",
+  "duration": 2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T16:10:52.734Z"
+}

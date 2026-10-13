@@ -1,0 +1,9 @@
+{
+  "name": "block-pick",
+  "kind": "sfx",
+  "moment": "READ: a claim block is chosen from the rack",
+  "prompt": "A solid hardwood block lifted off a wooden rack, one light hollow wood knock, close up",
+  "duration": 0.6,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:01.511Z"
+}

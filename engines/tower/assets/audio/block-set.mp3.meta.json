@@ -1,0 +1,9 @@
+{
+  "name": "block-set",
+  "kind": "sfx",
+  "moment": "COMMIT: a block lands on the tower (once per level)",
+  "prompt": "A heavy hardwood block set down firmly on top of another hardwood block, one solid dense wood clack",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:06.146Z"
+}

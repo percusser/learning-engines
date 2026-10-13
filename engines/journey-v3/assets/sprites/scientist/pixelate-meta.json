@@ -1,0 +1,9 @@
+{
+  "input": "/tmp/sprite-run/lab/sci-out/sheet-transparent.png",
+  "cell_size": 304,
+  "subject_height": 192,
+  "anchor_y": 0.9522225400457666,
+  "grid": 48,
+  "block": 4,
+  "palette": 24
+}

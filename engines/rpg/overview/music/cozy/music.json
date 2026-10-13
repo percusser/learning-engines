@@ -1,0 +1,28 @@
+{
+ "title": {
+  "file": "title.mp3",
+  "loopStart": 12.0,
+  "loopEnd": 85.18225
+ },
+ "explore": {
+  "file": "explore.mp3",
+  "loopStart": 0.5,
+  "loopEnd": 64.9795
+ },
+ "encounter": {
+  "file": "encounter.mp3",
+  "loopStart": 0.5,
+  "loopEnd": 64.97975
+ },
+ "pressure": {
+  "file": "pressure.mp3",
+  "loopStart": 0.5,
+  "loopEnd": 64.98075
+ },
+ "victory-sting": {
+  "file": "victory-sting.mp3"
+ },
+ "defeat-sting": {
+  "file": "defeat-sting.mp3"
+ }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "lamp-out",
+  "kind": "sfx",
+  "moment": "reveal: an outlet goes dark (detection lamp dies, board degrades)",
+  "prompt": "An industrial indicator lamp losing power: a relay dropping out with a hard click, then the electrical buzz of the bulb dying away",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:39.769Z"
+}

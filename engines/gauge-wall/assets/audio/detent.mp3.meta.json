@@ -1,0 +1,9 @@
+{
+  "name": "detent",
+  "kind": "sfx",
+  "moment": "commitment knob turned: one detent click per step (throttled)",
+  "prompt": "Single small precise click of a machined aluminium rotary knob turning one detent, close up, tiny and dry",
+  "duration": 0.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:47.412Z"
+}

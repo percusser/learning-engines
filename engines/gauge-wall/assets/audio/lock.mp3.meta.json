@@ -1,0 +1,9 @@
+{
+  "name": "lock",
+  "kind": "sfx",
+  "moment": "Lock it confirmed: the commitment is locked (the commit)",
+  "prompt": "A heavy steel vault lock turning: a key switch grinding round and a big bolt sliding home, ending in a deep metallic clunk that rings briefly",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:15.569Z"
+}

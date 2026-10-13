@@ -1,0 +1,9 @@
+{
+  "name": "counter",
+  "kind": "sfx",
+  "moment": "the frames-standing counter clicks up (a competitor frame was left in the room)",
+  "prompt": "A mechanical tally counter number wheel clicking over by one, heavy metal ratchet clack",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T03:49:55.385Z"
+}

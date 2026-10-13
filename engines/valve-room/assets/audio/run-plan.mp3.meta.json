@@ -1,0 +1,9 @@
+{
+  "name": "run-plan",
+  "kind": "sfx",
+  "moment": "Run their plan pressed (the round 1 commit): every wheel turns to the customer's stops",
+  "prompt": "Several heavy iron valve wheels cranked at once in a pump room, metal stems grinding and squealing, water in the pipes surging and knocking as the valves close",
+  "duration": 2.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:34.423Z"
+}

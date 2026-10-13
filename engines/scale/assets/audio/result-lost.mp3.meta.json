@@ -1,0 +1,9 @@
+{
+  "name": "result-lost",
+  "kind": "sfx",
+  "moment": "end: the beam drops their way or sits level (you do not take it)",
+  "prompt": "A heavy brass scale beam dropping hard onto its iron stop, a flat heavy clunk and a short rattle of chains",
+  "duration": 1.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:03.467Z"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "place",
+  "kind": "sfx",
+  "moment": "a weight is placed on your pan (the per-placement commit, final)",
+  "prompt": "A heavy brass weight set down into a brass scale pan, bright metal clank, the pan chains rattling and the beam creaking as it tilts",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:43.733Z"
+}

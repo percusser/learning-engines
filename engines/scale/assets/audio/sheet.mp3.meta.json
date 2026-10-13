@@ -1,0 +1,9 @@
+{
+  "name": "sheet",
+  "kind": "sfx",
+  "moment": "the bake-off sheet opens (reading what is known)",
+  "prompt": "A sheet of heavy parchment paper picked up from a desk and held, crisp rustle",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:41.623Z"
+}

@@ -1,0 +1,9 @@
+{
+  "prompt": "Straight-on orthographic photo of a completely blank antique pressure gauge dial plate, perfectly circular and centered, the circle touching all four edges of the square frame. Warm ivory cream enamel, softly aged: faint yellowed patina toward the rim, a few tiny dark specks, a very subtle hairline crack. Absolutely blank: no numbers, no tick marks, no scale, no needle, no text, no lettering, no logos, no bezel, no rim, no glass reflections. Outside the circle is pure black. No people.",
+  "model": "openai/gpt-image-2.5-sunburst",
+  "size": "1024x1024",
+  "quality": "high",
+  "cost": 0.053245,
+  "made": "2026-10-10",
+  "tool": "tools/art/gen-image-openrouter.mjs"
+}

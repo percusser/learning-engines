@@ -1,0 +1,9 @@
+{
+  "name": "detent",
+  "kind": "sfx",
+  "moment": "dragging a hand-wheel: one click each time it passes a stop (throttled)",
+  "prompt": "Single heavy metallic ratchet click of an iron valve wheel turning one notch, close up, short and dry",
+  "duration": 0.5,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:26.126Z"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "debrief",
+  "kind": "sfx",
+  "moment": "end: the meeting is over and the debrief slides in",
+  "prompt": "Several sheets of paper squared by tapping them on a wooden desk, then slid into a card folder",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:16.186Z"
+}

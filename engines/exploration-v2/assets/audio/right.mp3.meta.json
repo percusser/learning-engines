@@ -1,0 +1,9 @@
+{
+  "name": "right",
+  "kind": "sfx",
+  "moment": "REVEAL right: the call matches the site, the area is safe as handled",
+  "prompt": "A heavy steel padlock shackle clicked shut, then a key turned and pulled out of the lock with a short jingle of a key ring",
+  "duration": 1.2,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:04:40.528Z"
+}

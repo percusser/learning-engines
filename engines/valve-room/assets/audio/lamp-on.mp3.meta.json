@@ -1,0 +1,9 @@
+{
+  "name": "lamp-on",
+  "kind": "sfx",
+  "moment": "reveal: an outlet comes back (lamp restored, board full)",
+  "prompt": "An industrial relay pulling in with a firm clack and a bulb filament buzzing on steadily, electrical panel",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:41.690Z"
+}

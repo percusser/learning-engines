@@ -1,0 +1,9 @@
+{
+  "name": "spec-open",
+  "kind": "sfx",
+  "moment": "a lever's spec plate opens (reading what it meters)",
+  "prompt": "A thin aluminium spec plate flipped open on a hinge, light metallic click and slide, close up",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:40.387Z"
+}

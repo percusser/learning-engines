@@ -1,0 +1,9 @@
+{
+  "name": "take-them",
+  "kind": "sfx",
+  "moment": "reveal, wrong: a criterion lands on their pan (they take it)",
+  "prompt": "A heavy iron weight dropped onto a wooden board with a dull dead thud, no ring",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:57.521Z"
+}

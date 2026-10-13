@@ -1,0 +1,9 @@
+{
+  "name": "spec-open",
+  "kind": "sfx",
+  "moment": "an outlet spec opens (reading the evidence)",
+  "prompt": "A laminated card spec sheet pulled from a steel clip holder on a metal panel, crisp card slide and a small metallic clip snap",
+  "duration": 0.8,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:30.277Z"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "clipboard",
+  "kind": "sfx",
+  "moment": "the customer's clipboard opens (reading the plans)",
+  "prompt": "Paper pages flipped over on a clipboard, a crisp page turn and the metal clip snapping back",
+  "duration": 1,
+  "model": "eleven_text_to_sound_v2",
+  "date": "2026-09-24T04:03:42.751Z"
+}
